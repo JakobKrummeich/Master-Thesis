@@ -63,7 +63,7 @@ struct Particles {
 		return ParticleTypeBoundaryIndex + 1;
 	}
 	
-	int getNumberOfBPartciles() const {
+	int getNumberOfBParticles() const {
 		return TOTAL_NUMBER_OF_PARTICLES - getNumberOfAParticles();
 	}
 	
