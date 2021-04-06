@@ -5,7 +5,7 @@
 #include <fstream>
 
 static const int DIMENSION(2);
-static const int TOTAL_NUMBER_OF_PARTICLES;
+static const int TOTAL_NUMBER_OF_PARTICLES(1000);
 
 
 struct Particles {
