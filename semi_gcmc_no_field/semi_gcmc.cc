@@ -3,6 +3,7 @@
 #include <chrono>
 #include <random>
 #include <fstream>
+#include <vector>
 
 using namespace std;
 
@@ -14,7 +15,12 @@ static const double CUTOFF = 2.5;
 static const double CUTOFF_SQUARED = CUTOFF * CUTOFF;
 static const double INVERSE_CUTOFF = 1.0/CUTOFF;
 static const double BOX_LENGTH = 34.0;
+static const double INVERSE_BOX_LENGTH = 1.0/BOX_LENGTH;
 static const double MAXIMUM_DISPLACEMENT = 0.1;
+static const double MAX_VERLET_DIST = 1.3*CUTOFF;
+static const int NUMBER_OF_SUBDIVISIONS = static_cast<int>(BOX_LENGTH/MAX_VERLET_DIST);
+static const int MIN_NUMBER_OF_SUBDIVISIONS = 4;
+
 
 class realRNG{
 	private:
@@ -36,6 +42,9 @@ class realRNG{
 struct Particles {
 	double Positions [DIMENSION*TOTAL_NUMBER_OF_PARTICLES];
 	int ParticleTypeBoundaryIndex;
+	
+	vector<int> CellListHead;
+	int CellListIndices [TOTAL_NUMBER_OF_PARTICLES];
 	
 
 	void initialize(){
@@ -151,6 +160,39 @@ struct Particles {
 		}
 		return PotEnergyChange;
 	}
+	
+	void buildCellList(){
+		int NumberOfSubcells = NUMBER_OF_SUBDIVISIONS;
+		for (int i = 0; i < DIMENSION-1; i++){
+			NumberOfSubcells *= NUMBER_OF_SUBDIVISIONS;
+		}
+		CellListHead.clear();
+		CellListHead.resize(NumberOfSubcells,-1);
+		int CurrentCellIndex;
+		int IndexFactor;
+		for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
+			CurrentCellIndex = 0;
+			IndexFactor = 1;
+			for (int j = 0; j < DIMENSION; j++){
+				CurrentCellIndex += static_cast<int>(static_cast<double>(NUMBER_OF_SUBDIVISIONS)*Positions[DIMENSION*i+j]*INVERSE_BOX_LENGTH)*IndexFactor;
+				IndexFactor *= NUMBER_OF_SUBDIVISIONS;
+			}
+				CellListIndices[i] = CellListHead[CurrentCellIndex];
+				CellListHead[CurrentCellIndex] = i;
+		}
+	}
+	
+	void printCellList() const {
+		for (int i = 0; i < CellListHead.size(); i++)	{
+			cerr << "Cell " << i << ": Head: " << CellListHead[i] << endl;
+			int CurrentParticleIndex(CellListHead[i]);
+			while (CurrentParticleIndex >= 0){
+				cerr << CurrentParticleIndex << ',';
+				CurrentParticleIndex = CellListIndices[CurrentParticleIndex];
+			}
+			cerr << '\n';
+		}
+	}
 };
 
 ostream& operator<<(ostream& OStream, const Particles& State){
@@ -198,8 +240,8 @@ int main(){
 	S.P.initialize();
 	cerr << S.P;
 	cerr << "Number Of A particles: " << S.P.getNumberOfAParticles() << endl;
-	S.runCanonicalSteps(1000);
 	
-	cerr << S.P;
+	S.P.buildCellList();
+	S.P.printCellList();
 }
 
