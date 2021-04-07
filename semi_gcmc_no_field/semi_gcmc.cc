@@ -21,21 +21,45 @@ class realRNG{
 		mt19937 rng;
 		uniform_real_distribution<double> UnifRealDist;
 	public:
-		realRNG(double Minimum, double Maximum):
-			UnifRealDist(Minimum,Maximum){
+		realRNG():
+			UnifRealDist(0.0,1.0){
 			random_device rd;
 			seed_seq sd{rd(),rd()};
 			rng = mt19937(sd);
 		}
 		
-		double drawRandomNumber(){
-			return UnifRealDist(rng);
+		double drawRandomNumber(double Min, double Max){
+			return (Max - Min) * UnifRealDist(rng) + Min;
 		}
 };
 
 struct Particles {
 	double Positions [DIMENSION*TOTAL_NUMBER_OF_PARTICLES];
 	int ParticleTypeBoundaryIndex;
+	
+
+	void initialize(){
+		ParticleTypeBoundaryIndex = static_cast<int>(round(0.5*static_cast<double>(TOTAL_NUMBER_OF_PARTICLES)) - 1.0);
+
+		int NumberOfParticlesInARow(ceil(sqrt(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES))));
+		double Distance(BOX_LENGTH/static_cast<double>(NumberOfParticlesInARow));
+		double Currentx(Distance*0.5);
+		double Currenty(Distance*0.5);
+		int ParticlesInitialized(0);
+		while (ParticlesInitialized < TOTAL_NUMBER_OF_PARTICLES){
+			if ((Currentx > BOX_LENGTH) || (Currenty > BOX_LENGTH)){
+				cerr << Currentx << "," << Currenty << endl;
+			}
+			Positions[ParticlesInitialized*DIMENSION] = Currentx;
+			Positions[ParticlesInitialized*DIMENSION+1] = Currenty;
+			Currentx += Distance;
+			if (Currentx >= BOX_LENGTH){
+				Currentx = Distance*0.5;
+				Currenty += Distance;
+			}
+			ParticlesInitialized++;
+		}
+	}
 	
 	double getPosition(int ParticleIndex, int Coordinate) const {
 		return Positions[DIMENSION*ParticleIndex+Coordinate];
@@ -129,12 +153,53 @@ struct Particles {
 	}
 };
 
-struct SimulationManager{
+ostream& operator<<(ostream& OStream, const Particles& State){
+	OStream << "#ID     X       Y       ParticleTypeBoundaryIndex: " << State.ParticleTypeBoundaryIndex << endl;
+	for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
+		OStream << i << "\t";
+		OStream << State.getPosition(i,0) << "\t" << State.getPosition(i,1) << endl;
+	}
+	return OStream;
+}
+
+struct SimulationManager {
 	Particles P;
 	double Temperature;
+	double Beta;
+	realRNG RNG;
 	
+	void runCanonicalSteps(int NumberOfSteps) {
+		for (int i = 0; i < NumberOfSteps; i++){
+			for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
+				int RandomParticleID = static_cast<int>(RNG.drawRandomNumber(0.0,1.0)*static_cast<double>(TOTAL_NUMBER_OF_PARTICLES));
+				double Deltas [DIMENSION] = {RNG.drawRandomNumber(-MAXIMUM_DISPLACEMENT, MAXIMUM_DISPLACEMENT), RNG.drawRandomNumber(-MAXIMUM_DISPLACEMENT, MAXIMUM_DISPLACEMENT)};
+				double PotentialEnergyChange = P.computeChangeInPotentialEnergyByMoving(RandomParticleID, Deltas[0], Deltas[1]);
+				double AcceptanceProbability = exp(-PotentialEnergyChange*Beta);
+				if (AcceptanceProbability >= 1.0 || (RNG.drawRandomNumber(0.0, 1.0) < AcceptanceProbability)){
+					P.Positions[DIMENSION * RandomParticleID] += Deltas[0];
+					P.Positions[DIMENSION * RandomParticleID + 1] += Deltas[1];
+					for (int k = 0; k < DIMENSION; k++){
+						if (P.Positions[DIMENSION * RandomParticleID + k] < 0.0){
+							P.Positions[DIMENSION * RandomParticleID + k] += BOX_LENGTH;
+						}
+						else if (P.Positions[DIMENSION * RandomParticleID + k] > BOX_LENGTH){
+							P.Positions[DIMENSION * RandomParticleID + k] -= BOX_LENGTH;
+						}
+					}
+				}
+			}
+		}
+	}
+
 };
 
 int main(){
+	SimulationManager S;
+	S.P.initialize();
+	cerr << S.P;
+	cerr << "Number Of A particles: " << S.P.getNumberOfAParticles() << endl;
+	S.runCanonicalSteps(1000);
+	
+	cerr << S.P;
 }
 
