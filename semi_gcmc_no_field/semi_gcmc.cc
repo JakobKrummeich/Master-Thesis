@@ -4,17 +4,20 @@
 #include <random>
 #include <fstream>
 #include <vector>
+#include <array>
+#include <iomanip>
 
 using namespace std;
 
 static const int DIMENSION = 2;
-static const int TOTAL_NUMBER_OF_PARTICLES = 1000;
+static const int TOTAL_NUMBER_OF_PARTICLES = 33;
 static const double AA_INTERACTION_STRENGTH = 1.0;
 static const double AB_INTERACTION_STRENGTH = 0.5;
 static const double CUTOFF = 2.5;
 static const double CUTOFF_SQUARED = CUTOFF * CUTOFF;
 static const double INVERSE_CUTOFF = 1.0/CUTOFF;
-static const double BOX_LENGTH = 34.0;
+static const double BOX_LENGTH = 10.0;
+static const double BOX_LENGTH_SQUARED = BOX_LENGTH * BOX_LENGTH;
 static const double INVERSE_BOX_LENGTH = 1.0/BOX_LENGTH;
 static const double MAXIMUM_DISPLACEMENT = 0.1;
 static const double MAX_VERLET_DIST = 1.3*CUTOFF;
@@ -45,28 +48,29 @@ struct Particles {
 	
 	vector<int> CellListHead;
 	int CellListIndices [TOTAL_NUMBER_OF_PARTICLES];
-	
+	int VerletListHead [2*TOTAL_NUMBER_OF_PARTICLES];
+	vector<int> VerletIndicesOfNeighbors;
 
 	void initialize(){
 		ParticleTypeBoundaryIndex = static_cast<int>(round(0.5*static_cast<double>(TOTAL_NUMBER_OF_PARTICLES)) - 1.0);
 
-		int NumberOfParticlesInARow(ceil(sqrt(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES))));
-		double Distance(BOX_LENGTH/static_cast<double>(NumberOfParticlesInARow));
-		double Currentx(Distance*0.5);
-		double Currenty(Distance*0.5);
-		int ParticlesInitialized(0);
-		while (ParticlesInitialized < TOTAL_NUMBER_OF_PARTICLES){
-			if ((Currentx > BOX_LENGTH) || (Currenty > BOX_LENGTH)){
-				cerr << Currentx << "," << Currenty << endl;
+		int NumberOfParticlesInARow(ceil(pow(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES),1.0/static_cast<double>(DIMENSION))));
+		double Distance(1.0/static_cast<double>(NumberOfParticlesInARow));
+		cerr << "NumberOfParticlesInRow: " << NumberOfParticlesInARow << endl;
+		cerr << "Distance: " << Distance*BOX_LENGTH << endl;
+		array<double,DIMENSION> CurrentPosition;
+		CurrentPosition.fill(Distance*0.5);
+		for (int ParticlesInitialized = 0; ParticlesInitialized < TOTAL_NUMBER_OF_PARTICLES; ParticlesInitialized++){
+			for (int i = 0; i < DIMENSION; i++){
+				Positions[ParticlesInitialized*DIMENSION + i] = CurrentPosition[i];
 			}
-			Positions[ParticlesInitialized*DIMENSION] = Currentx;
-			Positions[ParticlesInitialized*DIMENSION+1] = Currenty;
-			Currentx += Distance;
-			if (Currentx >= BOX_LENGTH){
-				Currentx = Distance*0.5;
-				Currenty += Distance;
+			CurrentPosition[0] += Distance;
+			for (int i = 1; i < DIMENSION; i++){
+				if (CurrentPosition[i-1] >= 1.0){
+					CurrentPosition[i-1] = Distance*0.5;
+					CurrentPosition[i] += Distance;
+				}
 			}
-			ParticlesInitialized++;
 		}
 	}
 	
@@ -75,19 +79,21 @@ struct Particles {
 	}
 	
 	void switchParticleType(int ParticleIndex) {
-		double Temp [DIMENSION] = {Positions[DIMENSION*ParticleIndex], Positions[DIMENSION*ParticleIndex + 1]};
+		double Temp [DIMENSION];
 		if (ParticleIndex <= ParticleTypeBoundaryIndex){
-			Positions[ParticleIndex*DIMENSION] = Positions[ParticleTypeBoundaryIndex*DIMENSION];
-			Positions[ParticleIndex*DIMENSION + 1] = Positions[ParticleTypeBoundaryIndex*DIMENSION + 1];
-			Positions[ParticleTypeBoundaryIndex*DIMENSION] = Temp[0];
-			Positions[ParticleTypeBoundaryIndex*DIMENSION + 1] = Temp[1];
+			for (int i = 0; i < DIMENSION; i++){
+				Temp[i] = Positions[DIMENSION*ParticleIndex + i];
+				Positions[ParticleIndex*DIMENSION + i] = Positions[ParticleTypeBoundaryIndex*DIMENSION + i];
+				Positions[ParticleTypeBoundaryIndex*DIMENSION + i] = Temp[i];
+			}
 			ParticleTypeBoundaryIndex--;
 		}
 		else {
-			Positions[ParticleIndex*DIMENSION] = Positions[(ParticleTypeBoundaryIndex + 1)*DIMENSION];
-			Positions[ParticleIndex*DIMENSION + 1] = Positions[(ParticleTypeBoundaryIndex + 1)*DIMENSION + 1];
-			Positions[(ParticleTypeBoundaryIndex + 1)*DIMENSION] = Temp[0];
-			Positions[(ParticleTypeBoundaryIndex + 1)*DIMENSION + 1] = Temp[1];
+			for (int i = 0; i < DIMENSION; i++){
+				Temp[i] = Positions[DIMENSION*ParticleIndex + i];
+				Positions[ParticleIndex*DIMENSION + i] = Positions[(ParticleTypeBoundaryIndex + 1)*DIMENSION + i];
+				Positions[(ParticleTypeBoundaryIndex + 1)*DIMENSION + i] = Temp[i];
+			}
 			ParticleTypeBoundaryIndex++;
 		}
 	}
@@ -100,38 +106,40 @@ struct Particles {
 		return TOTAL_NUMBER_OF_PARTICLES - getNumberOfAParticles();
 	}
 	
-	static double computePairwiseParticlePotentialEnergy(double Distance) {
-		double InverseDistance(1.0/Distance);
-		return (pow(InverseDistance, 12.0) - pow(InverseDistance, 6.0) - pow(INVERSE_CUTOFF, 12.0) + pow(INVERSE_CUTOFF, 6.0) - (Distance - CUTOFF) * ((-12.0) * pow(InverseDistance, 13.0) + 6.0 * pow(InverseDistance, 7.0)));
+	static double computePairwiseParticlePotentialEnergy(double DimensionlessDistance) {
+		double InverseDistance(1.0/(DimensionlessDistance*BOX_LENGTH));
+		return (pow(InverseDistance, 12.0) - pow(InverseDistance, 6.0) - pow(INVERSE_CUTOFF, 12.0) + pow(INVERSE_CUTOFF, 6.0) - (DimensionlessDistance * BOX_LENGTH - CUTOFF) * ((-12.0) * pow(INVERSE_CUTOFF, 13.0) + 6.0 * pow(INVERSE_CUTOFF, 7.0)));
 	}
 	
-	double computePairwiseParticlePotentialEnergy(int ParticleIndex, double xPos, double yPos) const {
-		double CoordinateDifferences [DIMENSION] = {Positions[DIMENSION*ParticleIndex] - xPos, Positions[DIMENSION*ParticleIndex + 1] - yPos};
+	double computePairwiseParticlePotentialEnergy(const double* Position0, const double* Position1) const {
+		double DistanceSquared = 0.0;
 		for (int i = 0; i < DIMENSION; i++){
-			if (CoordinateDifferences[i] > 0.5 * BOX_LENGTH){
-				CoordinateDifferences[i] -= BOX_LENGTH;
+			double CoordinateDifference = *(Position0 + i) - *(Position1 + i);
+			if (CoordinateDifference > 0.5){
+				CoordinateDifference -= 1.0;
 			}
-			else if (CoordinateDifferences[i] <= - 0.5 * BOX_LENGTH ){
-				CoordinateDifferences[i] += BOX_LENGTH;
+			else if (CoordinateDifference <= -0.5){
+				CoordinateDifference += 1.0;
 			}
+			DistanceSquared += CoordinateDifference*CoordinateDifference;
 		}
-		double DistanceSquared  = CoordinateDifferences[0] * CoordinateDifferences[0] + CoordinateDifferences[1] * CoordinateDifferences[1];
-		if (DistanceSquared >= CUTOFF_SQUARED){
+		if (DistanceSquared*BOX_LENGTH_SQUARED >= CUTOFF_SQUARED){
 			return 0.0;
 		}
 		return computePairwiseParticlePotentialEnergy(sqrt(DistanceSquared));
 	}
 	
-	double computeChangeInPotentialEnergyByMoving(int ParticleIndex, double Deltax, double Deltay) const {
+	double computeChangeInPotentialEnergyByMoving(int ParticleIndex, const double* Delta) const {
 		double PotEnergyBefore = 0.0;
 		double PotEnergyAfter = 0.0;
-		double UpdatedCoordinates [DIMENSION] = {Positions[DIMENSION*ParticleIndex] + Deltax, Positions[DIMENSION*ParticleIndex + 1] + Deltay};
+		double UpdatedCoordinates [DIMENSION];
 		for (int i = 0; i < DIMENSION; i++){
+			UpdatedCoordinates[i] = Positions[DIMENSION*ParticleIndex + i] + *(Delta + i);
 			if (UpdatedCoordinates[i] < 0.0){
-				UpdatedCoordinates[i] += BOX_LENGTH;
+				UpdatedCoordinates[i] += 1.0;
 			}
-			else if (UpdatedCoordinates[i] > BOX_LENGTH){
-				UpdatedCoordinates[i] -= BOX_LENGTH;
+			else if (UpdatedCoordinates[i] > 1.0){
+				UpdatedCoordinates[i] -= 1.0;
 			}
 		}
 		for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
@@ -140,8 +148,8 @@ struct Particles {
 				if (((i <= ParticleTypeBoundaryIndex) && (ParticleIndex <= ParticleTypeBoundaryIndex)) || ((i > ParticleTypeBoundaryIndex) && (ParticleIndex > ParticleTypeBoundaryIndex)) ) {
 					InteractionStrength = AA_INTERACTION_STRENGTH;
 				}
-				PotEnergyBefore += InteractionStrength * computePairwiseParticlePotentialEnergy(i, Positions[DIMENSION*ParticleIndex], Positions[DIMENSION*ParticleIndex + 1]);
-				PotEnergyAfter += InteractionStrength * computePairwiseParticlePotentialEnergy(i, UpdatedCoordinates[0], UpdatedCoordinates[1]);
+				PotEnergyBefore += InteractionStrength * computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*i], &Positions[DIMENSION*ParticleIndex]);
+				PotEnergyAfter += InteractionStrength * computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*i], UpdatedCoordinates);
 			}
 		}
 		return PotEnergyAfter - PotEnergyBefore;
@@ -149,13 +157,13 @@ struct Particles {
 	
 	double computeChangeInPotentialEnergyBySwitching(int ParticleIndex) const {
 		double PotEnergyChange = 0.0;
-		for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
-			if (i != ParticleIndex){
+		for (int OtherParticleIndex = 0; OtherParticleIndex < TOTAL_NUMBER_OF_PARTICLES; OtherParticleIndex++){
+			if (OtherParticleIndex != ParticleIndex){
 				double PrefactorDifference = AA_INTERACTION_STRENGTH - AB_INTERACTION_STRENGTH;
-				if ((i <= ParticleTypeBoundaryIndex && ParticleIndex > ParticleIndex) || (i > ParticleTypeBoundaryIndex && ParticleIndex <= ParticleIndex)){
+				if ((OtherParticleIndex <= ParticleTypeBoundaryIndex && ParticleIndex > ParticleIndex) || (OtherParticleIndex > ParticleTypeBoundaryIndex && ParticleIndex <= ParticleIndex)){
 					PrefactorDifference *= -1.0;
 				}
-				PotEnergyChange += PrefactorDifference * computePairwiseParticlePotentialEnergy(i, Positions[DIMENSION*ParticleIndex], Positions[DIMENSION*ParticleIndex + 1]);
+				PotEnergyChange += PrefactorDifference * computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*OtherParticleIndex], &Positions[DIMENSION*ParticleIndex]);
 			}
 		}
 		return PotEnergyChange;
@@ -174,7 +182,7 @@ struct Particles {
 			CurrentCellIndex = 0;
 			IndexFactor = 1;
 			for (int j = 0; j < DIMENSION; j++){
-				CurrentCellIndex += static_cast<int>(static_cast<double>(NUMBER_OF_SUBDIVISIONS)*Positions[DIMENSION*i+j]*INVERSE_BOX_LENGTH)*IndexFactor;
+				CurrentCellIndex += static_cast<int>(static_cast<double>(NUMBER_OF_SUBDIVISIONS)*Positions[DIMENSION*i+j])*IndexFactor;
 				IndexFactor *= NUMBER_OF_SUBDIVISIONS;
 			}
 				CellListIndices[i] = CellListHead[CurrentCellIndex];
@@ -193,13 +201,21 @@ struct Particles {
 			cerr << '\n';
 		}
 	}
+	
+	void buildVerletList() {
+		buildCellList();
+		VerletIndicesOfNeighbors.clear();
+		VerletIndicesOfNeighbors.reserve(30*TOTAL_NUMBER_OF_PARTICLES);
+		
+	}
+	
 };
 
 ostream& operator<<(ostream& OStream, const Particles& State){
-	OStream << "#ID     X       Y       ParticleTypeBoundaryIndex: " << State.ParticleTypeBoundaryIndex << endl;
+	OStream << "#ID\tX       Y       ParticleTypeBoundaryIndex: " << State.ParticleTypeBoundaryIndex << endl;
 	for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
 		OStream << i << "\t";
-		OStream << State.getPosition(i,0) << "\t" << State.getPosition(i,1) << endl;
+		OStream << fixed << setprecision(5) << State.getPosition(i,0) << "\t" << State.getPosition(i,1) << endl;
 	}
 	return OStream;
 }
@@ -214,18 +230,20 @@ struct SimulationManager {
 		for (int i = 0; i < NumberOfSteps; i++){
 			for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
 				int RandomParticleID = static_cast<int>(RNG.drawRandomNumber(0.0,1.0)*static_cast<double>(TOTAL_NUMBER_OF_PARTICLES));
-				double Deltas [DIMENSION] = {RNG.drawRandomNumber(-MAXIMUM_DISPLACEMENT, MAXIMUM_DISPLACEMENT), RNG.drawRandomNumber(-MAXIMUM_DISPLACEMENT, MAXIMUM_DISPLACEMENT)};
-				double PotentialEnergyChange = P.computeChangeInPotentialEnergyByMoving(RandomParticleID, Deltas[0], Deltas[1]);
+				double Deltas [DIMENSION];
+				for (int i = 0; i < DIMENSION; i++){
+				 Deltas[i] = RNG.drawRandomNumber(-MAXIMUM_DISPLACEMENT, MAXIMUM_DISPLACEMENT)*INVERSE_BOX_LENGTH;
+				}
+				double PotentialEnergyChange = P.computeChangeInPotentialEnergyByMoving(RandomParticleID, Deltas);
 				double AcceptanceProbability = exp(-PotentialEnergyChange*Beta);
 				if (AcceptanceProbability >= 1.0 || (RNG.drawRandomNumber(0.0, 1.0) < AcceptanceProbability)){
-					P.Positions[DIMENSION * RandomParticleID] += Deltas[0];
-					P.Positions[DIMENSION * RandomParticleID + 1] += Deltas[1];
 					for (int k = 0; k < DIMENSION; k++){
+						P.Positions[DIMENSION * RandomParticleID + k] += Deltas[k];
 						if (P.Positions[DIMENSION * RandomParticleID + k] < 0.0){
-							P.Positions[DIMENSION * RandomParticleID + k] += BOX_LENGTH;
+							P.Positions[DIMENSION * RandomParticleID + k] += 1.0;
 						}
-						else if (P.Positions[DIMENSION * RandomParticleID + k] > BOX_LENGTH){
-							P.Positions[DIMENSION * RandomParticleID + k] -= BOX_LENGTH;
+						else if (P.Positions[DIMENSION * RandomParticleID + k] > 1.0){
+							P.Positions[DIMENSION * RandomParticleID + k] -= 1.0;
 						}
 					}
 				}
