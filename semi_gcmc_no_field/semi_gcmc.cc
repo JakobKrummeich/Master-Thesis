@@ -16,11 +16,12 @@ static const double AB_INTERACTION_STRENGTH = 0.5;
 static const double CUTOFF = 2.5;
 static const double CUTOFF_SQUARED = CUTOFF * CUTOFF;
 static const double INVERSE_CUTOFF = 1.0/CUTOFF;
-static const double BOX_LENGTH = 10.0;
+static const double BOX_LENGTH = 13.0;
 static const double BOX_LENGTH_SQUARED = BOX_LENGTH * BOX_LENGTH;
 static const double INVERSE_BOX_LENGTH = 1.0/BOX_LENGTH;
 static const double MAXIMUM_DISPLACEMENT = 0.1;
 static const double MAX_VERLET_DIST = 1.3*CUTOFF;
+static const double MAX_VERLET_DIST_SQUARED = MAX_VERLET_DIST * MAX_VERLET_DIST;
 static const int NUMBER_OF_SUBDIVISIONS = static_cast<int>(BOX_LENGTH/MAX_VERLET_DIST);
 static const int MIN_NUMBER_OF_SUBDIVISIONS = 4;
 
@@ -79,22 +80,20 @@ struct Particles {
 	}
 	
 	void switchParticleType(int ParticleIndex) {
-		double Temp [DIMENSION];
+		int SwapParticleIndex;
 		if (ParticleIndex <= ParticleTypeBoundaryIndex){
-			for (int i = 0; i < DIMENSION; i++){
-				Temp[i] = Positions[DIMENSION*ParticleIndex + i];
-				Positions[ParticleIndex*DIMENSION + i] = Positions[ParticleTypeBoundaryIndex*DIMENSION + i];
-				Positions[ParticleTypeBoundaryIndex*DIMENSION + i] = Temp[i];
-			}
+			SwapParticleIndex = ParticleTypeBoundaryIndex;
 			ParticleTypeBoundaryIndex--;
 		}
 		else {
-			for (int i = 0; i < DIMENSION; i++){
-				Temp[i] = Positions[DIMENSION*ParticleIndex + i];
-				Positions[ParticleIndex*DIMENSION + i] = Positions[(ParticleTypeBoundaryIndex + 1)*DIMENSION + i];
-				Positions[(ParticleTypeBoundaryIndex + 1)*DIMENSION + i] = Temp[i];
-			}
+			SwapParticleIndex = ParticleTypeBoundaryIndex + 1;
 			ParticleTypeBoundaryIndex++;
+		}
+		double Temp [DIMENSION];
+		for (int i = 0; i < DIMENSION; i++){
+			Temp[i] = Positions[DIMENSION*ParticleIndex + i];
+			Positions[ParticleIndex*DIMENSION + i] = Positions[SwapParticleIndex*DIMENSION + i];
+			Positions[SwapParticleIndex*DIMENSION + i] = Temp[i];
 		}
 	}
 	
@@ -130,8 +129,7 @@ struct Particles {
 	}
 	
 	double computeChangeInPotentialEnergyByMoving(int ParticleIndex, const double* Delta) const {
-		double PotEnergyBefore = 0.0;
-		double PotEnergyAfter = 0.0;
+		double PotEnergyDiff = 0.0;
 		double UpdatedCoordinates [DIMENSION];
 		for (int i = 0; i < DIMENSION; i++){
 			UpdatedCoordinates[i] = Positions[DIMENSION*ParticleIndex + i] + *(Delta + i);
@@ -142,17 +140,16 @@ struct Particles {
 				UpdatedCoordinates[i] -= 1.0;
 			}
 		}
-		for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
-			if (i != ParticleIndex){
+		for (int OtherParticleIndex = 0; OtherParticleIndex < TOTAL_NUMBER_OF_PARTICLES; OtherParticleIndex++){
+			if (OtherParticleIndex != ParticleIndex){
 				double InteractionStrength = AB_INTERACTION_STRENGTH;
-				if (((i <= ParticleTypeBoundaryIndex) && (ParticleIndex <= ParticleTypeBoundaryIndex)) || ((i > ParticleTypeBoundaryIndex) && (ParticleIndex > ParticleTypeBoundaryIndex)) ) {
+				if (((OtherParticleIndex <= ParticleTypeBoundaryIndex) && (ParticleIndex <= ParticleTypeBoundaryIndex)) || ((OtherParticleIndex > ParticleTypeBoundaryIndex) && (ParticleIndex > ParticleTypeBoundaryIndex)) ) {
 					InteractionStrength = AA_INTERACTION_STRENGTH;
 				}
-				PotEnergyBefore += InteractionStrength * computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*i], &Positions[DIMENSION*ParticleIndex]);
-				PotEnergyAfter += InteractionStrength * computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*i], UpdatedCoordinates);
+				PotEnergyDiff += InteractionStrength * (computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*OtherParticleIndex], &Positions[DIMENSION*ParticleIndex]) - computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*OtherParticleIndex], UpdatedCoordinates));
 			}
 		}
-		return PotEnergyAfter - PotEnergyBefore;
+		return PotEnergyDiff;
 	}
 	
 	double computeChangeInPotentialEnergyBySwitching(int ParticleIndex) const {
@@ -170,7 +167,7 @@ struct Particles {
 	}
 	
 	void buildCellList(){
-		int NumberOfSubcells = NUMBER_OF_SUBDIVISIONS;
+		int NumberOfSubcells = NUMBER_OF_SUBDIVISIONS > 3 ? NUMBER_OF_SUBDIVISIONS : 1;
 		for (int i = 0; i < DIMENSION-1; i++){
 			NumberOfSubcells *= NUMBER_OF_SUBDIVISIONS;
 		}
@@ -178,15 +175,15 @@ struct Particles {
 		CellListHead.resize(NumberOfSubcells,-1);
 		int CurrentCellIndex;
 		int IndexFactor;
-		for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
+		for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
 			CurrentCellIndex = 0;
 			IndexFactor = 1;
 			for (int j = 0; j < DIMENSION; j++){
-				CurrentCellIndex += static_cast<int>(static_cast<double>(NUMBER_OF_SUBDIVISIONS)*Positions[DIMENSION*i+j])*IndexFactor;
+				CurrentCellIndex += static_cast<int>(static_cast<double>(NUMBER_OF_SUBDIVISIONS)*Positions[DIMENSION*ParticleIndex+j])*IndexFactor;
 				IndexFactor *= NUMBER_OF_SUBDIVISIONS;
 			}
-				CellListIndices[i] = CellListHead[CurrentCellIndex];
-				CellListHead[CurrentCellIndex] = i;
+				CellListIndices[ParticleIndex] = CellListHead[CurrentCellIndex];
+				CellListHead[CurrentCellIndex] = ParticleIndex;
 		}
 	}
 	
@@ -198,7 +195,7 @@ struct Particles {
 				cerr << CurrentParticleIndex << ',';
 				CurrentParticleIndex = CellListIndices[CurrentParticleIndex];
 			}
-			cerr << '\n';
+			cerr << endl;
 		}
 	}
 	
@@ -206,7 +203,91 @@ struct Particles {
 		buildCellList();
 		VerletIndicesOfNeighbors.clear();
 		VerletIndicesOfNeighbors.reserve(30*TOTAL_NUMBER_OF_PARTICLES);
+		int CurrentIndexInVerletIndices = 0;
 		
+		int Indices [DIMENSION];
+		for (int i = 0; i < DIMENSION; i++){
+			Indices[i] = 0;
+		}
+		while (Indices[DIMENSION - 1] < NUMBER_OF_SUBDIVISIONS){
+			int Cell = 0;
+			int IndexFactor = 1;
+			int IndicesOffsets [DIMENSION];
+			for (int i = 0; i < DIMENSION; i++){
+				Cell += Indices[i]*IndexFactor;
+				IndexFactor *= NUMBER_OF_SUBDIVISIONS;
+				IndicesOffsets[i] = -1;
+			}
+			int CurrentParticleIndex = CellListHead[Cell];
+			while (CurrentParticleIndex >= 0){
+				int NumberOfNeighbors = 0;
+				VerletListHead[2*CurrentParticleIndex] = CurrentIndexInVerletIndices;
+				while (IndicesOffsets[DIMENSION - 1] < 2){
+					int NeighborCell = 0;
+					int IndexFactor = 1;
+					for (int i = 0; i < DIMENSION; i++){
+						int OtherCellIndex = Indices[i]+IndicesOffsets[i];
+						if (OtherCellIndex < 0){
+							OtherCellIndex += NUMBER_OF_SUBDIVISIONS;
+						}
+						else if (OtherCellIndex >= NUMBER_OF_SUBDIVISIONS){
+							OtherCellIndex -= NUMBER_OF_SUBDIVISIONS;
+						}
+						NeighborCell += IndexFactor*OtherCellIndex;
+						IndexFactor *= NUMBER_OF_SUBDIVISIONS;
+					}
+					int OtherParticleIndex = CellListHead[NeighborCell];
+					while (OtherParticleIndex >= 0){
+						if (OtherParticleIndex != CurrentParticleIndex){
+							double DistanceSquared = 0.0;
+							for (int k = 0; k < DIMENSION; k++){
+								double CoordinateDifference = Positions[DIMENSION * CurrentParticleIndex + k] - Positions[DIMENSION * OtherParticleIndex + k];
+								if (CoordinateDifference > 0.5){
+									CoordinateDifference -= 1.0;
+								}
+								else if (CoordinateDifference <= -0.5){
+									CoordinateDifference += 1.0;
+								}
+								DistanceSquared += CoordinateDifference * CoordinateDifference;
+							}
+							if (DistanceSquared * BOX_LENGTH * BOX_LENGTH <= MAX_VERLET_DIST_SQUARED){
+								NumberOfNeighbors++;
+								VerletIndicesOfNeighbors.push_back(OtherParticleIndex);
+								CurrentIndexInVerletIndices++;
+							}
+						}
+						OtherParticleIndex = CellListIndices[OtherParticleIndex];
+					}
+					IndicesOffsets[0]++;
+					for (int i = 0; i < DIMENSION - 1; i++){
+						if (IndicesOffsets[i] >= 2){
+							IndicesOffsets[i] = -1;
+							IndicesOffsets[i+1]++;
+						}
+					}
+				}
+				VerletListHead[2*CurrentParticleIndex+1] = NumberOfNeighbors;
+				CurrentParticleIndex = CellListIndices[CurrentParticleIndex];
+			}
+			Indices[0]++;
+			for (int i = 0; i < DIMENSION - 1; i++){
+				if (Indices[i] >= NUMBER_OF_SUBDIVISIONS){
+					Indices[i] = 0;
+					Indices[i+1]++;
+				}
+			}
+		}
+	}
+
+	void printVerletList() const{
+		for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
+			cerr << VerletListHead[2*i] << "," << VerletListHead[2*i+1] << '|';
+		}
+		cerr << endl;
+		for (int i = 0; i < VerletIndicesOfNeighbors.size(); i++){
+			cerr << VerletIndicesOfNeighbors[i] << ',';
+		}
+			cerr << endl;
 	}
 	
 };
@@ -261,5 +342,7 @@ int main(){
 	
 	S.P.buildCellList();
 	S.P.printCellList();
+	S.P.buildVerletList();
+	S.P.printVerletList();
 }
 
