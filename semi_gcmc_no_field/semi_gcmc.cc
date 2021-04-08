@@ -9,13 +9,14 @@
 using namespace std;
 
 static const int DIMENSION = 2;
-static const int TOTAL_NUMBER_OF_PARTICLES = 33;
+static const int TOTAL_NUMBER_OF_PARTICLES = 1000;
 static const double AA_INTERACTION_STRENGTH = 1.0;
 static const double AB_INTERACTION_STRENGTH = 0.5;
 static const double CUTOFF = 2.5;
 static const double CUTOFF_SQUARED = CUTOFF * CUTOFF;
 static const double INVERSE_CUTOFF = 1.0/CUTOFF;
-static const double BOX_LENGTH = 13.0;
+static const double DENSITY = 0.9;
+static const double BOX_LENGTH = sqrt(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES) / DENSITY);
 static const double BOX_LENGTH_SQUARED = BOX_LENGTH * BOX_LENGTH;
 static const double INVERSE_BOX_LENGTH = 1.0/BOX_LENGTH;
 static const double MAXIMUM_DISPLACEMENT = 0.1;
@@ -62,6 +63,8 @@ struct Particles {
 	int MostTraveledParticleIndex;
 
 	public:
+	
+	int NumberOfVerletListBuilds;
 
 	void initialize(){
 		ParticleTypeBoundaryIndex = static_cast<int>(round(0.5*static_cast<double>(TOTAL_NUMBER_OF_PARTICLES)) - 1.0);
@@ -90,13 +93,14 @@ struct Particles {
 		for (int i = 0; i < 2; i++){
 			MostTraveledDistances[i] = 0.0;
 		}
+		NumberOfVerletListBuilds = 0;
 	}
 	
 	double getPosition(int ParticleIndex, int Coordinate) const {
 		return Positions[DIMENSION*ParticleIndex+Coordinate];
 	}
 	
-	double getParticleTypeBoundaryIndex() const {
+	int getParticleTypeBoundaryIndex() const {
 		return ParticleTypeBoundaryIndex;
 	}
 	
@@ -304,6 +308,7 @@ struct Particles {
 				}
 			}
 		}
+		NumberOfVerletListBuilds++;
 	}
 
 	void printVerletList() const{
@@ -358,7 +363,7 @@ struct Particles {
 };
 
 ostream& operator<<(ostream& OStream, const Particles& State){
-	OStream << "#ID\tX       Y       ParticleTypeBoundaryIndex: " << State.getParticleTypeBoundaryIndex() << endl;
+	OStream << "#ID\tX       Y       ParticleTypeBoundaryIndex: " << State.getParticleTypeBoundaryIndex() << "| #Rebuilds: " << State.NumberOfVerletListBuilds << endl;
 	for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
 		OStream << i << "\t";
 		OStream << fixed << setprecision(5) << State.getPosition(i,0) << "\t" << State.getPosition(i,1) << endl;
@@ -399,11 +404,12 @@ struct SimulationManager {
 
 int main(){
 	SimulationManager S;
-	S.P.initialize();
+	S.initialize(1.0, 1.0);
 	cerr << S.P;
 	cerr << "Number Of A particles: " << S.P.getNumberOfAParticles() << endl;
 
-	S.P.buildVerletList();
-	S.P.printVerletList();
+	S.runDisplacementSteps(1000);
+	
+	cerr << S.P;
 }
 
