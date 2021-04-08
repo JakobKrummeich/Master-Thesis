@@ -4,7 +4,6 @@
 #include <random>
 #include <fstream>
 #include <vector>
-#include <array>
 #include <iomanip>
 
 using namespace std;
@@ -22,6 +21,7 @@ static const double INVERSE_BOX_LENGTH = 1.0/BOX_LENGTH;
 static const double MAXIMUM_DISPLACEMENT = 0.1;
 static const double MAX_VERLET_DIST = 1.3*CUTOFF;
 static const double MAX_VERLET_DIST_SQUARED = MAX_VERLET_DIST * MAX_VERLET_DIST;
+static const double SKINDISTANCE = MAX_VERLET_DIST - CUTOFF;
 static const int NUMBER_OF_SUBDIVISIONS = static_cast<int>(BOX_LENGTH/MAX_VERLET_DIST);
 static const int MIN_NUMBER_OF_SUBDIVISIONS = 4;
 
@@ -38,12 +38,17 @@ class realRNG{
 			rng = mt19937(sd);
 		}
 		
+		double drawRandomNumber(){
+			return UnifRealDist(rng);
+		}
+		
 		double drawRandomNumber(double Min, double Max){
 			return (Max - Min) * UnifRealDist(rng) + Min;
 		}
 };
 
 struct Particles {
+	private:
 	double Positions [DIMENSION*TOTAL_NUMBER_OF_PARTICLES];
 	int ParticleTypeBoundaryIndex;
 	
@@ -52,6 +57,12 @@ struct Particles {
 	int VerletListHead [2*TOTAL_NUMBER_OF_PARTICLES];
 	vector<int> VerletIndicesOfNeighbors;
 
+	double ChangeInCoordinates [DIMENSION*TOTAL_NUMBER_OF_PARTICLES];
+	double MostTraveledDistances [2];
+	int MostTraveledParticleIndex;
+
+	public:
+
 	void initialize(){
 		ParticleTypeBoundaryIndex = static_cast<int>(round(0.5*static_cast<double>(TOTAL_NUMBER_OF_PARTICLES)) - 1.0);
 
@@ -59,11 +70,14 @@ struct Particles {
 		double Distance(1.0/static_cast<double>(NumberOfParticlesInARow));
 		cerr << "NumberOfParticlesInRow: " << NumberOfParticlesInARow << endl;
 		cerr << "Distance: " << Distance*BOX_LENGTH << endl;
-		array<double,DIMENSION> CurrentPosition;
-		CurrentPosition.fill(Distance*0.5);
+		double CurrentPosition [DIMENSION];
+		for (int i = 0; i < DIMENSION; i++){
+			CurrentPosition[i] = Distance*0.5;
+		}
 		for (int ParticlesInitialized = 0; ParticlesInitialized < TOTAL_NUMBER_OF_PARTICLES; ParticlesInitialized++){
 			for (int i = 0; i < DIMENSION; i++){
 				Positions[ParticlesInitialized*DIMENSION + i] = CurrentPosition[i];
+				ChangeInCoordinates[DIMENSION*ParticlesInitialized+i] = 0.0;
 			}
 			CurrentPosition[0] += Distance;
 			for (int i = 1; i < DIMENSION; i++){
@@ -73,10 +87,17 @@ struct Particles {
 				}
 			}
 		}
+		for (int i = 0; i < 2; i++){
+			MostTraveledDistances[i] = 0.0;
+		}
 	}
 	
 	double getPosition(int ParticleIndex, int Coordinate) const {
 		return Positions[DIMENSION*ParticleIndex+Coordinate];
+	}
+	
+	double getParticleTypeBoundaryIndex() const {
+		return ParticleTypeBoundaryIndex;
 	}
 	
 	void switchParticleType(int ParticleIndex) {
@@ -129,7 +150,7 @@ struct Particles {
 	}
 	
 	double computeChangeInPotentialEnergyByMoving(int ParticleIndex, const double* Delta) const {
-		double PotEnergyDiff = 0.0;
+		double PotEnergyChange = 0.0;
 		double UpdatedCoordinates [DIMENSION];
 		for (int i = 0; i < DIMENSION; i++){
 			UpdatedCoordinates[i] = Positions[DIMENSION*ParticleIndex + i] + *(Delta + i);
@@ -140,22 +161,24 @@ struct Particles {
 				UpdatedCoordinates[i] -= 1.0;
 			}
 		}
-		for (int OtherParticleIndex = 0; OtherParticleIndex < TOTAL_NUMBER_OF_PARTICLES; OtherParticleIndex++){
+		for (int i = 0; i < VerletListHead[2*ParticleIndex+1]; i++){
+			int OtherParticleIndex = VerletIndicesOfNeighbors[VerletListHead[2*ParticleIndex]+i];
 			if (OtherParticleIndex != ParticleIndex){
 				double InteractionStrength = AB_INTERACTION_STRENGTH;
 				if (((OtherParticleIndex <= ParticleTypeBoundaryIndex) && (ParticleIndex <= ParticleTypeBoundaryIndex)) || ((OtherParticleIndex > ParticleTypeBoundaryIndex) && (ParticleIndex > ParticleTypeBoundaryIndex)) ) {
 					InteractionStrength = AA_INTERACTION_STRENGTH;
 				}
-				PotEnergyDiff += InteractionStrength * (computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*OtherParticleIndex], &Positions[DIMENSION*ParticleIndex])
-																								computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*OtherParticleIndex], UpdatedCoordinates));
+				PotEnergyChange += InteractionStrength * (computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*OtherParticleIndex], &Positions[DIMENSION*ParticleIndex])
+																								- computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*OtherParticleIndex], UpdatedCoordinates));
 			}
 		}
-		return PotEnergyDiff;
+		return PotEnergyChange;
 	}
 	
 	double computeChangeInPotentialEnergyBySwitching(int ParticleIndex) const {
 		double PotEnergyChange = 0.0;
-		for (int OtherParticleIndex = 0; OtherParticleIndex < TOTAL_NUMBER_OF_PARTICLES; OtherParticleIndex++){
+		for (int i = 0; i < VerletListHead[2*ParticleIndex+1]; i++){
+			int OtherParticleIndex = VerletIndicesOfNeighbors[VerletListHead[2*ParticleIndex]+i];
 			if (OtherParticleIndex != ParticleIndex){
 				double PrefactorDifference = AA_INTERACTION_STRENGTH - AB_INTERACTION_STRENGTH;
 				if ((OtherParticleIndex <= ParticleTypeBoundaryIndex && ParticleIndex > ParticleIndex) || (OtherParticleIndex > ParticleTypeBoundaryIndex && ParticleIndex <= ParticleIndex)){
@@ -294,10 +317,48 @@ struct Particles {
 			cerr << endl;
 	}
 	
+	void updatePosition(int ParticleIndex, const double* Deltas){
+		double CurrentTraveledDistance = 0.0;
+		for (int k = 0; k < DIMENSION; k++){
+			Positions[DIMENSION * ParticleIndex + k] += Deltas[k];
+			if (Positions[DIMENSION * ParticleIndex + k] < 0.0){
+				Positions[DIMENSION * ParticleIndex + k] += 1.0;
+			}
+			else if (Positions[DIMENSION * ParticleIndex + k] > 1.0){
+				Positions[DIMENSION * ParticleIndex + k] -= 1.0;
+			}
+			ChangeInCoordinates[DIMENSION * ParticleIndex + k] += Deltas[k];
+			CurrentTraveledDistance += ChangeInCoordinates[DIMENSION * ParticleIndex + k] * ChangeInCoordinates[DIMENSION * ParticleIndex + k];
+		}
+		CurrentTraveledDistance = sqrt(CurrentTraveledDistance);
+		if (CurrentTraveledDistance >= MostTraveledDistances[0]) {
+			if (ParticleIndex == MostTraveledParticleIndex) {
+				MostTraveledDistances[0] = CurrentTraveledDistance;
+			}
+			else {
+				MostTraveledDistances[1] = MostTraveledDistances[0];
+				MostTraveledDistances[0] = CurrentTraveledDistance;
+				MostTraveledParticleIndex = ParticleIndex;
+			}
+		}
+		else if (CurrentTraveledDistance > MostTraveledDistances[1]) {
+			MostTraveledDistances[1] = CurrentTraveledDistance;
+		}
+		if (BOX_LENGTH*(MostTraveledDistances[0]+MostTraveledDistances[1]) > SKINDISTANCE){
+			buildVerletList();
+			for (int k = 0; k < DIMENSION * TOTAL_NUMBER_OF_PARTICLES; k++){
+				ChangeInCoordinates[k] = 0.0;
+			}
+			for (int i = 0; i < 2; i++){
+				MostTraveledDistances[i] = 0.0;
+			}
+		}
+	}
+	
 };
 
 ostream& operator<<(ostream& OStream, const Particles& State){
-	OStream << "#ID\tX       Y       ParticleTypeBoundaryIndex: " << State.ParticleTypeBoundaryIndex << endl;
+	OStream << "#ID\tX       Y       ParticleTypeBoundaryIndex: " << State.getParticleTypeBoundaryIndex() << endl;
 	for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
 		OStream << i << "\t";
 		OStream << fixed << setprecision(5) << State.getPosition(i,0) << "\t" << State.getPosition(i,1) << endl;
@@ -310,27 +371,25 @@ struct SimulationManager {
 	double Temperature;
 	double Beta;
 	realRNG RNG;
+	double ChemicalPotentialDiff;
 	
-	void runCanonicalSteps(int NumberOfSteps) {
-		for (int i = 0; i < NumberOfSteps; i++){
+	void initialize(double _Temperature, double _ChemicalPotentialDiff) {
+		Temperature = _Temperature;
+		ChemicalPotentialDiff = _ChemicalPotentialDiff;
+		P.initialize();
+	}
+	
+	void runDisplacementSteps(int StepsPerParticle) {
+		for (int i = 0; i < StepsPerParticle; i++){
 			for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
-				int RandomParticleID = static_cast<int>(RNG.drawRandomNumber(0.0,1.0)*static_cast<double>(TOTAL_NUMBER_OF_PARTICLES));
+				int RandomParticleID = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(TOTAL_NUMBER_OF_PARTICLES));
 				double Deltas [DIMENSION];
 				for (int i = 0; i < DIMENSION; i++){
-				 Deltas[i] = RNG.drawRandomNumber(-MAXIMUM_DISPLACEMENT, MAXIMUM_DISPLACEMENT)*INVERSE_BOX_LENGTH;
+					Deltas[i] = RNG.drawRandomNumber(-MAXIMUM_DISPLACEMENT, MAXIMUM_DISPLACEMENT)*INVERSE_BOX_LENGTH;
 				}
-				double PotentialEnergyChange = P.computeChangeInPotentialEnergyByMoving(RandomParticleID, Deltas);
-				double AcceptanceProbability = exp(-PotentialEnergyChange*Beta);
-				if (AcceptanceProbability >= 1.0 || (RNG.drawRandomNumber(0.0, 1.0) < AcceptanceProbability)){
-					for (int k = 0; k < DIMENSION; k++){
-						P.Positions[DIMENSION * RandomParticleID + k] += Deltas[k];
-						if (P.Positions[DIMENSION * RandomParticleID + k] < 0.0){
-							P.Positions[DIMENSION * RandomParticleID + k] += 1.0;
-						}
-						else if (P.Positions[DIMENSION * RandomParticleID + k] > 1.0){
-							P.Positions[DIMENSION * RandomParticleID + k] -= 1.0;
-						}
-					}
+				double AcceptanceProbability = exp(-P.computeChangeInPotentialEnergyByMoving(RandomParticleID, Deltas)*Beta);
+				if (AcceptanceProbability >= 1.0 || (RNG.drawRandomNumber() < AcceptanceProbability)){
+					P.updatePosition(RandomParticleID, Deltas);
 				}
 			}
 		}
