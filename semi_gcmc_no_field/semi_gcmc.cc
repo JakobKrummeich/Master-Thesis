@@ -146,7 +146,8 @@ struct Particles {
 				if (((OtherParticleIndex <= ParticleTypeBoundaryIndex) && (ParticleIndex <= ParticleTypeBoundaryIndex)) || ((OtherParticleIndex > ParticleTypeBoundaryIndex) && (ParticleIndex > ParticleTypeBoundaryIndex)) ) {
 					InteractionStrength = AA_INTERACTION_STRENGTH;
 				}
-				PotEnergyDiff += InteractionStrength * (computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*OtherParticleIndex], &Positions[DIMENSION*ParticleIndex]) - computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*OtherParticleIndex], UpdatedCoordinates));
+				PotEnergyDiff += InteractionStrength * (computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*OtherParticleIndex], &Positions[DIMENSION*ParticleIndex])
+																								computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*OtherParticleIndex], UpdatedCoordinates));
 			}
 		}
 		return PotEnergyDiff;
@@ -202,7 +203,7 @@ struct Particles {
 	void buildVerletList() {
 		buildCellList();
 		VerletIndicesOfNeighbors.clear();
-		VerletIndicesOfNeighbors.reserve(30*TOTAL_NUMBER_OF_PARTICLES);
+		VerletIndicesOfNeighbors.reserve(20*TOTAL_NUMBER_OF_PARTICLES);
 		int CurrentIndexInVerletIndices = 0;
 		
 		int Indices [DIMENSION];
@@ -212,16 +213,19 @@ struct Particles {
 		while (Indices[DIMENSION - 1] < NUMBER_OF_SUBDIVISIONS){
 			int Cell = 0;
 			int IndexFactor = 1;
-			int IndicesOffsets [DIMENSION];
 			for (int i = 0; i < DIMENSION; i++){
 				Cell += Indices[i]*IndexFactor;
 				IndexFactor *= NUMBER_OF_SUBDIVISIONS;
-				IndicesOffsets[i] = -1;
+				
 			}
 			int CurrentParticleIndex = CellListHead[Cell];
 			while (CurrentParticleIndex >= 0){
 				int NumberOfNeighbors = 0;
 				VerletListHead[2*CurrentParticleIndex] = CurrentIndexInVerletIndices;
+				int IndicesOffsets [DIMENSION];
+				for (int i = 0; i < DIMENSION; i++){
+					IndicesOffsets[i] = -1;
+				}
 				while (IndicesOffsets[DIMENSION - 1] < 2){
 					int NeighborCell = 0;
 					int IndexFactor = 1;
@@ -339,9 +343,7 @@ int main(){
 	S.P.initialize();
 	cerr << S.P;
 	cerr << "Number Of A particles: " << S.P.getNumberOfAParticles() << endl;
-	
-	S.P.buildCellList();
-	S.P.printCellList();
+
 	S.P.buildVerletList();
 	S.P.printVerletList();
 }
