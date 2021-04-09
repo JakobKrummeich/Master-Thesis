@@ -48,10 +48,65 @@ class realRNG{
 		}
 };
 
+enum class ParticleType{
+	A = 0,
+	B = 1
+};
+
+ostream& operator<<(ostream& OStream, ParticleType T){
+	if (T == ParticleType::A){
+		OStream << "A";
+	}
+	else {
+		OStream << "B";
+	}
+	return OStream;
+}
+
+template<typename T, size_t Nm> struct fvec{
+	T arr [Nm];
+	size_t Ncurr;
+	
+	fvec():
+		Ncurr(0){
+	}
+	
+	void clear(){
+		Ncurr = 0;
+	}
+	
+	void push_back(const T& NewEntry){
+		arr[Ncurr] = NewEntry;
+		Ncurr++;
+	}
+	
+	bool empty() const{
+		return (Ncurr == 0);
+	}
+	
+	size_t size() const{
+		return Ncurr;
+	}
+	
+	const T& operator[](int ID) const{
+		return arr[ID];
+	}
+	
+	T& operator[](int ID){
+		return arr[ID];
+	}
+	
+	void erase(int ID){
+		Ncurr--;
+		arr[ID] = arr[Ncurr];
+	}
+};
+
 struct Particles {
 	private:
 	double Positions [DIMENSION*TOTAL_NUMBER_OF_PARTICLES];
-	int ParticleTypeBoundaryIndex;
+	
+	ParticleType ParticleTypes [TOTAL_NUMBER_OF_PARTICLES];
 	
 	vector<int> CellListHead;
 	int CellListIndices [TOTAL_NUMBER_OF_PARTICLES];
@@ -64,10 +119,13 @@ struct Particles {
 
 	public:
 	
+	fvec<int, TOTAL_NUMBER_OF_PARTICLES> TypeAParticleIndices;
+	fvec<int, TOTAL_NUMBER_OF_PARTICLES> TypeBParticleIndices;
 	int NumberOfVerletListBuilds;
 
-	void initialize(){
-		ParticleTypeBoundaryIndex = static_cast<int>(round(0.5*static_cast<double>(TOTAL_NUMBER_OF_PARTICLES)) - 1.0);
+	void initialize(double InitialFractionOfAParticles){
+		int InitialNumberOfAParticles = static_cast<int>(round(InitialFractionOfAParticles*static_cast<double>(TOTAL_NUMBER_OF_PARTICLES)));
+		int InitialNumberOfBParticles = TOTAL_NUMBER_OF_PARTICLES - InitialNumberOfAParticles;
 
 		int NumberOfParticlesInARow(ceil(pow(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES),1.0/static_cast<double>(DIMENSION))));
 		double Distance(1.0/static_cast<double>(NumberOfParticlesInARow));
@@ -77,6 +135,9 @@ struct Particles {
 		for (int i = 0; i < DIMENSION; i++){
 			CurrentPosition[i] = Distance*0.5;
 		}
+		int NumberOfAParticlesInitialized = 0;
+		int NumberOfBParticlesInitialized = 0;
+		ParticleType NextTypeToInitialize = ParticleType::A;
 		for (int ParticlesInitialized = 0; ParticlesInitialized < TOTAL_NUMBER_OF_PARTICLES; ParticlesInitialized++){
 			for (int i = 0; i < DIMENSION; i++){
 				Positions[ParticlesInitialized*DIMENSION + i] = CurrentPosition[i];
@@ -89,6 +150,16 @@ struct Particles {
 					CurrentPosition[i] += Distance;
 				}
 			}
+			if (NextTypeToInitialize == ParticleType::A){
+				ParticleTypes[ParticlesInitialized] = ParticleType::A;
+				NextTypeToInitialize = ParticleType::B;
+				TypeAParticleIndices.push_back(ParticlesInitialized);
+			}
+			else{
+				ParticleTypes[ParticlesInitialized] = ParticleType::B;
+				NextTypeToInitialize = ParticleType::A;
+				TypeBParticleIndices.push_back(ParticlesInitialized);
+			}
 		}
 		for (int i = 0; i < 2; i++){
 			MostTraveledDistances[i] = 0.0;
@@ -99,35 +170,29 @@ struct Particles {
 	double getPosition(int ParticleIndex, int Coordinate) const {
 		return Positions[DIMENSION*ParticleIndex+Coordinate];
 	}
-	
-	int getParticleTypeBoundaryIndex() const {
-		return ParticleTypeBoundaryIndex;
+
+	ParticleType getParticleType(int ParticleIndex) const {
+		return ParticleTypes[ParticleIndex];
 	}
 	
-	void switchParticleType(int ParticleIndex) {
-		int SwapParticleIndex;
-		if (ParticleIndex <= ParticleTypeBoundaryIndex){
-			SwapParticleIndex = ParticleTypeBoundaryIndex;
-			ParticleTypeBoundaryIndex--;
+	void switchParticleType(int ParticleID, int IndexInTypeArray, ParticleType TypeBefore) {
+		ParticleTypes[ParticleID] = TypeBefore == ParticleType::A ? ParticleType::B : ParticleType::A;
+		if (TypeBefore == ParticleType::A){
+			TypeAParticleIndices.erase(IndexInTypeArray);
+			TypeBParticleIndices.push_back(ParticleID);
 		}
 		else {
-			SwapParticleIndex = ParticleTypeBoundaryIndex + 1;
-			ParticleTypeBoundaryIndex++;
-		}
-		double Temp [DIMENSION];
-		for (int i = 0; i < DIMENSION; i++){
-			Temp[i] = Positions[DIMENSION*ParticleIndex + i];
-			Positions[ParticleIndex*DIMENSION + i] = Positions[SwapParticleIndex*DIMENSION + i];
-			Positions[SwapParticleIndex*DIMENSION + i] = Temp[i];
+			TypeBParticleIndices.erase(IndexInTypeArray);
+			TypeAParticleIndices.push_back(ParticleID);
 		}
 	}
 	
 	int getNumberOfAParticles() const {
-		return ParticleTypeBoundaryIndex + 1;
+		return TypeAParticleIndices.size();
 	}
 	
 	int getNumberOfBParticles() const {
-		return TOTAL_NUMBER_OF_PARTICLES - getNumberOfAParticles();
+		return TypeBParticleIndices.size();
 	}
 	
 	static double computePairwiseParticlePotentialEnergy(double DimensionlessDistance) {
@@ -167,14 +232,12 @@ struct Particles {
 		}
 		for (int i = 0; i < VerletListHead[2*ParticleIndex+1]; i++){
 			int OtherParticleIndex = VerletIndicesOfNeighbors[VerletListHead[2*ParticleIndex]+i];
-			if (OtherParticleIndex != ParticleIndex){
-				double InteractionStrength = AB_INTERACTION_STRENGTH;
-				if (((OtherParticleIndex <= ParticleTypeBoundaryIndex) && (ParticleIndex <= ParticleTypeBoundaryIndex)) || ((OtherParticleIndex > ParticleTypeBoundaryIndex) && (ParticleIndex > ParticleTypeBoundaryIndex)) ) {
-					InteractionStrength = AA_INTERACTION_STRENGTH;
-				}
-				PotEnergyChange += InteractionStrength * (computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*OtherParticleIndex], UpdatedCoordinates) 
-																								- computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*OtherParticleIndex], &Positions[DIMENSION*ParticleIndex]));
+			double InteractionStrength = AB_INTERACTION_STRENGTH;
+			if (ParticleTypes[ParticleIndex] == ParticleTypes[OtherParticleIndex]) {
+				InteractionStrength = AA_INTERACTION_STRENGTH;
 			}
+			PotEnergyChange += InteractionStrength * (computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*OtherParticleIndex], UpdatedCoordinates) 
+																								- computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*OtherParticleIndex], &Positions[DIMENSION*ParticleIndex]));
 		}
 		return PotEnergyChange;
 	}
@@ -183,13 +246,11 @@ struct Particles {
 		double PotEnergyChange = 0.0;
 		for (int i = 0; i < VerletListHead[2*ParticleIndex+1]; i++){
 			int OtherParticleIndex = VerletIndicesOfNeighbors[VerletListHead[2*ParticleIndex]+i];
-			if (OtherParticleIndex != ParticleIndex){
-				double PrefactorDifference = AA_INTERACTION_STRENGTH - AB_INTERACTION_STRENGTH;
-				if ((OtherParticleIndex <= ParticleTypeBoundaryIndex && ParticleIndex <= ParticleTypeBoundaryIndex) || (OtherParticleIndex > ParticleTypeBoundaryIndex && ParticleIndex > ParticleTypeBoundaryIndex)){
-					PrefactorDifference *= -1.0;
-				}
-				PotEnergyChange += PrefactorDifference * computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*OtherParticleIndex], &Positions[DIMENSION*ParticleIndex]);
+			double PrefactorDifference = AA_INTERACTION_STRENGTH - AB_INTERACTION_STRENGTH;
+			if (ParticleTypes[ParticleIndex] == ParticleTypes[OtherParticleIndex]){
+				PrefactorDifference *= -1.0;
 			}
+			PotEnergyChange += PrefactorDifference * computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*OtherParticleIndex], &Positions[DIMENSION*ParticleIndex]);
 		}
 		return PotEnergyChange;
 	}
@@ -363,10 +424,10 @@ struct Particles {
 };
 
 ostream& operator<<(ostream& OStream, const Particles& State){
-	OStream << "#ID\tX       Y       ParticleTypeBoundaryIndex: " << State.getParticleTypeBoundaryIndex() << "| #Rebuilds: " << State.NumberOfVerletListBuilds << endl;
+	OStream << "#ID\tX       Y       Type | #AParticles:  " << State.getNumberOfAParticles() << "| #BParticles: " << State.getNumberOfBParticles() << "| #Builds: " << State.NumberOfVerletListBuilds << endl;
 	for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
 		OStream << i << "\t";
-		OStream << fixed << setprecision(5) << State.getPosition(i,0) << "\t" << State.getPosition(i,1) << endl;
+		OStream << fixed << setprecision(5) << State.getPosition(i,0) << "\t" << State.getPosition(i,1) << "\t" << State.getParticleType(i) <<  endl;
 	}
 	return OStream;
 }
@@ -377,13 +438,17 @@ struct SimulationManager {
 	double Beta;
 	realRNG RNG;
 	double ChemicalPotentialDiff;
+	int DistributionNumberOfA [TOTAL_NUMBER_OF_PARTICLES + 1];
 	
-	void initialize(double _Temperature, double _ChemicalPotentialDiff) {
+	void initialize(double InitialFractionOfAParticles, double _Temperature, double _ChemicalPotentialDiff) {
 		Temperature = _Temperature;
 		Beta = 1.0/Temperature;
 		ChemicalPotentialDiff = _ChemicalPotentialDiff;
-		P.initialize();
+		P.initialize(InitialFractionOfAParticles);
 		P.buildVerletList();
+		for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES + 1; i++){
+			DistributionNumberOfA[i] = 0;
+		}
 	}
 	
 	void runDisplacementSteps(int StepsPerParticle) {
@@ -406,38 +471,79 @@ struct SimulationManager {
 		for (int i = 0; i < NumberOfTriedChanges; i++){
 			int NumberOfAParticles = P.getNumberOfAParticles();
 			int NumberOfBParticles = P.getNumberOfBParticles();
-			int ParticleTypeBoundaryIndex = P.getParticleTypeBoundaryIndex();
+			int RandomParticleIndexInTypeArray;
 			int RandomParticleID;
 			double ParticleNumbersPrefactor;
 			double ChemicalPotentialSign;
-		
+			ParticleType TypeOfParticleBefore;
+			bool ParticleToSwitchAvailable = false;
+
 			if (RNG.drawRandomNumber() <= 0.5){
-				RandomParticleID = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(NumberOfAParticles));
-				ParticleNumbersPrefactor = static_cast<double>(NumberOfAParticles)/static_cast<double>(NumberOfBParticles+1);
-				ChemicalPotentialSign = 1.0;
+				if (NumberOfAParticles > 0){
+					ParticleToSwitchAvailable = true;
+					RandomParticleIndexInTypeArray = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(NumberOfAParticles));
+					RandomParticleID = P.TypeAParticleIndices[RandomParticleIndexInTypeArray];
+					TypeOfParticleBefore = ParticleType::A;
+					ParticleNumbersPrefactor = static_cast<double>(NumberOfAParticles)/static_cast<double>(NumberOfBParticles+1);
+					ChemicalPotentialSign = 1.0;
+				}
 			}
-			else{
-				RandomParticleID = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(NumberOfBParticles))+ParticleTypeBoundaryIndex+1;
-				ParticleNumbersPrefactor = static_cast<double>(NumberOfBParticles)/static_cast<double>(NumberOfAParticles+1);
-				ChemicalPotentialSign = -1.0;
+			else {
+				if (NumberOfBParticles > 0){
+					ParticleToSwitchAvailable = true;
+					RandomParticleIndexInTypeArray = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(NumberOfBParticles));
+					RandomParticleID = P.TypeBParticleIndices[RandomParticleIndexInTypeArray];
+					TypeOfParticleBefore = ParticleType::B;
+					ParticleNumbersPrefactor = static_cast<double>(NumberOfBParticles)/static_cast<double>(NumberOfAParticles+1);
+					ChemicalPotentialSign = -1.0;
+				}
 			}
-			double AcceptanceProbability = ParticleNumbersPrefactor*exp(-Beta*(P.computeChangeInPotentialEnergyBySwitching(RandomParticleID)  + ChemicalPotentialSign * ChemicalPotentialDiff));
-			if (AcceptanceProbability >= 1.0 || (RNG.drawRandomNumber() < AcceptanceProbability)){
-				P.switchParticleType(RandomParticleID);
+			if (ParticleToSwitchAvailable){
+				double AcceptanceProbability = ParticleNumbersPrefactor*exp(-Beta*(P.computeChangeInPotentialEnergyBySwitching(RandomParticleID)  + ChemicalPotentialSign * ChemicalPotentialDiff));
+				if (AcceptanceProbability >= 1.0 || (RNG.drawRandomNumber() < AcceptanceProbability)){
+					P.switchParticleType(RandomParticleID, RandomParticleIndexInTypeArray, TypeOfParticleBefore);
+				}
 			}
 		}
 	}
 
+	void runSimulation(int NumberOfRuns) {
+		for (int i = 0; i < NumberOfRuns; i++){
+			cerr << i << "|";
+			runDisplacementSteps(100);
+			runTypeChanges(1);
+			DistributionNumberOfA[P.getNumberOfAParticles()]++;
+		}
+		cerr << endl;
+	}
+
+	void writeHistogramToFile() const {
+		string FileName("Histogram_T="+to_string(Temperature)+".dat");
+		ofstream FileStreamToWrite;
+		FileStreamToWrite.open(FileName);
+		FileStreamToWrite << "NumberOfAParticles NumberOfOccurences\n";
+		for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES+1; i++){
+			FileStreamToWrite << i << " " << DistributionNumberOfA[i] <<"\n";
+		}
+		FileStreamToWrite.close();
+	}
+
+	void writeParticleConfigurationToFile(string FileName) const {
+		ofstream FileStreamToWrite;
+		FileStreamToWrite.open(FileName);
+		FileStreamToWrite << P;
+		FileStreamToWrite.close();
+	}
 };
 
 int main(){
 	SimulationManager S;
-	S.initialize(1.0, 1.0);
+	S.initialize(0.5, 1.0, 1.0);
 	cerr << S.P;
-	cerr << "Number Of A particles: " << S.P.getNumberOfAParticles() << endl;
 
-	S.runDisplacementSteps(100);
-	S.runTypeChanges(1);	
+	S.runSimulation(100);
+	S.writeHistogramToFile();
+	S.writeParticleConfigurationToFile("ParticleConfig.dat");
 
 	cerr << S.P;
 }
