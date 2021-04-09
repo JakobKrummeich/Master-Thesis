@@ -172,8 +172,8 @@ struct Particles {
 				if (((OtherParticleIndex <= ParticleTypeBoundaryIndex) && (ParticleIndex <= ParticleTypeBoundaryIndex)) || ((OtherParticleIndex > ParticleTypeBoundaryIndex) && (ParticleIndex > ParticleTypeBoundaryIndex)) ) {
 					InteractionStrength = AA_INTERACTION_STRENGTH;
 				}
-				PotEnergyChange += InteractionStrength * (computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*OtherParticleIndex], &Positions[DIMENSION*ParticleIndex])
-																								- computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*OtherParticleIndex], UpdatedCoordinates));
+				PotEnergyChange += InteractionStrength * (computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*OtherParticleIndex], UpdatedCoordinates) 
+																								- computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*OtherParticleIndex], &Positions[DIMENSION*ParticleIndex]));
 			}
 		}
 		return PotEnergyChange;
@@ -185,7 +185,7 @@ struct Particles {
 			int OtherParticleIndex = VerletIndicesOfNeighbors[VerletListHead[2*ParticleIndex]+i];
 			if (OtherParticleIndex != ParticleIndex){
 				double PrefactorDifference = AA_INTERACTION_STRENGTH - AB_INTERACTION_STRENGTH;
-				if ((OtherParticleIndex <= ParticleTypeBoundaryIndex && ParticleIndex > ParticleIndex) || (OtherParticleIndex > ParticleTypeBoundaryIndex && ParticleIndex <= ParticleIndex)){
+				if ((OtherParticleIndex <= ParticleTypeBoundaryIndex && ParticleIndex <= ParticleTypeBoundaryIndex) || (OtherParticleIndex > ParticleTypeBoundaryIndex && ParticleIndex > ParticleTypeBoundaryIndex)){
 					PrefactorDifference *= -1.0;
 				}
 				PotEnergyChange += PrefactorDifference * computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*OtherParticleIndex], &Positions[DIMENSION*ParticleIndex]);
@@ -417,7 +417,7 @@ struct SimulationManager {
 				ChemicalPotentialSign = 1.0;
 			}
 			else{
-				RandomParticleID = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(NumberOfBParticles))+ParticleTypeBoundaryIndex;
+				RandomParticleID = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(NumberOfBParticles))+ParticleTypeBoundaryIndex+1;
 				ParticleNumbersPrefactor = static_cast<double>(NumberOfBParticles)/static_cast<double>(NumberOfAParticles+1);
 				ChemicalPotentialSign = -1.0;
 			}
@@ -436,8 +436,9 @@ int main(){
 	cerr << S.P;
 	cerr << "Number Of A particles: " << S.P.getNumberOfAParticles() << endl;
 
-	S.runDisplacementSteps(1000);
-	
+	S.runDisplacementSteps(100);
+	S.runTypeChanges(1);	
+
 	cerr << S.P;
 }
 
