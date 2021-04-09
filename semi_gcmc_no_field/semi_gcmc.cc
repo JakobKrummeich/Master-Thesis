@@ -9,7 +9,7 @@
 using namespace std;
 
 static const int DIMENSION = 2;
-static const int TOTAL_NUMBER_OF_PARTICLES = 1000;
+static const int TOTAL_NUMBER_OF_PARTICLES = 500;
 static const double AA_INTERACTION_STRENGTH = 1.0;
 static const double AB_INTERACTION_STRENGTH = 0.5;
 static const double CUTOFF = 2.5;
@@ -230,7 +230,7 @@ struct Particles {
 	void buildVerletList() {
 		buildCellList();
 		VerletIndicesOfNeighbors.clear();
-		VerletIndicesOfNeighbors.reserve(20*TOTAL_NUMBER_OF_PARTICLES);
+		VerletIndicesOfNeighbors.reserve(40*TOTAL_NUMBER_OF_PARTICLES);
 		int CurrentIndexInVerletIndices = 0;
 		
 		int Indices [DIMENSION];
@@ -380,8 +380,10 @@ struct SimulationManager {
 	
 	void initialize(double _Temperature, double _ChemicalPotentialDiff) {
 		Temperature = _Temperature;
+		Beta = 1.0/Temperature;
 		ChemicalPotentialDiff = _ChemicalPotentialDiff;
 		P.initialize();
+		P.buildVerletList();
 	}
 	
 	void runDisplacementSteps(int StepsPerParticle) {
@@ -396,6 +398,32 @@ struct SimulationManager {
 				if (AcceptanceProbability >= 1.0 || (RNG.drawRandomNumber() < AcceptanceProbability)){
 					P.updatePosition(RandomParticleID, Deltas);
 				}
+			}
+		}
+	}
+	
+	void runTypeChanges(int NumberOfTriedChanges) {
+		for (int i = 0; i < NumberOfTriedChanges; i++){
+			int NumberOfAParticles = P.getNumberOfAParticles();
+			int NumberOfBParticles = P.getNumberOfBParticles();
+			int ParticleTypeBoundaryIndex = P.getParticleTypeBoundaryIndex();
+			int RandomParticleID;
+			double ParticleNumbersPrefactor;
+			double ChemicalPotentialSign;
+		
+			if (RNG.drawRandomNumber() <= 0.5){
+				RandomParticleID = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(NumberOfAParticles));
+				ParticleNumbersPrefactor = static_cast<double>(NumberOfAParticles)/static_cast<double>(NumberOfBParticles+1);
+				ChemicalPotentialSign = 1.0;
+			}
+			else{
+				RandomParticleID = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(NumberOfBParticles))+ParticleTypeBoundaryIndex;
+				ParticleNumbersPrefactor = static_cast<double>(NumberOfBParticles)/static_cast<double>(NumberOfAParticles+1);
+				ChemicalPotentialSign = -1.0;
+			}
+			double AcceptanceProbability = ParticleNumbersPrefactor*exp(-Beta*(P.computeChangeInPotentialEnergyBySwitching(RandomParticleID)  + ChemicalPotentialSign * ChemicalPotentialDiff));
+			if (AcceptanceProbability >= 1.0 || (RNG.drawRandomNumber() < AcceptanceProbability)){
+				P.switchParticleType(RandomParticleID);
 			}
 		}
 	}
