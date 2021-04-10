@@ -445,7 +445,7 @@ struct SimulationManager {
 	double Beta;
 	realRNG RNG;
 	double ChemicalPotentialDiff;
-	int DistributionNumberOfA [TOTAL_NUMBER_OF_PARTICLES + 1];
+	vector<int> NumbersOfABuffer;
 	
 	void initialize(double InitialFractionOfAParticles, double _Temperature, double _ChemicalPotentialDiff) {
 		Temperature = _Temperature;
@@ -453,9 +453,6 @@ struct SimulationManager {
 		ChemicalPotentialDiff = _ChemicalPotentialDiff;
 		P.initialize(InitialFractionOfAParticles);
 		P.buildVerletList();
-		for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES + 1; i++){
-			DistributionNumberOfA[i] = 0;
-		}
 	}
 	
 	void runDisplacementSteps(int StepsPerParticle) {
@@ -513,21 +510,28 @@ struct SimulationManager {
 
 	void runSimulation(int NumberOfRuns) {
 		for (int i = 0; i < NumberOfRuns; i++){
-			cerr << i << "|";
+			if (i >= NumberOfRuns/100 && i % 1000 == 0){
+				cerr << i / (NumberOfRuns/100) << "%|";
+			}
 			runDisplacementSteps(10);
 			runTypeChanges(1);
-			DistributionNumberOfA[P.getNumberOfAParticles()]++;
+			NumbersOfABuffer.push_back(P.getNumberOfAParticles());
+			if (i >= 1000 && i % 1000 == 0){
+				writeNumbersOfAToFile();
+				NumbersOfABuffer.clear();
+			}
 		}
 		cerr << endl;
+		writeNumbersOfAToFile();
+		NumbersOfABuffer.clear();
 	}
 
-	void writeHistogramToFile() const {
-		string FileName("Histogram_T="+to_string(Temperature)+".dat");
+	void writeNumbersOfAToFile() const {
+		string FileName("data/NumbersOfA_T="+to_string(Temperature)+"_N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_Δµ="+to_string(ChemicalPotentialDiff)+".dat");
 		ofstream FileStreamToWrite;
-		FileStreamToWrite.open(FileName);
-		FileStreamToWrite << "NumberOfAParticles NumberOfOccurences\n";
-		for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES+1; i++){
-			FileStreamToWrite << i << " " << DistributionNumberOfA[i] <<"\n";
+		FileStreamToWrite.open(FileName, ios_base::app);
+		for (int i = 0; i < NumbersOfABuffer.size(); i++){
+			FileStreamToWrite << NumbersOfABuffer[i] << endl;
 		}
 		FileStreamToWrite.close();
 	}
@@ -545,9 +549,8 @@ int main(){
 	S.initialize(0.5, 1.0, 1.0);
 	cerr << S.P;
 
-	S.runSimulation(10000);
-	S.writeHistogramToFile();
-	S.writeParticleConfigurationToFile("ParticleConfig.dat");
+	S.runSimulation(200000);
+	S.writeParticleConfigurationToFile("data/ParticleConfig.dat");
 
 	cerr << S.P;
 }
