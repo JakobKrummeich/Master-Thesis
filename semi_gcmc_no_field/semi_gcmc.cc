@@ -10,21 +10,27 @@ using namespace std;
 
 static const int DIMENSION = 2;
 static const int TOTAL_NUMBER_OF_PARTICLES = 500;
+
 static const double AA_INTERACTION_STRENGTH = 1.0;
 static const double AB_INTERACTION_STRENGTH = 0.5;
 static const double CUTOFF = 2.5;
 static const double CUTOFF_SQUARED = CUTOFF * CUTOFF;
 static const double INVERSE_CUTOFF = 1.0/CUTOFF;
+static const double POTENTIAL_CONSTANT_1 = pow(INVERSE_CUTOFF, 6.0) - pow(INVERSE_CUTOFF, 12.0);
+static const double POTENTIAL_CONSTANT_2 = 6.0 * pow(INVERSE_CUTOFF, 7.0) - 12.0 * pow(INVERSE_CUTOFF, 13.0);
+
 static const double DENSITY = 0.9;
 static const double BOX_LENGTH = sqrt(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES) / DENSITY);
 static const double BOX_LENGTH_SQUARED = BOX_LENGTH * BOX_LENGTH;
 static const double INVERSE_BOX_LENGTH = 1.0/BOX_LENGTH;
+
 static const double MAXIMUM_DISPLACEMENT = 0.1;
 static const double MAX_VERLET_DIST = 1.3*CUTOFF;
 static const double MAX_VERLET_DIST_SQUARED = MAX_VERLET_DIST * MAX_VERLET_DIST;
 static const double SKINDISTANCE = MAX_VERLET_DIST - CUTOFF;
 static const int NUMBER_OF_SUBDIVISIONS = static_cast<int>(BOX_LENGTH/MAX_VERLET_DIST);
 static const int MIN_NUMBER_OF_SUBDIVISIONS = 4;
+
 
 
 class realRNG{
@@ -175,9 +181,8 @@ struct Particles {
 		return ParticleTypes[ParticleIndex];
 	}
 	
-	void switchParticleType(int ParticleID, int IndexInTypeArray, ParticleType TypeBefore) {
-		ParticleTypes[ParticleID] = TypeBefore == ParticleType::A ? ParticleType::B : ParticleType::A;
-		if (TypeBefore == ParticleType::A){
+	void switchParticleType(int ParticleID, int IndexInTypeArray) {
+		if (ParticleTypes[ParticleID] == ParticleType::A){
 			TypeAParticleIndices.erase(IndexInTypeArray);
 			TypeBParticleIndices.push_back(ParticleID);
 		}
@@ -185,6 +190,7 @@ struct Particles {
 			TypeBParticleIndices.erase(IndexInTypeArray);
 			TypeAParticleIndices.push_back(ParticleID);
 		}
+		ParticleTypes[ParticleID] = ParticleTypes[ParticleID] == ParticleType::A ? ParticleType::B : ParticleType::A;
 	}
 	
 	int getNumberOfAParticles() const {
@@ -196,11 +202,12 @@ struct Particles {
 	}
 	
 	static double computePairwiseParticlePotentialEnergy(double DimensionlessDistance) {
-		double InverseDistance(1.0/(DimensionlessDistance*BOX_LENGTH));
-		return (pow(InverseDistance, 12.0) - pow(InverseDistance, 6.0) - pow(INVERSE_CUTOFF, 12.0) + pow(INVERSE_CUTOFF, 6.0) - (DimensionlessDistance * BOX_LENGTH - CUTOFF) * ((-12.0) * pow(INVERSE_CUTOFF, 13.0) + 6.0 * pow(INVERSE_CUTOFF, 7.0)));
+		double InverseDistance = 1.0/(DimensionlessDistance*BOX_LENGTH);
+		double InverseDistanceToThePowerOfSix = InverseDistance * InverseDistance * InverseDistance * InverseDistance * InverseDistance * InverseDistance;
+		return (InverseDistanceToThePowerOfSix * InverseDistanceToThePowerOfSix - InverseDistanceToThePowerOfSix + POTENTIAL_CONSTANT_1 - (DimensionlessDistance * BOX_LENGTH - CUTOFF) * POTENTIAL_CONSTANT_1);
 	}
 	
-	double computePairwiseParticlePotentialEnergy(const double* Position0, const double* Position1) const {
+	static double computePairwiseParticlePotentialEnergy(const double* Position0, const double* Position1) {
 		double DistanceSquared = 0.0;
 		for (int i = 0; i < DIMENSION; i++){
 			double CoordinateDifference = *(Position0 + i) - *(Position1 + i);
@@ -342,7 +349,7 @@ struct Particles {
 								}
 								DistanceSquared += CoordinateDifference * CoordinateDifference;
 							}
-							if (DistanceSquared * BOX_LENGTH * BOX_LENGTH <= MAX_VERLET_DIST_SQUARED){
+							if (DistanceSquared * BOX_LENGTH_SQUARED <= MAX_VERLET_DIST_SQUARED){
 								NumberOfNeighbors++;
 								VerletIndicesOfNeighbors.push_back(OtherParticleIndex);
 								CurrentIndexInVerletIndices++;
@@ -475,7 +482,6 @@ struct SimulationManager {
 			int RandomParticleID;
 			double ParticleNumbersPrefactor;
 			double ChemicalPotentialSign;
-			ParticleType TypeOfParticleBefore;
 			bool ParticleToSwitchAvailable = false;
 
 			if (RNG.drawRandomNumber() <= 0.5){
@@ -483,7 +489,6 @@ struct SimulationManager {
 					ParticleToSwitchAvailable = true;
 					RandomParticleIndexInTypeArray = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(NumberOfAParticles));
 					RandomParticleID = P.TypeAParticleIndices[RandomParticleIndexInTypeArray];
-					TypeOfParticleBefore = ParticleType::A;
 					ParticleNumbersPrefactor = static_cast<double>(NumberOfAParticles)/static_cast<double>(NumberOfBParticles+1);
 					ChemicalPotentialSign = 1.0;
 				}
@@ -493,7 +498,6 @@ struct SimulationManager {
 					ParticleToSwitchAvailable = true;
 					RandomParticleIndexInTypeArray = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(NumberOfBParticles));
 					RandomParticleID = P.TypeBParticleIndices[RandomParticleIndexInTypeArray];
-					TypeOfParticleBefore = ParticleType::B;
 					ParticleNumbersPrefactor = static_cast<double>(NumberOfBParticles)/static_cast<double>(NumberOfAParticles+1);
 					ChemicalPotentialSign = -1.0;
 				}
@@ -501,7 +505,7 @@ struct SimulationManager {
 			if (ParticleToSwitchAvailable){
 				double AcceptanceProbability = ParticleNumbersPrefactor*exp(-Beta*(P.computeChangeInPotentialEnergyBySwitching(RandomParticleID)  + ChemicalPotentialSign * ChemicalPotentialDiff));
 				if (AcceptanceProbability >= 1.0 || (RNG.drawRandomNumber() < AcceptanceProbability)){
-					P.switchParticleType(RandomParticleID, RandomParticleIndexInTypeArray, TypeOfParticleBefore);
+					P.switchParticleType(RandomParticleID, RandomParticleIndexInTypeArray);
 				}
 			}
 		}
@@ -510,7 +514,7 @@ struct SimulationManager {
 	void runSimulation(int NumberOfRuns) {
 		for (int i = 0; i < NumberOfRuns; i++){
 			cerr << i << "|";
-			runDisplacementSteps(100);
+			runDisplacementSteps(10);
 			runTypeChanges(1);
 			DistributionNumberOfA[P.getNumberOfAParticles()]++;
 		}
@@ -541,7 +545,7 @@ int main(){
 	S.initialize(0.5, 1.0, 1.0);
 	cerr << S.P;
 
-	S.runSimulation(100);
+	S.runSimulation(10000);
 	S.writeHistogramToFile();
 	S.writeParticleConfigurationToFile("ParticleConfig.dat");
 
