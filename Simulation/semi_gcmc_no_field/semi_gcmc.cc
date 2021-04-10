@@ -31,7 +31,11 @@ static const double SKINDISTANCE = MAX_VERLET_DIST - CUTOFF;
 static const int NUMBER_OF_SUBDIVISIONS = static_cast<int>(BOX_LENGTH/MAX_VERLET_DIST);
 static const int MIN_NUMBER_OF_SUBDIVISIONS = 4;
 
+static const int DISPLACEMENT_TRIES_PER_RUN = 10;
+static const int TYPE_CHANGE_TRIES_PER_RUN = 10;
 
+static const int UPDATE_TIME_INTERVAL = 5;
+static const int WRITE_RESULT_INTERVAL = 1000;
 
 class realRNG{
 	private:
@@ -204,7 +208,7 @@ struct Particles {
 	static double computePairwiseParticlePotentialEnergy(double DimensionlessDistance) {
 		double InverseDistance = 1.0/(DimensionlessDistance*BOX_LENGTH);
 		double InverseDistanceToThePowerOfSix = InverseDistance * InverseDistance * InverseDistance * InverseDistance * InverseDistance * InverseDistance;
-		return (InverseDistanceToThePowerOfSix * InverseDistanceToThePowerOfSix - InverseDistanceToThePowerOfSix + POTENTIAL_CONSTANT_1 - (DimensionlessDistance * BOX_LENGTH - CUTOFF) * POTENTIAL_CONSTANT_1);
+		return 4.0*(InverseDistanceToThePowerOfSix * InverseDistanceToThePowerOfSix - InverseDistanceToThePowerOfSix + POTENTIAL_CONSTANT_1 - (DimensionlessDistance * BOX_LENGTH - CUTOFF) * POTENTIAL_CONSTANT_1);
 	}
 	
 	static double computePairwiseParticlePotentialEnergy(const double* Position0, const double* Position1) {
@@ -510,15 +514,18 @@ struct SimulationManager {
 
 	void runSimulation(int NumberOfRuns) {
 		const auto StartTime = chrono::steady_clock::now();
+		int NextUpdateTime = UPDATE_TIME_INTERVAL;
+		cerr << "Simulation running. ";
 		for (int i = 0; i < NumberOfRuns; i++){
 			int TimeDiff = chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count();
-			if (TimeDiff >= 5 && TimeDiff % 5 == 0){
+			if (TimeDiff == NextUpdateTime){
 				cerr << i / (NumberOfRuns/100) << "%|";
+				NextUpdateTime += UPDATE_TIME_INTERVAL;
 			}
-			runDisplacementSteps(10);
-			runTypeChanges(10);
+			runDisplacementSteps(DISPLACEMENT_TRIES_PER_RUN);
+			runTypeChanges(TYPE_CHANGE_TRIES_PER_RUN);
 			NumbersOfABuffer.push_back(P.getNumberOfAParticles());
-			if (i >= 1000 && i % 1000 == 0){
+			if (i >= WRITE_RESULT_INTERVAL && i % WRITE_RESULT_INTERVAL == 0){
 				writeNumbersOfAToFile();
 				NumbersOfABuffer.clear();
 			}
@@ -548,7 +555,7 @@ struct SimulationManager {
 
 int main(){
 	SimulationManager S;
-	S.initialize(0.5, 0.1, 0.0);
+	S.initialize(0.5, 0.8, 0.0);
 	cerr << S.P;
 
 	S.runSimulation(400000);
