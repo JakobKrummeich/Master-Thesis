@@ -9,7 +9,7 @@
 using namespace std;
 
 static const int DIMENSION = 2;
-static const int TOTAL_NUMBER_OF_PARTICLES = 500;
+static const int TOTAL_NUMBER_OF_PARTICLES = 1000;
 
 static const double AA_INTERACTION_STRENGTH = 1.0;
 static const double AB_INTERACTION_STRENGTH = 0.5;
@@ -509,12 +509,14 @@ struct SimulationManager {
 	}
 
 	void runSimulation(int NumberOfRuns) {
+		const auto StartTime = chrono::steady_clock::now();
 		for (int i = 0; i < NumberOfRuns; i++){
-			if (i >= NumberOfRuns/100 && i % 1000 == 0){
+			int TimeDiff = chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count();
+			if (TimeDiff >= 5 && TimeDiff % 5 == 0){
 				cerr << i / (NumberOfRuns/100) << "%|";
 			}
 			runDisplacementSteps(10);
-			runTypeChanges(1);
+			runTypeChanges(10);
 			NumbersOfABuffer.push_back(P.getNumberOfAParticles());
 			if (i >= 1000 && i % 1000 == 0){
 				writeNumbersOfAToFile();
@@ -546,10 +548,10 @@ struct SimulationManager {
 
 int main(){
 	SimulationManager S;
-	S.initialize(0.5, 1.0, 1.0);
+	S.initialize(0.5, 0.1, 0.0);
 	cerr << S.P;
 
-	S.runSimulation(200000);
+	S.runSimulation(400000);
 	S.writeParticleConfigurationToFile("data/ParticleConfig.dat");
 
 	cerr << S.P;
