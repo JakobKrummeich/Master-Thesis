@@ -9,7 +9,7 @@
 using namespace std;
 
 static const int DIMENSION = 2;
-static const int TOTAL_NUMBER_OF_PARTICLES = 1000;
+static const int TOTAL_NUMBER_OF_PARTICLES = 500;
 
 static const double AA_INTERACTION_STRENGTH = 1.0;
 static const double AB_INTERACTION_STRENGTH = 0.5;
@@ -28,8 +28,8 @@ static const double MAXIMUM_DISPLACEMENT = 0.1;
 static const double MAX_VERLET_DIST = 1.3*CUTOFF;
 static const double MAX_VERLET_DIST_SQUARED = MAX_VERLET_DIST * MAX_VERLET_DIST;
 static const double SKINDISTANCE = MAX_VERLET_DIST - CUTOFF;
-static const int NUMBER_OF_SUBDIVISIONS = static_cast<int>(BOX_LENGTH/MAX_VERLET_DIST);
-static const int MIN_NUMBER_OF_SUBDIVISIONS = 4;
+static const int NUMBER_OF_SUBDIVISIONS = static_cast<int>(BOX_LENGTH/MAX_VERLET_DIST) > 3 ? static_cast<int>(BOX_LENGTH/MAX_VERLET_DIST) : 1;
+
 
 static const int DISPLACEMENT_TRIES_PER_RUN = 10;
 static const int TYPE_CHANGE_TRIES_PER_RUN = 10;
@@ -133,8 +133,7 @@ struct Particles {
 	fvec<int, TOTAL_NUMBER_OF_PARTICLES> TypeBParticleIndices;
 	int NumberOfVerletListBuilds;
 
-	void initialize(double InitialFractionOfAParticles){
-		int InitialNumberOfAParticles = static_cast<int>(round(InitialFractionOfAParticles*static_cast<double>(TOTAL_NUMBER_OF_PARTICLES)));
+	void initialize(int InitialNumberOfAParticles){
 		int InitialNumberOfBParticles = TOTAL_NUMBER_OF_PARTICLES - InitialNumberOfAParticles;
 
 		int NumberOfParticlesInARow(ceil(pow(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES),1.0/static_cast<double>(DIMENSION))));
@@ -146,7 +145,6 @@ struct Particles {
 			CurrentPosition[i] = Distance*0.5;
 		}
 		int NumberOfAParticlesInitialized = 0;
-		int NumberOfBParticlesInitialized = 0;
 		ParticleType NextTypeToInitialize = ParticleType::A;
 		for (int ParticlesInitialized = 0; ParticlesInitialized < TOTAL_NUMBER_OF_PARTICLES; ParticlesInitialized++){
 			for (int i = 0; i < DIMENSION; i++){
@@ -160,10 +158,11 @@ struct Particles {
 					CurrentPosition[i] += Distance;
 				}
 			}
-			if (NextTypeToInitialize == ParticleType::A){
+			if (NextTypeToInitialize == ParticleType::A && NumberOfAParticlesInitialized < InitialNumberOfAParticles){
 				ParticleTypes[ParticlesInitialized] = ParticleType::A;
 				NextTypeToInitialize = ParticleType::B;
 				TypeAParticleIndices.push_back(ParticlesInitialized);
+				NumberOfAParticlesInitialized++;
 			}
 			else{
 				ParticleTypes[ParticlesInitialized] = ParticleType::B;
@@ -267,7 +266,7 @@ struct Particles {
 	}
 	
 	void buildCellList(){
-		int NumberOfSubcells = NUMBER_OF_SUBDIVISIONS > 3 ? NUMBER_OF_SUBDIVISIONS : 1;
+		int NumberOfSubcells = NUMBER_OF_SUBDIVISIONS;
 		for (int i = 0; i < DIMENSION-1; i++){
 			NumberOfSubcells *= NUMBER_OF_SUBDIVISIONS;
 		}
@@ -282,8 +281,8 @@ struct Particles {
 				CurrentCellIndex += static_cast<int>(static_cast<double>(NUMBER_OF_SUBDIVISIONS)*Positions[DIMENSION*ParticleIndex+j])*IndexFactor;
 				IndexFactor *= NUMBER_OF_SUBDIVISIONS;
 			}
-				CellListIndices[ParticleIndex] = CellListHead[CurrentCellIndex];
-				CellListHead[CurrentCellIndex] = ParticleIndex;
+			CellListIndices[ParticleIndex] = CellListHead[CurrentCellIndex];
+			CellListHead[CurrentCellIndex] = ParticleIndex;
 		}
 	}
 	
@@ -449,19 +448,30 @@ struct SimulationManager {
 	double Beta;
 	realRNG RNG;
 	double ChemicalPotentialDiff;
-	vector<int> NumbersOfABuffer;
 	
-	void initialize(double InitialFractionOfAParticles, double _Temperature, double _ChemicalPotentialDiff) {
+	int MinNumberOfA;
+	int MaxNumberOfA;
+
+	vector<int> NumbersOfABuffer;
+	int NumberOfTriedDisplacements;
+	int NumberOfAcceptedDisplacements;
+	
+	void initialize(double _Temperature, double _ChemicalPotentialDiff, int _MinNumberOfA, int _MaxNumberOfA) {
 		Temperature = _Temperature;
 		Beta = 1.0/Temperature;
 		ChemicalPotentialDiff = _ChemicalPotentialDiff;
-		P.initialize(InitialFractionOfAParticles);
+		NumberOfTriedDisplacements = 0;
+		NumberOfAcceptedDisplacements = 0;
+		MinNumberOfA = _MinNumberOfA;
+		MaxNumberOfA = _MaxNumberOfA;
+		P.initialize(MinNumberOfA);
 		P.buildVerletList();
 	}
 	
 	void runDisplacementSteps(int StepsPerParticle) {
 		for (int i = 0; i < StepsPerParticle; i++){
 			for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
+				NumberOfTriedDisplacements++;
 				int RandomParticleID = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(TOTAL_NUMBER_OF_PARTICLES));
 				double Deltas [DIMENSION];
 				for (int i = 0; i < DIMENSION; i++){
@@ -470,6 +480,7 @@ struct SimulationManager {
 				double AcceptanceProbability = exp(-P.computeChangeInPotentialEnergyByMoving(RandomParticleID, Deltas)*Beta);
 				if (AcceptanceProbability >= 1.0 || (RNG.drawRandomNumber() < AcceptanceProbability)){
 					P.updatePosition(RandomParticleID, Deltas);
+					NumberOfAcceptedDisplacements++;
 				}
 			}
 		}
@@ -483,11 +494,11 @@ struct SimulationManager {
 			int RandomParticleID;
 			double ParticleNumbersPrefactor;
 			double ChemicalPotentialSign;
-			bool ParticleToSwitchAvailable = false;
+			bool ParticleSwitchAllowed = false;
 
 			if (RNG.drawRandomNumber() <= 0.5){
-				if (NumberOfAParticles > 0){
-					ParticleToSwitchAvailable = true;
+				if (NumberOfAParticles > MinNumberOfA){
+					ParticleSwitchAllowed = true;
 					RandomParticleIndexInTypeArray = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(NumberOfAParticles));
 					RandomParticleID = P.TypeAParticleIndices[RandomParticleIndexInTypeArray];
 					ParticleNumbersPrefactor = static_cast<double>(NumberOfAParticles)/static_cast<double>(NumberOfBParticles+1);
@@ -495,15 +506,15 @@ struct SimulationManager {
 				}
 			}
 			else {
-				if (NumberOfBParticles > 0){
-					ParticleToSwitchAvailable = true;
+				if (NumberOfAParticles < MaxNumberOfA){
+					ParticleSwitchAllowed = true;
 					RandomParticleIndexInTypeArray = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(NumberOfBParticles));
 					RandomParticleID = P.TypeBParticleIndices[RandomParticleIndexInTypeArray];
 					ParticleNumbersPrefactor = static_cast<double>(NumberOfBParticles)/static_cast<double>(NumberOfAParticles+1);
 					ChemicalPotentialSign = -1.0;
 				}
 			}
-			if (ParticleToSwitchAvailable){
+			if (ParticleSwitchAllowed){
 				double AcceptanceProbability = ParticleNumbersPrefactor*exp(-Beta*(P.computeChangeInPotentialEnergyBySwitching(RandomParticleID)  + ChemicalPotentialSign * ChemicalPotentialDiff));
 				if (AcceptanceProbability >= 1.0 || (RNG.drawRandomNumber() < AcceptanceProbability)){
 					P.switchParticleType(RandomParticleID, RandomParticleIndexInTypeArray);
@@ -515,7 +526,7 @@ struct SimulationManager {
 	void runSimulation(int NumberOfRuns) {
 		const auto StartTime = chrono::steady_clock::now();
 		int NextUpdateTime = UPDATE_TIME_INTERVAL;
-		cerr << "Simulation running. ";
+		cerr << "Simulation running. Progress: ";
 		for (int i = 0; i < NumberOfRuns; i++){
 			int TimeDiff = chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count();
 			if (TimeDiff == NextUpdateTime){
@@ -530,7 +541,7 @@ struct SimulationManager {
 				NumbersOfABuffer.clear();
 			}
 		}
-		cerr << endl;
+		cerr << endl << "Fraction of accepted displacements: " << static_cast<double>(NumberOfAcceptedDisplacements)/static_cast<double>(NumberOfTriedDisplacements) << endl;
 		writeNumbersOfAToFile();
 		NumbersOfABuffer.clear();
 	}
@@ -555,12 +566,11 @@ struct SimulationManager {
 
 int main(){
 	SimulationManager S;
-	S.initialize(0.5, 0.8, 0.0);
+	S.initialize(3.0, 0.0, 10, 11);
 	cerr << S.P;
 
-	S.runSimulation(400000);
-	S.writeParticleConfigurationToFile("data/ParticleConfig.dat");
+	S.runSimulation(10000);
+	S.writeParticleConfigurationToFile("data/FinalParticleConfig.dat");
 
-	cerr << S.P;
 }
 
