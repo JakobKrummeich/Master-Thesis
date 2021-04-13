@@ -32,10 +32,9 @@ static const int NUMBER_OF_SUBDIVISIONS = static_cast<int>(BOX_LENGTH/MAX_VERLET
 
 
 static const int DISPLACEMENT_TRIES_PER_RUN = 10;
-static const int TYPE_CHANGE_TRIES_PER_RUN = 10;
+static const int TYPE_CHANGE_TRIES_PER_RUN = 1;
 
-static const int UPDATE_TIME_INTERVAL = 5;
-static const int WRITE_RESULT_INTERVAL = 1000;
+static const int UPDATE_TIME_INTERVAL = 10;
 
 class realRNG{
 	private:
@@ -451,21 +450,25 @@ struct SimulationManager {
 	
 	int MinNumberOfA;
 	int MaxNumberOfA;
+	int NumberOfMCRuns;
 
-	vector<int> NumbersOfABuffer;
+	int NumberOfOccurrences [2];
 	int NumberOfTriedDisplacements;
 	int NumberOfAcceptedDisplacements;
 	
-	void initialize(double _Temperature, double _ChemicalPotentialDiff, int _MinNumberOfA, int _MaxNumberOfA) {
+	void initialize(double _Temperature, double _ChemicalPotentialDiff, int _MinNumberOfA, int NumberOfRuns) {
 		Temperature = _Temperature;
 		Beta = 1.0/Temperature;
 		ChemicalPotentialDiff = _ChemicalPotentialDiff;
+		NumberOfMCRuns = NumberOfRuns;
 		NumberOfTriedDisplacements = 0;
 		NumberOfAcceptedDisplacements = 0;
 		MinNumberOfA = _MinNumberOfA;
-		MaxNumberOfA = _MaxNumberOfA;
+		MaxNumberOfA = MinNumberOfA + 1;
 		P.initialize(MinNumberOfA);
 		P.buildVerletList();
+		NumberOfOccurrences[0] = 0;
+		NumberOfOccurrences[1] = 0;
 	}
 	
 	void runDisplacementSteps(int StepsPerParticle) {
@@ -523,35 +526,36 @@ struct SimulationManager {
 		}
 	}
 
-	void runSimulation(int NumberOfRuns) {
+	void runSimulation() {
 		const auto StartTime = chrono::steady_clock::now();
 		int NextUpdateTime = UPDATE_TIME_INTERVAL;
 		cerr << "Simulation running. Progress: ";
-		for (int i = 0; i < NumberOfRuns; i++){
-			int TimeDiff = chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count();
-			if (TimeDiff == NextUpdateTime){
-				cerr << i / (NumberOfRuns/100) << "%|";
-				NextUpdateTime += UPDATE_TIME_INTERVAL;
-			}
+		for (int i = 0; i < NumberOfMCRuns; i++){
 			runDisplacementSteps(DISPLACEMENT_TRIES_PER_RUN);
 			runTypeChanges(TYPE_CHANGE_TRIES_PER_RUN);
-			NumbersOfABuffer.push_back(P.getNumberOfAParticles());
-			if (i >= WRITE_RESULT_INTERVAL && i % WRITE_RESULT_INTERVAL == 0){
-				writeNumbersOfAToFile();
-				NumbersOfABuffer.clear();
+			NumberOfOccurrences[P.getNumberOfAParticles()-MinNumberOfA]++;
+			if (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() == NextUpdateTime){
+				cerr << i / (NumberOfMCRuns/100) << "%|";
+				updateResults(i);
+				NextUpdateTime += UPDATE_TIME_INTERVAL;
 			}
 		}
 		cerr << endl << "Fraction of accepted displacements: " << static_cast<double>(NumberOfAcceptedDisplacements)/static_cast<double>(NumberOfTriedDisplacements) << endl;
-		writeNumbersOfAToFile();
-		NumbersOfABuffer.clear();
+		updateResults(NumberOfMCRuns);
 	}
 
-	void writeNumbersOfAToFile() const {
-		string FileName("data/NumbersOfA_T="+to_string(Temperature)+"_N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_Δµ="+to_string(ChemicalPotentialDiff)+".dat");
+	void updateResults(int RunsCompleted) const {
+		string FileName("data/N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_MinNA="+to_string(MinNumberOfA)+"_MCRuns="+to_string(NumberOfMCRuns)+".dat");
 		ofstream FileStreamToWrite;
-		FileStreamToWrite.open(FileName, ios_base::app);
-		for (int i = 0; i < NumbersOfABuffer.size(); i++){
-			FileStreamToWrite << NumbersOfABuffer[i] << endl;
+		FileStreamToWrite.open(FileName);
+		FileStreamToWrite << "NumberOfCompleted runs: " << RunsCompleted << endl;
+		if (NumberOfOccurrences[0] != 0 && NumberOfOccurrences[1] != 0){
+			FileStreamToWrite << "ln(P(" << MinNumberOfA << "))\tln(P(" << MaxNumberOfA << "))" << endl;
+			FileStreamToWrite << log(static_cast<double>(NumberOfOccurrences[0])/static_cast<double>(RunsCompleted)) << '\t' << log(static_cast<double>(NumberOfOccurrences[1])/static_cast<double>(RunsCompleted));
+		}
+		else{
+			FileStreamToWrite << MinNumberOfA << '\t' << MaxNumberOfA << "\tRunsCompleted: " << RunsCompleted << endl;
+			FileStreamToWrite << NumberOfOccurrences[0] << '\t' << NumberOfOccurrences[1] << endl;
 		}
 		FileStreamToWrite.close();
 	}
@@ -566,11 +570,10 @@ struct SimulationManager {
 
 int main(){
 	SimulationManager S;
-	S.initialize(3.0, 0.0, 10, 11);
+	S.initialize(3.0, 0.0, 10, 1000);
 	cerr << S.P;
 
-	S.runSimulation(10000);
-	S.writeParticleConfigurationToFile("data/FinalParticleConfig.dat");
-
+	S.runSimulation();
+	S.writeParticleConfigurationToFile("data/FinalParticleConfig_N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(S.Temperature)+"_MinNA="+to_string(S.MinNumberOfA)+"_MCRuns="+to_string(S.NumberOfMCRuns)+".dat");
 }
 
