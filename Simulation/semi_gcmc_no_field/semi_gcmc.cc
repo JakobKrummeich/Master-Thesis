@@ -30,7 +30,7 @@ static const double MAX_VERLET_DIST_SQUARED = MAX_VERLET_DIST * MAX_VERLET_DIST;
 static const double SKINDISTANCE = MAX_VERLET_DIST - CUTOFF;
 static const int NUMBER_OF_SUBDIVISIONS = static_cast<int>(BOX_LENGTH/MAX_VERLET_DIST) > 3 ? static_cast<int>(BOX_LENGTH/MAX_VERLET_DIST) : 1;
 
-
+static const int THERMALIZE_TRIES_PER_PARTICLE = 1000;
 static const int DISPLACEMENT_TRIES_PER_RUN = 10;
 static const int TYPE_CHANGE_TRIES_PER_RUN = 1;
 
@@ -134,6 +134,8 @@ struct Particles {
 
 	void initialize(int InitialNumberOfAParticles){
 		int InitialNumberOfBParticles = TOTAL_NUMBER_OF_PARTICLES - InitialNumberOfAParticles;
+		double FractionOfAParticles = static_cast<double>(InitialNumberOfAParticles)/static_cast<double>(TOTAL_NUMBER_OF_PARTICLES);
+		realRNG RNG;
 
 		int NumberOfParticlesInARow(ceil(pow(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES),1.0/static_cast<double>(DIMENSION))));
 		double Distance(1.0/static_cast<double>(NumberOfParticlesInARow));
@@ -144,7 +146,6 @@ struct Particles {
 			CurrentPosition[i] = Distance*0.5;
 		}
 		int NumberOfAParticlesInitialized = 0;
-		ParticleType NextTypeToInitialize = ParticleType::A;
 		for (int ParticlesInitialized = 0; ParticlesInitialized < TOTAL_NUMBER_OF_PARTICLES; ParticlesInitialized++){
 			for (int i = 0; i < DIMENSION; i++){
 				Positions[ParticlesInitialized*DIMENSION + i] = CurrentPosition[i];
@@ -157,15 +158,13 @@ struct Particles {
 					CurrentPosition[i] += Distance;
 				}
 			}
-			if (NextTypeToInitialize == ParticleType::A && NumberOfAParticlesInitialized < InitialNumberOfAParticles){
+			if ((RNG.drawRandomNumber() <= FractionOfAParticles && NumberOfAParticlesInitialized < InitialNumberOfAParticles) || (TOTAL_NUMBER_OF_PARTICLES - ParticlesInitialized <= InitialNumberOfAParticles - NumberOfAParticlesInitialized)){
 				ParticleTypes[ParticlesInitialized] = ParticleType::A;
-				NextTypeToInitialize = ParticleType::B;
 				TypeAParticleIndices.push_back(ParticlesInitialized);
 				NumberOfAParticlesInitialized++;
 			}
-			else{
+			else {
 				ParticleTypes[ParticlesInitialized] = ParticleType::B;
-				NextTypeToInitialize = ParticleType::A;
 				TypeBParticleIndices.push_back(ParticlesInitialized);
 			}
 		}
@@ -527,6 +526,8 @@ struct SimulationManager {
 	}
 
 	void runSimulation() {
+		runDisplacementSteps(THERMALIZE_TRIES_PER_PARTICLE);
+		cerr << "Initial displacements finished. ";
 		const auto StartTime = chrono::steady_clock::now();
 		int NextUpdateTime = UPDATE_TIME_INTERVAL;
 		cerr << "Simulation running. Progress: ";
@@ -540,8 +541,9 @@ struct SimulationManager {
 				NextUpdateTime += UPDATE_TIME_INTERVAL;
 			}
 		}
-		cerr << endl << "Fraction of accepted displacements: " << static_cast<double>(NumberOfAcceptedDisplacements)/static_cast<double>(NumberOfTriedDisplacements) << endl;
 		updateResults(NumberOfMCRuns);
+		cerr << endl << "Fraction of accepted displacements: " << static_cast<double>(NumberOfAcceptedDisplacements)/static_cast<double>(NumberOfTriedDisplacements) << endl;
+		cerr << "Computation time: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s for " << NumberOfMCRuns << " runs" <<  endl;
 	}
 
 	void updateResults(int RunsCompleted) const {
@@ -570,7 +572,7 @@ struct SimulationManager {
 
 int main(){
 	SimulationManager S;
-	S.initialize(3.0, 0.0, 10, 1000);
+	S.initialize(2.0, 0.0, 10, 1000);
 	cerr << S.P;
 
 	S.runSimulation();
