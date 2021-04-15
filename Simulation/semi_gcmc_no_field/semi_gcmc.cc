@@ -31,10 +31,9 @@ static const double SKINDISTANCE = MAX_VERLET_DIST - CUTOFF;
 static const int NUMBER_OF_SUBDIVISIONS = static_cast<int>(BOX_LENGTH/MAX_VERLET_DIST) > 3 ? static_cast<int>(BOX_LENGTH/MAX_VERLET_DIST) : 1;
 
 static const int THERMALIZE_TRIES_PER_PARTICLE = 1000;
-static const int DISPLACEMENT_TRIES_PER_RUN = 10;
-static const int TYPE_CHANGE_TRIES_PER_RUN = 1;
-
+static const double DISPLACEMENT_PROBABILITY = 0.8;
 static const int UPDATE_TIME_INTERVAL = 10;
+
 
 class realRNG{
 	private:
@@ -449,115 +448,116 @@ struct SimulationManager {
 	
 	int MinNumberOfA;
 	int MaxNumberOfA;
-	int NumberOfMCRuns;
+	int NumberOfMCSweeps;
 
-	int NumberOfOccurrences [2];
+	vector<int> NumberOfABuffer;
+	vector<double> PotEnergyBuffer;
+	
 	int NumberOfTriedDisplacements;
 	int NumberOfAcceptedDisplacements;
+
+	int NumberOfTriedTypeChanges;
+	int NumberOfAcceptedTypeChanges;
 	
-	void initialize(double _Temperature, double _ChemicalPotentialDiff, int _MinNumberOfA, int NumberOfRuns) {
+	void initialize(double _Temperature, double _ChemicalPotentialDiff, int _MinNumberOfA, int _MaxNumberOfA, int NumberOfSweeps) {
 		Temperature = _Temperature;
 		Beta = 1.0/Temperature;
 		ChemicalPotentialDiff = _ChemicalPotentialDiff;
-		NumberOfMCRuns = NumberOfRuns;
+		NumberOfMCSweeps = NumberOfSweeps;
 		NumberOfTriedDisplacements = 0;
 		NumberOfAcceptedDisplacements = 0;
 		MinNumberOfA = _MinNumberOfA;
-		MaxNumberOfA = MinNumberOfA + 1;
+		MaxNumberOfA = _MaxNumberOfA;
 		P.initialize(MinNumberOfA);
 		P.buildVerletList();
-		NumberOfOccurrences[0] = 0;
-		NumberOfOccurrences[1] = 0;
 	}
 	
-	void runDisplacementSteps(int StepsPerParticle) {
-		for (int i = 0; i < StepsPerParticle; i++){
-			for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
-				NumberOfTriedDisplacements++;
-				int RandomParticleID = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(TOTAL_NUMBER_OF_PARTICLES));
-				double Deltas [DIMENSION];
-				for (int i = 0; i < DIMENSION; i++){
-					Deltas[i] = RNG.drawRandomNumber(-MAXIMUM_DISPLACEMENT, MAXIMUM_DISPLACEMENT)*INVERSE_BOX_LENGTH;
-				}
-				double AcceptanceProbability = exp(-P.computeChangeInPotentialEnergyByMoving(RandomParticleID, Deltas)*Beta);
-				if (AcceptanceProbability >= 1.0 || (RNG.drawRandomNumber() < AcceptanceProbability)){
-					P.updatePosition(RandomParticleID, Deltas);
-					NumberOfAcceptedDisplacements++;
-				}
+	void runDisplacementStep() {
+			NumberOfTriedDisplacements++;
+			int RandomParticleID = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(TOTAL_NUMBER_OF_PARTICLES));
+			double Deltas [DIMENSION];
+			for (int i = 0; i < DIMENSION; i++){
+				Deltas[i] = RNG.drawRandomNumber(-MAXIMUM_DISPLACEMENT, MAXIMUM_DISPLACEMENT)*INVERSE_BOX_LENGTH;
+			}
+			double AcceptanceProbability = exp(-P.computeChangeInPotentialEnergyByMoving(RandomParticleID, Deltas)*Beta);
+			if (AcceptanceProbability >= 1.0 || (RNG.drawRandomNumber() < AcceptanceProbability)){
+				P.updatePosition(RandomParticleID, Deltas);
+				NumberOfAcceptedDisplacements++;
+			}
+	}
+	
+	void runTypeChange() {
+		NumberOfTriedTypeChanges++;
+		int NumberOfAParticles = P.getNumberOfAParticles();
+		int NumberOfBParticles = P.getNumberOfBParticles();
+		int RandomParticleIndexInTypeArray;
+		int RandomParticleID;
+		double ParticleNumbersPrefactor;
+		double ChemicalPotentialSign;
+		bool ParticleSwitchAllowed = false;
+
+		if (RNG.drawRandomNumber() <= 0.5){
+			if (NumberOfAParticles > MinNumberOfA){
+				ParticleSwitchAllowed = true;
+				RandomParticleIndexInTypeArray = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(NumberOfAParticles));
+				RandomParticleID = P.TypeAParticleIndices[RandomParticleIndexInTypeArray];
+				ParticleNumbersPrefactor = static_cast<double>(NumberOfAParticles)/static_cast<double>(NumberOfBParticles+1);
+				ChemicalPotentialSign = 1.0;
 			}
 		}
-	}
-	
-	void runTypeChanges(int NumberOfTriedChanges) {
-		for (int i = 0; i < NumberOfTriedChanges; i++){
-			int NumberOfAParticles = P.getNumberOfAParticles();
-			int NumberOfBParticles = P.getNumberOfBParticles();
-			int RandomParticleIndexInTypeArray;
-			int RandomParticleID;
-			double ParticleNumbersPrefactor;
-			double ChemicalPotentialSign;
-			bool ParticleSwitchAllowed = false;
-
-			if (RNG.drawRandomNumber() <= 0.5){
-				if (NumberOfAParticles > MinNumberOfA){
-					ParticleSwitchAllowed = true;
-					RandomParticleIndexInTypeArray = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(NumberOfAParticles));
-					RandomParticleID = P.TypeAParticleIndices[RandomParticleIndexInTypeArray];
-					ParticleNumbersPrefactor = static_cast<double>(NumberOfAParticles)/static_cast<double>(NumberOfBParticles+1);
-					ChemicalPotentialSign = 1.0;
-				}
+		else {
+			if (NumberOfAParticles < MaxNumberOfA){
+				ParticleSwitchAllowed = true;
+				RandomParticleIndexInTypeArray = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(NumberOfBParticles));
+				RandomParticleID = P.TypeBParticleIndices[RandomParticleIndexInTypeArray];
+				ParticleNumbersPrefactor = static_cast<double>(NumberOfBParticles)/static_cast<double>(NumberOfAParticles+1);
+				ChemicalPotentialSign = -1.0;
 			}
-			else {
-				if (NumberOfAParticles < MaxNumberOfA){
-					ParticleSwitchAllowed = true;
-					RandomParticleIndexInTypeArray = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(NumberOfBParticles));
-					RandomParticleID = P.TypeBParticleIndices[RandomParticleIndexInTypeArray];
-					ParticleNumbersPrefactor = static_cast<double>(NumberOfBParticles)/static_cast<double>(NumberOfAParticles+1);
-					ChemicalPotentialSign = -1.0;
-				}
-			}
-			if (ParticleSwitchAllowed){
-				double AcceptanceProbability = ParticleNumbersPrefactor*exp(-Beta*(P.computeChangeInPotentialEnergyBySwitching(RandomParticleID)  + ChemicalPotentialSign * ChemicalPotentialDiff));
-				if (AcceptanceProbability >= 1.0 || (RNG.drawRandomNumber() < AcceptanceProbability)){
-					P.switchParticleType(RandomParticleID, RandomParticleIndexInTypeArray);
-				}
+		}
+		if (ParticleSwitchAllowed){
+			double AcceptanceProbability = ParticleNumbersPrefactor*exp(-Beta*(P.computeChangeInPotentialEnergyBySwitching(RandomParticleID)  + ChemicalPotentialSign * ChemicalPotentialDiff));
+			if (AcceptanceProbability >= 1.0 || (RNG.drawRandomNumber() < AcceptanceProbability)){
+				P.switchParticleType(RandomParticleID, RandomParticleIndexInTypeArray);
+				NumberOfAcceptedTypeChanges++;
 			}
 		}
 	}
 
 	void runSimulation() {
-		runDisplacementSteps(THERMALIZE_TRIES_PER_PARTICLE);
-		cerr << "Initial displacements finished. ";
 		const auto StartTime = chrono::steady_clock::now();
 		int NextUpdateTime = UPDATE_TIME_INTERVAL;
 		cerr << "Simulation running. Progress: ";
-		for (int i = 0; i < NumberOfMCRuns; i++){
-			runDisplacementSteps(DISPLACEMENT_TRIES_PER_RUN);
-			runTypeChanges(TYPE_CHANGE_TRIES_PER_RUN);
-			NumberOfOccurrences[P.getNumberOfAParticles()-MinNumberOfA]++;
+		for (int i = 0; i < NumberOfMCSweeps; i++){
+			for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
+				if (RNG.drawRandomNumber() <= DISPLACEMENT_PROBABILITY){
+					runDisplacementStep();
+				}
+				else {
+					runTypeChange();
+				}
+			}
+			NumberOfABuffer.push_back(i);
+			NumberOfABuffer.push_back(P.getNumberOfAParticles());
 			if (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() == NextUpdateTime){
-				cerr << i / (NumberOfMCRuns/100) << "%|";
-				updateResults(i);
+				cerr << i / (NumberOfMCSweeps/100) << "%|";
+				writeResults();
+				NumberOfABuffer.clear();
 				NextUpdateTime += UPDATE_TIME_INTERVAL;
 			}
 		}
-		updateResults(NumberOfMCRuns);
+		writeResults();
+		NumberOfABuffer.clear();
 		cerr << endl << "Fraction of accepted displacements: " << static_cast<double>(NumberOfAcceptedDisplacements)/static_cast<double>(NumberOfTriedDisplacements) << endl;
-		cerr << "Computation time: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s for " << NumberOfMCRuns << " runs" <<  endl;
+		cerr << "Fraction of accepted type changes: " << static_cast<double>(NumberOfAcceptedTypeChanges)/static_cast<double>(NumberOfTriedTypeChanges) << endl;
+		cerr << "Computation time: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s for " << NumberOfMCSweeps << " runs" <<  endl;
 	}
 
-	void updateResults(int RunsCompleted) const {
-		string FileName("data/N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_MinNA="+to_string(MinNumberOfA)+"_MCRuns="+to_string(NumberOfMCRuns)+".dat");
+	void writeResults() const {
+		string FileName("data/N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_MinNA="+to_string(MinNumberOfA)+"_MCRuns="+to_string(NumberOfMCSweeps)+".dat");
 		ofstream FileStreamToWrite;
-		FileStreamToWrite.open(FileName);
-		FileStreamToWrite << "NumberOfCompleted runs: " << RunsCompleted << endl;
-		if (NumberOfOccurrences[0] != 0 && NumberOfOccurrences[1] != 0){
-			FileStreamToWrite << "ln(P(" << MinNumberOfA << "))\tln(P(" << MaxNumberOfA << "))" << endl;
-			FileStreamToWrite << log(static_cast<double>(NumberOfOccurrences[0])/static_cast<double>(RunsCompleted)) << '\t' << log(static_cast<double>(NumberOfOccurrences[1])/static_cast<double>(RunsCompleted));
-		}
-		else{
-			FileStreamToWrite << MinNumberOfA << '\t' << MaxNumberOfA << "\tRunsCompleted: " << RunsCompleted << endl;
-			FileStreamToWrite << NumberOfOccurrences[0] << '\t' << NumberOfOccurrences[1] << endl;
+		FileStreamToWrite.open(FileName, ios_base::app);
+		for (int i = 0; i < NumberOfABuffer.size(); i += 2){
+			FileStreamToWrite << NumberOfABuffer[i] << '\t' << NumberOfABuffer[i+1] << '\n';
 		}
 		FileStreamToWrite.close();
 	}
@@ -572,10 +572,10 @@ struct SimulationManager {
 
 int main(){
 	SimulationManager S;
-	S.initialize(2.0, 0.0, 10, 1000);
+	S.initialize(2.0, 0.0, 0, TOTAL_NUMBER_OF_PARTICLES, 100000);
 	cerr << S.P;
 
 	S.runSimulation();
-	S.writeParticleConfigurationToFile("data/FinalParticleConfig_N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(S.Temperature)+"_MinNA="+to_string(S.MinNumberOfA)+"_MCRuns="+to_string(S.NumberOfMCRuns)+".dat");
+	S.writeParticleConfigurationToFile("data/FinalParticleConfig_N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(S.Temperature)+"_MinNA="+to_string(S.MinNumberOfA)+"_MCRuns="+to_string(S.NumberOfMCSweeps)+".dat");
 }
 
