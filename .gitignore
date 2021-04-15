@@ -3,8 +3,10 @@
 
 # Unignore all with extensions
 !*.*
-*.dat
 
 # Unignore all dirs
 !*/
+
+*.dat
+Data_Analysis-checkpoint.ipynb
 

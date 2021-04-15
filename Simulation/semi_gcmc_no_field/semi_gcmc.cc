@@ -33,6 +33,7 @@ static const int NUMBER_OF_SUBDIVISIONS = static_cast<int>(BOX_LENGTH/MAX_VERLET
 static const int THERMALIZE_TRIES_PER_PARTICLE = 1000;
 static const double DISPLACEMENT_PROBABILITY = 0.8;
 static const int UPDATE_TIME_INTERVAL = 10;
+static const int POT_ENERGY_UPDATE_INTERVAL = 200;
 
 
 class realRNG{
@@ -261,6 +262,23 @@ struct Particles {
 		}
 		return PotEnergyChange;
 	}
+
+	double computePotentialEnergy() const {
+		double PotEnergy = 0.0;
+		for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
+			for (int i = 0; i < VerletListHead[2*ParticleIndex+1]; i++){
+				int OtherParticleIndex = VerletIndicesOfNeighbors[VerletListHead[2*ParticleIndex]+i];
+				if (OtherParticleIndex < ParticleIndex){
+					double InteractionStrength = AB_INTERACTION_STRENGTH;
+					if (ParticleTypes[ParticleIndex] == ParticleTypes[OtherParticleIndex]) {
+						InteractionStrength = AA_INTERACTION_STRENGTH;
+					}
+					PotEnergy += InteractionStrength * computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*OtherParticleIndex], &Positions[DIMENSION*ParticleIndex]);
+				}
+			}
+		}
+		return PotEnergy;
+	}
 	
 	void buildCellList(){
 		int NumberOfSubcells = NUMBER_OF_SUBDIVISIONS;
@@ -427,7 +445,6 @@ struct Particles {
 			}
 		}
 	}
-	
 };
 
 ostream& operator<<(ostream& OStream, const Particles& State){
@@ -526,6 +543,7 @@ struct SimulationManager {
 	void runSimulation() {
 		const auto StartTime = chrono::steady_clock::now();
 		int NextUpdateTime = UPDATE_TIME_INTERVAL;
+		int NextPotEnergyComputation = POT_ENERGY_UPDATE_INTERVAL;
 		cerr << "Simulation running. Progress: ";
 		for (int i = 0; i < NumberOfMCSweeps; i++){
 			for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
@@ -536,12 +554,16 @@ struct SimulationManager {
 					runTypeChange();
 				}
 			}
-			NumberOfABuffer.push_back(i);
 			NumberOfABuffer.push_back(P.getNumberOfAParticles());
+			if (i == NextPotEnergyComputation){
+				PotEnergyBuffer.push_back(P.computePotentialEnergy());
+				NextPotEnergyComputation += POT_ENERGY_UPDATE_INTERVAL;
+			}
 			if (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() == NextUpdateTime){
 				cerr << i / (NumberOfMCSweeps/100) << "%|";
 				writeResults();
 				NumberOfABuffer.clear();
+				PotEnergyBuffer.clear();
 				NextUpdateTime += UPDATE_TIME_INTERVAL;
 			}
 		}
@@ -553,11 +575,17 @@ struct SimulationManager {
 	}
 
 	void writeResults() const {
-		string FileName("data/N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_MinNA="+to_string(MinNumberOfA)+"_MCRuns="+to_string(NumberOfMCSweeps)+".dat");
+		string FileName("data/NA_Series_N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_MinNA="+to_string(MinNumberOfA)+"_MCRuns="+to_string(NumberOfMCSweeps)+".dat");
 		ofstream FileStreamToWrite;
 		FileStreamToWrite.open(FileName, ios_base::app);
-		for (int i = 0; i < NumberOfABuffer.size(); i += 2){
-			FileStreamToWrite << NumberOfABuffer[i] << '\t' << NumberOfABuffer[i+1] << '\n';
+		for (int i = 0; i < NumberOfABuffer.size(); i++){
+			FileStreamToWrite << NumberOfABuffer[i] << '\n';
+		}
+		FileStreamToWrite.close();
+		FileName = "data/PotEnergySeries_N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_MinNA="+to_string(MinNumberOfA)+"_MCRuns="+to_string(NumberOfMCSweeps)+"_INTERVAL="+to_string(POT_ENERGY_UPDATE_INTERVAL)+".dat";
+		FileStreamToWrite.open(FileName, ios_base::app);
+		for (int i = 0; i < PotEnergyBuffer.size(); i++){
+			FileStreamToWrite << PotEnergyBuffer[i] << '\n';
 		}
 		FileStreamToWrite.close();
 	}
