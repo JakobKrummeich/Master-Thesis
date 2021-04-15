@@ -127,10 +127,22 @@ struct Particles {
 	int MostTraveledParticleIndex;
 
 	public:
-	
+
 	fvec<int, TOTAL_NUMBER_OF_PARTICLES> TypeAParticleIndices;
 	fvec<int, TOTAL_NUMBER_OF_PARTICLES> TypeBParticleIndices;
 	int NumberOfVerletListBuilds;
+
+	Particles(){
+		for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
+			for (int j = 0; j < DIMENSION; j++){
+				ChangeInCoordinates[DIMENSION*i+j] = 0.0;
+			}
+		}
+		for (int i = 0; i < 2; i++){
+			MostTraveledDistances[i] = 0.0;
+		}
+		NumberOfVerletListBuilds = 0;
+	}
 
 	void initialize(int InitialNumberOfAParticles){
 		int InitialNumberOfBParticles = TOTAL_NUMBER_OF_PARTICLES - InitialNumberOfAParticles;
@@ -149,7 +161,6 @@ struct Particles {
 		for (int ParticlesInitialized = 0; ParticlesInitialized < TOTAL_NUMBER_OF_PARTICLES; ParticlesInitialized++){
 			for (int i = 0; i < DIMENSION; i++){
 				Positions[ParticlesInitialized*DIMENSION + i] = CurrentPosition[i];
-				ChangeInCoordinates[DIMENSION*ParticlesInitialized+i] = 0.0;
 			}
 			CurrentPosition[0] += Distance;
 			for (int i = 1; i < DIMENSION; i++){
@@ -168,10 +179,33 @@ struct Particles {
 				TypeBParticleIndices.push_back(ParticlesInitialized);
 			}
 		}
-		for (int i = 0; i < 2; i++){
-			MostTraveledDistances[i] = 0.0;
+	}
+
+	void readInParticleState(string FileNameToReadIn) {
+		ifstream FileStreamToReadIn;
+		FileStreamToReadIn.open(FileNameToReadIn);
+			
+		string CurrentString;
+
+		getline(FileStreamToReadIn,CurrentString, '\n');
+
+		for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
+			getline(FileStreamToReadIn, CurrentString, '\t');
+			for (int j = 0; j < DIMENSION; j++){
+				getline(FileStreamToReadIn, CurrentString, '\t');
+				Positions[DIMENSION*ParticleIndex+j] = stod(CurrentString);
+			}
+			getline(FileStreamToReadIn, CurrentString, '\n');
+			if (CurrentString == "A"){
+				ParticleTypes[ParticleIndex] = ParticleType::A;
+				TypeAParticleIndices.push_back(ParticleIndex);
+			}
+			else {
+				ParticleTypes[ParticleIndex] = ParticleType::B;
+				TypeBParticleIndices.push_back(ParticleIndex);
+			}
 		}
-		NumberOfVerletListBuilds = 0;
+		FileStreamToReadIn.close();
 	}
 	
 	double getPosition(int ParticleIndex, int Coordinate) const {
@@ -448,7 +482,7 @@ struct Particles {
 };
 
 ostream& operator<<(ostream& OStream, const Particles& State){
-	OStream << "#ID\tX       Y       Type | #AParticles:  " << State.getNumberOfAParticles() << "| #BParticles: " << State.getNumberOfBParticles() << "| #Builds: " << State.NumberOfVerletListBuilds << endl;
+	OStream << "#ID\tX       Y       Type | #AParticles:  " << State.getNumberOfAParticles() << "| #BParticles: " << State.getNumberOfBParticles() << endl;
 	for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
 		OStream << i << "\t";
 		OStream << fixed << setprecision(5) << State.getPosition(i,0) << "\t" << State.getPosition(i,1) << "\t" << State.getParticleType(i) <<  endl;
@@ -475,17 +509,27 @@ struct SimulationManager {
 
 	int NumberOfTriedTypeChanges;
 	int NumberOfAcceptedTypeChanges;
+
+	SimulationManager(double _Temperature, double _ChemicalPotentialDiff, int _MinNumberOfA, int _MaxNumberOfA, int _NumberOfMCSweeps):
+		Temperature(_Temperature),
+		Beta(1.0/Temperature),
+		ChemicalPotentialDiff(_ChemicalPotentialDiff),
+		MinNumberOfA(_MinNumberOfA),
+		MaxNumberOfA(_MaxNumberOfA),
+		NumberOfMCSweeps(_NumberOfMCSweeps),
+		NumberOfTriedDisplacements(0),
+		NumberOfAcceptedDisplacements(0),
+		NumberOfTriedTypeChanges(0),
+		NumberOfAcceptedTypeChanges(0){
+	}
 	
-	void initialize(double _Temperature, double _ChemicalPotentialDiff, int _MinNumberOfA, int _MaxNumberOfA, int NumberOfSweeps) {
-		Temperature = _Temperature;
-		Beta = 1.0/Temperature;
-		ChemicalPotentialDiff = _ChemicalPotentialDiff;
-		NumberOfMCSweeps = NumberOfSweeps;
-		NumberOfTriedDisplacements = 0;
-		NumberOfAcceptedDisplacements = 0;
-		MinNumberOfA = _MinNumberOfA;
-		MaxNumberOfA = _MaxNumberOfA;
+	void initialize() {
 		P.initialize(MinNumberOfA);
+		P.buildVerletList();
+	}
+
+	void initialize(string FileNameInitialConfiguration) {
+		P.readInParticleState(FileNameInitialConfiguration);
 		P.buildVerletList();
 	}
 	
@@ -571,6 +615,7 @@ struct SimulationManager {
 		NumberOfABuffer.clear();
 		cerr << endl << "Fraction of accepted displacements: " << static_cast<double>(NumberOfAcceptedDisplacements)/static_cast<double>(NumberOfTriedDisplacements) << endl;
 		cerr << "Fraction of accepted type changes: " << static_cast<double>(NumberOfAcceptedTypeChanges)/static_cast<double>(NumberOfTriedTypeChanges) << endl;
+		cerr << "#VerletListBuilds: " << P.NumberOfVerletListBuilds << endl;
 		cerr << "Computation time: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s for " << NumberOfMCSweeps << " runs" <<  endl;
 	}
 
@@ -599,8 +644,8 @@ struct SimulationManager {
 };
 
 int main(){
-	SimulationManager S;
-	S.initialize(2.0, 0.0, 0, TOTAL_NUMBER_OF_PARTICLES, 100000);
+	SimulationManager S(1.0, 0.0, 0, TOTAL_NUMBER_OF_PARTICLES, 1000);
+	S.initialize("data/FinalParticleConfig_N=500_T=2.000000_MinNA=0_MCRuns=1000.dat");
 	cerr << S.P;
 
 	S.runSimulation();
