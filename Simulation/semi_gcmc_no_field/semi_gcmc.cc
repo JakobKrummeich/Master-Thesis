@@ -19,7 +19,7 @@ static const double INVERSE_CUTOFF = 1.0/CUTOFF;
 static const double POTENTIAL_CONSTANT_1 = pow(INVERSE_CUTOFF, 6.0) - pow(INVERSE_CUTOFF, 12.0);
 static const double POTENTIAL_CONSTANT_2 = 6.0 * pow(INVERSE_CUTOFF, 7.0) - 12.0 * pow(INVERSE_CUTOFF, 13.0);
 
-static const double DENSITY = 0.9;
+static const double DENSITY = 0.8;
 static const double BOX_LENGTH = sqrt(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES) / DENSITY);
 static const double BOX_LENGTH_SQUARED = BOX_LENGTH * BOX_LENGTH;
 static const double INVERSE_BOX_LENGTH = 1.0/BOX_LENGTH;
@@ -236,10 +236,10 @@ struct Particles {
 		return TypeBParticleIndices.size();
 	}
 	
-	static double computePairwiseParticlePotentialEnergy(double DimensionlessDistance) {
-		double InverseDistance = 1.0/(DimensionlessDistance*BOX_LENGTH);
-		double InverseDistanceToThePowerOfSix = InverseDistance * InverseDistance * InverseDistance * InverseDistance * InverseDistance * InverseDistance;
-		return 4.0*(InverseDistanceToThePowerOfSix * InverseDistanceToThePowerOfSix - InverseDistanceToThePowerOfSix + POTENTIAL_CONSTANT_1 - (DimensionlessDistance * BOX_LENGTH - CUTOFF) * POTENTIAL_CONSTANT_1);
+	static double computePairwiseParticlePotentialEnergy(double DimensionlessDistanceSquared) {
+		double InverseDistanceSquared = 1.0/(DimensionlessDistanceSquared*BOX_LENGTH_SQUARED);
+		double InverseDistanceToThePowerOfSix = InverseDistanceSquared * InverseDistanceSquared * InverseDistanceSquared;
+		return 4.0*(InverseDistanceToThePowerOfSix * InverseDistanceToThePowerOfSix - InverseDistanceToThePowerOfSix + POTENTIAL_CONSTANT_1 - (sqrt(DimensionlessDistanceSquared) * BOX_LENGTH - CUTOFF) * POTENTIAL_CONSTANT_2);
 	}
 	
 	static double computePairwiseParticlePotentialEnergy(const double* Position0, const double* Position1) {
@@ -257,7 +257,7 @@ struct Particles {
 		if (DistanceSquared*BOX_LENGTH_SQUARED >= CUTOFF_SQUARED){
 			return 0.0;
 		}
-		return computePairwiseParticlePotentialEnergy(sqrt(DistanceSquared));
+		return computePairwiseParticlePotentialEnergy(DistanceSquared);
 	}
 	
 	double computeChangeInPotentialEnergyByMoving(int ParticleIndex, const double* Delta) const {
@@ -533,6 +533,21 @@ struct SimulationManager {
 		P.buildVerletList();
 	}
 	
+	void changeTemperature(double NewTemperature){	
+		Temperature = NewTemperature;
+		Beta = 1.0/Temperature;
+	}
+	
+	void reset(){
+		NumberOfABuffer.clear();
+		PotEnergyBuffer.clear();
+		NumberOfTriedDisplacements = 0;
+		NumberOfAcceptedDisplacements = 0;
+		NumberOfTriedTypeChanges = 0;
+		NumberOfAcceptedTypeChanges = 0;
+		P.NumberOfVerletListBuilds = 0;
+	}
+	
 	void runDisplacementStep() {
 			NumberOfTriedDisplacements++;
 			int RandomParticleID = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(TOTAL_NUMBER_OF_PARTICLES));
@@ -613,21 +628,22 @@ struct SimulationManager {
 		}
 		writeResults();
 		NumberOfABuffer.clear();
-		cerr << endl << "Fraction of accepted displacements: " << static_cast<double>(NumberOfAcceptedDisplacements)/static_cast<double>(NumberOfTriedDisplacements) << endl;
-		cerr << "Fraction of accepted type changes: " << static_cast<double>(NumberOfAcceptedTypeChanges)/static_cast<double>(NumberOfTriedTypeChanges) << endl;
+		PotEnergyBuffer.clear();
+		cerr << endl << "Ratio of accepted displacements: " << static_cast<double>(NumberOfAcceptedDisplacements)/static_cast<double>(NumberOfTriedDisplacements) << endl;
+		cerr << "Ratio of accepted type changes: " << static_cast<double>(NumberOfAcceptedTypeChanges)/static_cast<double>(NumberOfTriedTypeChanges) << endl;
 		cerr << "#VerletListBuilds: " << P.NumberOfVerletListBuilds << endl;
 		cerr << "Computation time: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s for " << NumberOfMCSweeps << " runs" <<  endl;
 	}
 
 	void writeResults() const {
-		string FileName("data/NA_Series_N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_MinNA="+to_string(MinNumberOfA)+"_MCRuns="+to_string(NumberOfMCSweeps)+".dat");
+		string FileName("data/NA_Series_N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_MinNA="+to_string(MinNumberOfA)+"_MaxNA="+to_string(MaxNumberOfA)+"_MCRuns="+to_string(NumberOfMCSweeps)+".dat");
 		ofstream FileStreamToWrite;
 		FileStreamToWrite.open(FileName, ios_base::app);
 		for (int i = 0; i < NumberOfABuffer.size(); i++){
 			FileStreamToWrite << NumberOfABuffer[i] << '\n';
 		}
 		FileStreamToWrite.close();
-		FileName = "data/PotEnergySeries_N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_MinNA="+to_string(MinNumberOfA)+"_MCRuns="+to_string(NumberOfMCSweeps)+"_INTERVAL="+to_string(POT_ENERGY_UPDATE_INTERVAL)+".dat";
+		FileName = "data/PotEnergySeries_N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_MinNA="+to_string(MinNumberOfA)+"_MaxNA="+to_string(MaxNumberOfA)+"_MCRuns="+to_string(NumberOfMCSweeps)+"_updateInterval="+to_string(POT_ENERGY_UPDATE_INTERVAL)+".dat";
 		FileStreamToWrite.open(FileName, ios_base::app);
 		for (int i = 0; i < PotEnergyBuffer.size(); i++){
 			FileStreamToWrite << PotEnergyBuffer[i] << '\n';
@@ -644,11 +660,19 @@ struct SimulationManager {
 };
 
 int main(){
-	SimulationManager S(1.0, 0.0, 0, TOTAL_NUMBER_OF_PARTICLES, 1000);
-	S.initialize("data/FinalParticleConfig_N=500_T=2.000000_MinNA=0_MCRuns=1000.dat");
+	double CurrentTemperature = 1.2;
+	double TemperatureStep = 0.1;
+	SimulationManager S(CurrentTemperature, 0.0, 0, TOTAL_NUMBER_OF_PARTICLES, 1000000);
+	S.initialize();
 	cerr << S.P;
 
-	S.runSimulation();
-	S.writeParticleConfigurationToFile("data/FinalParticleConfig_N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(S.Temperature)+"_MinNA="+to_string(S.MinNumberOfA)+"_MCRuns="+to_string(S.NumberOfMCSweeps)+".dat");
+	while (CurrentTemperature >= 0.5){
+		S.changeTemperature(CurrentTemperature);
+		S.reset();
+		S.runSimulation();
+		S.writeParticleConfigurationToFile("data/FinalParticleConfig_N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(S.Temperature)+"_MinNA="+to_string(S.MinNumberOfA)+"_MaxNA="+to_string(S.MaxNumberOfA)+"_MCRuns="+to_string(S.NumberOfMCSweeps)+".dat");
+		CurrentTemperature -= TemperatureStep;
+		cerr << S.P;
+	}
 }
 
