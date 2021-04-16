@@ -673,13 +673,26 @@ struct SimulationManager {
 };
 
 int main(){
-	double CurrentTemperature = 0.7;
-	double TemperatureStep = 0.01;
-	SimulationManager S(CurrentTemperature, 0.0, 0, TOTAL_NUMBER_OF_PARTICLES, 1000);
+	double CurrentTemperature;
+	double TemperatureStep;
+	double MaxTemperature;
+	double MinTemperature;
+	int NumberOfSweeps;
+	cout << "Enter MaxTemperature: ";
+	cin >> MaxTemperature; cin.ignore();
+	CurrentTemperature = MaxTemperature;
+	cout << "Enter Temperature stepsize: ";
+	cin >> TemperatureStep; cin.ignore();
+	cout << "Enter MinTemperature (not included): ";
+	cin >> MinTemperature; cin.ignore();
+	cout << "Enter NumberOfSweeps: ";
+	cin >> NumberOfSweeps; cin.ignore();
+	
+	SimulationManager S(CurrentTemperature, 0.0, 0, TOTAL_NUMBER_OF_PARTICLES, NumberOfSweeps);
 	S.initialize();
 	cerr << S.P;
 
-	while (CurrentTemperature > 0.5){
+	while (CurrentTemperature > MinTemperature){
 		S.changeTemperature(CurrentTemperature);
 		S.reset();
 		S.runSimulation();
