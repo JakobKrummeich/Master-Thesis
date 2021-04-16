@@ -603,6 +603,7 @@ struct SimulationManager {
 		const auto StartTime = chrono::steady_clock::now();
 		int NextUpdateTime = UPDATE_TIME_INTERVAL;
 		int NextPotEnergyComputation = POT_ENERGY_UPDATE_INTERVAL;
+		writeMetaData();
 		cerr << "Simulation running. Progress: ";
 		for (int i = 0; i < NumberOfMCSweeps; i++){
 			for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
@@ -635,6 +636,18 @@ struct SimulationManager {
 		cerr << "Computation time: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s for " << NumberOfMCSweeps << " runs" <<  endl;
 	}
 
+	void writeMetaData() const {
+		string FileName("data/NA_Series_N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_MinNA="+to_string(MinNumberOfA)+"_MaxNA="+to_string(MaxNumberOfA)+"_MCRuns="+to_string(NumberOfMCSweeps)+".dat");
+		ofstream FileStreamToWrite;
+		FileStreamToWrite.open(FileName);
+		FileStreamToWrite << "Average density = " << DENSITY << " AA_INTERACTION_STRENGTH = " << AA_INTERACTION_STRENGTH << " AB_INTERACTION_STRENGTH = " << AB_INTERACTION_STRENGTH << " MAXIMUM_DISPLACEMENT = " <<  MAXIMUM_DISPLACEMENT << " DISPLACEMENT_PROBABILITY = " << DISPLACEMENT_PROBABILITY << " BOX_LENGTH = " << BOX_LENGTH << endl;
+		FileStreamToWrite.close();
+		FileName = "data/PotEnergySeries_N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_MinNA="+to_string(MinNumberOfA)+"_MaxNA="+to_string(MaxNumberOfA)+"_MCRuns="+to_string(NumberOfMCSweeps)+"_updateInterval="+to_string(POT_ENERGY_UPDATE_INTERVAL)+".dat";
+		FileStreamToWrite.open(FileName);
+		FileStreamToWrite << "Average density = " << DENSITY << " AA_INTERACTION_STRENGTH = " << AA_INTERACTION_STRENGTH << " AB_INTERACTION_STRENGTH = " << AB_INTERACTION_STRENGTH << " MAXIMUM_DISPLACEMENT = " <<  MAXIMUM_DISPLACEMENT << " DISPLACEMENT_PROBABILITY = " << DISPLACEMENT_PROBABILITY << " BOX_LENGTH = " << BOX_LENGTH << endl;
+		FileStreamToWrite.close();
+	}
+
 	void writeResults() const {
 		string FileName("data/NA_Series_N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_MinNA="+to_string(MinNumberOfA)+"_MaxNA="+to_string(MaxNumberOfA)+"_MCRuns="+to_string(NumberOfMCSweeps)+".dat");
 		ofstream FileStreamToWrite;
@@ -660,13 +673,13 @@ struct SimulationManager {
 };
 
 int main(){
-	double CurrentTemperature = 1.2;
-	double TemperatureStep = 0.1;
-	SimulationManager S(CurrentTemperature, 0.0, 0, TOTAL_NUMBER_OF_PARTICLES, 1000000);
+	double CurrentTemperature = 0.7;
+	double TemperatureStep = 0.01;
+	SimulationManager S(CurrentTemperature, 0.0, 0, TOTAL_NUMBER_OF_PARTICLES, 1000);
 	S.initialize();
 	cerr << S.P;
 
-	while (CurrentTemperature >= 0.5){
+	while (CurrentTemperature > 0.5){
 		S.changeTemperature(CurrentTemperature);
 		S.reset();
 		S.runSimulation();
