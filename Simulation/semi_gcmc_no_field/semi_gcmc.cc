@@ -9,7 +9,7 @@
 using namespace std;
 
 static const int DIMENSION = 2;
-static const int TOTAL_NUMBER_OF_PARTICLES = 500;
+static const int TOTAL_NUMBER_OF_PARTICLES = 1000;
 
 static const double AA_INTERACTION_STRENGTH = 1.0;
 static const double AB_INTERACTION_STRENGTH = 0.5;
@@ -604,7 +604,7 @@ struct SimulationManager {
 		int NextUpdateTime = UPDATE_TIME_INTERVAL;
 		int NextPotEnergyComputation = POT_ENERGY_UPDATE_INTERVAL;
 		writeMetaData();
-		cerr << "Simulation running. Progress: ";
+		cerr << "T = " << Temperature << ". Simulation running. Progress: ";
 		for (int i = 0; i < NumberOfMCSweeps; i++){
 			for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
 				if (RNG.drawRandomNumber() <= DISPLACEMENT_PROBABILITY){
@@ -688,7 +688,7 @@ int main(){
 	cout << "Enter NumberOfSweeps: ";
 	cin >> NumberOfSweeps; cin.ignore();
 	
-	SimulationManager S(CurrentTemperature, 0.0, 0, TOTAL_NUMBER_OF_PARTICLES, NumberOfSweeps);
+	SimulationManager S(CurrentTemperature, 0.0, 0, TOTAL_NUMBER_OF_PARTICLES/2, NumberOfSweeps);
 	S.initialize();
 	cerr << S.P;
 
