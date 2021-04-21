@@ -6,6 +6,7 @@
 
 # Unignore all dirs
 !*/
+/Literature
 
 *.dat
 semi_gcmc_no_field_analysis-checkpoint.ipynb
