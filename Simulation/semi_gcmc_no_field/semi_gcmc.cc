@@ -9,7 +9,7 @@
 using namespace std;
 
 static const int DIMENSION = 2;
-static const int TOTAL_NUMBER_OF_PARTICLES = 2000;
+static const int TOTAL_NUMBER_OF_PARTICLES = 1000;
 
 static const double AA_INTERACTION_STRENGTH = 1.0;
 static const double AB_INTERACTION_STRENGTH = 0.5;
@@ -19,7 +19,7 @@ static const double INVERSE_CUTOFF = 1.0/CUTOFF;
 static const double POTENTIAL_CONSTANT_1 = pow(INVERSE_CUTOFF, 6.0) - pow(INVERSE_CUTOFF, 12.0);
 static const double POTENTIAL_CONSTANT_2 = 6.0 * pow(INVERSE_CUTOFF, 7.0) - 12.0 * pow(INVERSE_CUTOFF, 13.0);
 
-static const double DENSITY = 0.8;
+static const double DENSITY = 0.6;
 static const double BOX_LENGTH = sqrt(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES) / DENSITY);
 static const double BOX_LENGTH_SQUARED = BOX_LENGTH * BOX_LENGTH;
 static const double INVERSE_BOX_LENGTH = 1.0/BOX_LENGTH;
@@ -688,7 +688,7 @@ int main(){
 	cout << "Enter NumberOfSweeps: ";
 	cin >> NumberOfSweeps; cin.ignore();
 	
-	SimulationManager S(CurrentTemperature, 0.0, 0, TOTAL_NUMBER_OF_PARTICLES/2, NumberOfSweeps);
+	SimulationManager S(CurrentTemperature, 0.0, 0, TOTAL_NUMBER_OF_PARTICLES, NumberOfSweeps);
 	S.initialize();
 	cerr << S.P;
 
