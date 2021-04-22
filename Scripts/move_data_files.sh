@@ -1,8 +1,11 @@
 #!/bin/bash
 
-reporootpath=$1
-targetpath=$reporootpath/Data_Analysis/data
-sourcepath=$reporootpath/Simulation/semi_gcmc_no_field/data
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
+cd $DIR
+
+targetpath=../Data_Analysis/data
+sourcepath=../Simulation/semi_gcmc_no_field/data
 
 function make_directory_if_necessary() {
 	echo -n "${!1} "
@@ -14,7 +17,6 @@ function make_directory_if_necessary() {
 	fi
 }
 
-#cd $sourcepath
 
 for filename in $sourcepath/*.dat; do
 
