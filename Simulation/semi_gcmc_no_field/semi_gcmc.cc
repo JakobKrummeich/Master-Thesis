@@ -517,6 +517,8 @@ struct SimulationManager {
 	int NumberOfTriedTypeChanges;
 	int NumberOfAcceptedTypeChanges;
 
+	string FileNameString;
+
 	SimulationManager(double _Temperature, double _ChemicalPotentialDiff, int _MinNumberOfA, int _MaxNumberOfA, int _NumberOfMCSweeps):
 		Temperature(_Temperature),
 		Beta(1.0/Temperature),
@@ -527,7 +529,8 @@ struct SimulationManager {
 		NumberOfTriedDisplacements(0),
 		NumberOfAcceptedDisplacements(0),
 		NumberOfTriedTypeChanges(0),
-		NumberOfAcceptedTypeChanges(0){
+		NumberOfAcceptedTypeChanges(0),
+		FileNameString("N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_AvgDens="+to_string(DENSITY)+"_MCRuns="+to_string(NumberOfMCSweeps)+".dat"){
 	}
 	
 	void initialize() {
@@ -644,26 +647,27 @@ struct SimulationManager {
 	}
 
 	void writeMetaData() const {
-		string FileName("data/NA_Series_N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_MinNA="+to_string(MinNumberOfA)+"_MaxNA="+to_string(MaxNumberOfA)+"_MCRuns="+to_string(NumberOfMCSweeps)+".dat");
+		string FileName("data/NA_Series_"+FileNameString);
+		string MetaDataString("AA_INTERACTION_STRENGTH = "+to_string(AA_INTERACTION_STRENGTH)+" | AB_INTERACTION_STRENGTH = "+to_string(AB_INTERACTION_STRENGTH)+" | MAXIMUM_DISPLACEMENT = "+to_string(MAXIMUM_DISPLACEMENT)+" | DISPLACEMENT_PROBABILITY = "+to_string(DISPLACEMENT_PROBABILITY)+" | MinNA = "+to_string(MinNumberOfA)+" | MaxNA "+to_string(MaxNumberOfA)+'\n');
 		ofstream FileStreamToWrite;
 		FileStreamToWrite.open(FileName);
-		FileStreamToWrite << "Average density = " << DENSITY << " AA_INTERACTION_STRENGTH = " << AA_INTERACTION_STRENGTH << " AB_INTERACTION_STRENGTH = " << AB_INTERACTION_STRENGTH << " MAXIMUM_DISPLACEMENT = " <<  MAXIMUM_DISPLACEMENT << " DISPLACEMENT_PROBABILITY = " << DISPLACEMENT_PROBABILITY << " BOX_LENGTH = " << BOX_LENGTH << endl;
+		FileStreamToWrite << MetaDataString;
 		FileStreamToWrite.close();
-		FileName = "data/PotEnergySeries_N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_MinNA="+to_string(MinNumberOfA)+"_MaxNA="+to_string(MaxNumberOfA)+"_MCRuns="+to_string(NumberOfMCSweeps)+"_updateInterval="+to_string(POT_ENERGY_UPDATE_INTERVAL)+".dat";
+		FileName = "data/PotEnergySeries_"+FileNameString;
 		FileStreamToWrite.open(FileName);
-		FileStreamToWrite << "Average density = " << DENSITY << " AA_INTERACTION_STRENGTH = " << AA_INTERACTION_STRENGTH << " AB_INTERACTION_STRENGTH = " << AB_INTERACTION_STRENGTH << " MAXIMUM_DISPLACEMENT = " <<  MAXIMUM_DISPLACEMENT << " DISPLACEMENT_PROBABILITY = " << DISPLACEMENT_PROBABILITY << " BOX_LENGTH = " << BOX_LENGTH << endl;
+		FileStreamToWrite << MetaDataString;
 		FileStreamToWrite.close();
 	}
 
 	void writeResults() const {
-		string FileName("data/NA_Series_N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_MinNA="+to_string(MinNumberOfA)+"_MaxNA="+to_string(MaxNumberOfA)+"_MCRuns="+to_string(NumberOfMCSweeps)+".dat");
+		string FileName("data/NA_Series_"+FileNameString);
 		ofstream FileStreamToWrite;
 		FileStreamToWrite.open(FileName, ios_base::app);
 		for (int i = 0; i < NumberOfABuffer.size(); i++){
 			FileStreamToWrite << NumberOfABuffer[i] << '\n';
 		}
 		FileStreamToWrite.close();
-		FileName = "data/PotEnergySeries_N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_MinNA="+to_string(MinNumberOfA)+"_MaxNA="+to_string(MaxNumberOfA)+"_MCRuns="+to_string(NumberOfMCSweeps)+"_updateInterval="+to_string(POT_ENERGY_UPDATE_INTERVAL)+".dat";
+		FileName = "data/PotEnergySeries_"+FileNameString;
 		FileStreamToWrite.open(FileName, ios_base::app);
 		for (int i = 0; i < PotEnergyBuffer.size(); i++){
 			FileStreamToWrite << PotEnergyBuffer[i] << '\n';
@@ -706,7 +710,7 @@ int main(){
 		S.changeTemperature(CurrentTemperature);
 		S.reset();
 		S.runSimulation();
-		S.writeParticleConfigurationToFile("data/FinalParticleConfig_N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(S.Temperature)+"_MinNA="+to_string(S.MinNumberOfA)+"_MaxNA="+to_string(S.MaxNumberOfA)+"_MCRuns="+to_string(S.NumberOfMCSweeps)+".dat");
+		S.writeParticleConfigurationToFile("data/FinalParticleConfig_"+S.FileNameString);
 		CurrentTemperature -= TemperatureStep;
 		cerr << S.P;
 	}
