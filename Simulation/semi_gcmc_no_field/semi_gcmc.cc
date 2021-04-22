@@ -19,22 +19,29 @@ static const double INVERSE_CUTOFF = 1.0/CUTOFF;
 static const double POTENTIAL_CONSTANT_1 = pow(INVERSE_CUTOFF, 6.0) - pow(INVERSE_CUTOFF, 12.0);
 static const double POTENTIAL_CONSTANT_2 = 6.0 * pow(INVERSE_CUTOFF, 7.0) - 12.0 * pow(INVERSE_CUTOFF, 13.0);
 
-static const double DENSITY = 0.6;
-static const double BOX_LENGTH = sqrt(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES) / DENSITY);
-static const double BOX_LENGTH_SQUARED = BOX_LENGTH * BOX_LENGTH;
-static const double INVERSE_BOX_LENGTH = 1.0/BOX_LENGTH;
+static double DENSITY;
+static double BOX_LENGTH;
+static double BOX_LENGTH_SQUARED;
+static double INVERSE_BOX_LENGTH;
 
 static const double MAXIMUM_DISPLACEMENT = 0.1;
 static const double MAX_VERLET_DIST = 1.3*CUTOFF;
 static const double MAX_VERLET_DIST_SQUARED = MAX_VERLET_DIST * MAX_VERLET_DIST;
 static const double SKINDISTANCE = MAX_VERLET_DIST - CUTOFF;
-static const int NUMBER_OF_SUBDIVISIONS = static_cast<int>(BOX_LENGTH/MAX_VERLET_DIST) > 3 ? static_cast<int>(BOX_LENGTH/MAX_VERLET_DIST) : 1;
+static int NUMBER_OF_SUBDIVISIONS;
 
 static const int THERMALIZE_TRIES_PER_PARTICLE = 1000;
 static const double DISPLACEMENT_PROBABILITY = 0.8;
 static const int UPDATE_TIME_INTERVAL = 10;
 static const int POT_ENERGY_UPDATE_INTERVAL = 200;
 
+
+void initializeBox(){
+	BOX_LENGTH = sqrt(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES) / DENSITY);
+	BOX_LENGTH_SQUARED = BOX_LENGTH * BOX_LENGTH;
+	INVERSE_BOX_LENGTH = 1.0/BOX_LENGTH;
+	NUMBER_OF_SUBDIVISIONS = static_cast<int>(BOX_LENGTH/MAX_VERLET_DIST) > 3 ? static_cast<int>(BOX_LENGTH/MAX_VERLET_DIST) : 1;
+}
 
 class realRNG{
 	private:
@@ -678,6 +685,8 @@ int main(){
 	double MaxTemperature;
 	double MinTemperature;
 	int NumberOfSweeps;
+	cout << "Enter Average density: ";
+	cin >> DENSITY; cin.ignore();
 	cout << "Enter MaxTemperature: ";
 	cin >> MaxTemperature; cin.ignore();
 	CurrentTemperature = MaxTemperature;
@@ -688,6 +697,7 @@ int main(){
 	cout << "Enter NumberOfSweeps: ";
 	cin >> NumberOfSweeps; cin.ignore();
 	
+	initializeBox();
 	SimulationManager S(CurrentTemperature, 0.0, 0, TOTAL_NUMBER_OF_PARTICLES, NumberOfSweeps);
 	S.initialize();
 	cerr << S.P;
