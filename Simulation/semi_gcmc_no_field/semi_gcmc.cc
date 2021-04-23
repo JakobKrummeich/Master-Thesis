@@ -5,6 +5,7 @@
 #include <fstream>
 #include <vector>
 #include <iomanip>
+#include <stdlib.h>
 
 using namespace std;
 
@@ -683,28 +684,20 @@ struct SimulationManager {
 	}
 };
 
-int main(){
-	double CurrentTemperature;
-	double TemperatureStep;
-	double MaxTemperature;
-	double MinTemperature;
-	int NumberOfSweeps;
-	cout << "Enter Average density: ";
-	cin >> DENSITY; cin.ignore();
-	cout << "Enter MaxTemperature: ";
-	cin >> MaxTemperature; cin.ignore();
-	CurrentTemperature = MaxTemperature;
-	cout << "Enter Temperature stepsize: ";
-	cin >> TemperatureStep; cin.ignore();
-	cout << "Enter MinTemperature (not included): ";
-	cin >> MinTemperature; cin.ignore();
-	cout << "Enter NumberOfSweeps: ";
-	cin >> NumberOfSweeps; cin.ignore();
-	
+int main(int argc, char* argv[]){
+	if (argc != 6){
+		cerr << argc-1 <<  " arguments were given, but exactly 5 arguments are needed: Average density, MaxTemperature, Temperature Stepsize, MinTemperature (not included), NumberOfMCSweeps. Stopping now." << endl;
+		return 0;
+	}
+	DENSITY = atof(argv[1]);
+	double CurrentTemperature = atof(argv[2]);
+	double TemperatureStep = atof(argv[3]);
+	double MinTemperature = atof(argv[4]);
+	int NumberOfSweeps = atof(argv[5]);
+
 	initializeBox();
 	SimulationManager S(CurrentTemperature, 0.0, 0, TOTAL_NUMBER_OF_PARTICLES, NumberOfSweeps);
 	S.initialize();
-	cerr << S.P;
 
 	while (CurrentTemperature > MinTemperature){
 		S.changeTemperature(CurrentTemperature);
@@ -712,7 +705,6 @@ int main(){
 		S.runSimulation();
 		S.writeParticleConfigurationToFile("data/FinalParticleConfig_"+S.FileNameString);
 		CurrentTemperature -= TemperatureStep;
-		cerr << S.P;
 	}
 }
 
