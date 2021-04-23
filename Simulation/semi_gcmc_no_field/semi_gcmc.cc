@@ -547,6 +547,7 @@ struct SimulationManager {
 	void changeTemperature(double NewTemperature){	
 		Temperature = NewTemperature;
 		Beta = 1.0/Temperature;
+		FileNameString = "N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_AvgDens="+to_string(DENSITY)+"_MCRuns="+to_string(NumberOfMCSweeps)+".dat";
 	}
 	
 	void reset(){

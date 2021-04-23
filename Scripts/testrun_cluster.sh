@@ -7,5 +7,5 @@
 #SBATCH --error=slurm-%A_%a.err
 
 module load intel
-./semi_gcmc
+./semi_gcmc 0.6 1.0 0.1 0.95 100000
 
