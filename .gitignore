@@ -6,7 +6,8 @@
 
 # Unignore all dirs
 !*/
-/Literature
 
+/Literature
 *.dat
 *-checkpoint.ipynb
+*.err
