@@ -1,0 +1,67 @@
+NumberOfParticlesInRow: 32
+Distance: 2.20971
+T = 0.9. Simulation running. Progress: 3%|6%|9%|12%|16%|19%|22%|25%|28%|32%|35%|38%|41%|44%|48%|51%|54%|57%|60%|63%|67%|70%|73%|76%|79%|83%|86%|89%|92%|95%|99%|
+Ratio of accepted displacements: 0.911163
+Ratio of accepted type changes: 0.827931
+#VerletListBuilds: 218992
+Computation time: 312 s for 600000 runs
+T = 0.85. Simulation running. Progress: 3%|6%|9%|12%|15%|19%|22%|25%|28%|31%|35%|38%|41%|44%|47%|51%|54%|57%|60%|63%|66%|70%|73%|76%|79%|82%|86%|89%|92%|95%|98%|
+Ratio of accepted displacements: 0.906886
+Ratio of accepted type changes: 0.815791
+#VerletListBuilds: 217629
+Computation time: 313 s for 600000 runs
+T = 0.8. Simulation running. Progress: 3%|6%|9%|12%|15%|19%|22%|25%|28%|31%|35%|38%|41%|44%|47%|50%|54%|57%|60%|63%|66%|70%|73%|76%|79%|82%|86%|89%|92%|95%|98%|
+Ratio of accepted displacements: 0.90218
+Ratio of accepted type changes: 0.801986
+#VerletListBuilds: 216241
+Computation time: 313 s for 600000 runs
+T = 0.75. Simulation running. Progress: 3%|6%|9%|12%|15%|19%|22%|25%|28%|31%|35%|38%|41%|44%|47%|50%|54%|57%|60%|63%|66%|70%|73%|76%|79%|82%|85%|89%|92%|95%|98%|
+Ratio of accepted displacements: 0.896316
+Ratio of accepted type changes: 0.785311
+#VerletListBuilds: 214730
+Computation time: 314 s for 600000 runs
+T = 0.7. Simulation running. Progress: 3%|6%|9%|12%|15%|19%|22%|25%|28%|31%|35%|38%|41%|44%|47%|50%|54%|57%|60%|63%|66%|69%|72%|76%|79%|82%|85%|88%|92%|95%|98%|
+Ratio of accepted displacements: 0.889534
+Ratio of accepted type changes: 0.765598
+#VerletListBuilds: 212293
+Computation time: 315 s for 600000 runs
+T = 0.65. Simulation running. Progress: 3%|6%|9%|12%|15%|19%|22%|25%|28%|31%|34%|38%|41%|44%|47%|50%|53%|57%|60%|63%|66%|69%|72%|76%|79%|82%|85%|88%|91%|95%|98%|
+Ratio of accepted displacements: 0.881365
+Ratio of accepted type changes: 0.741727
+#VerletListBuilds: 210076
+Computation time: 315 s for 600000 runs
+T = 0.6. Simulation running. Progress: 3%|6%|9%|12%|15%|18%|22%|25%|28%|31%|34%|37%|41%|44%|47%|50%|53%|56%|59%|63%|66%|69%|72%|75%|78%|81%|85%|88%|91%|94%|97%|
+Ratio of accepted displacements: 0.87062
+Ratio of accepted type changes: 0.711008
+#VerletListBuilds: 206910
+Computation time: 317 s for 600000 runs
+T = 0.55. Simulation running. Progress: 3%|6%|9%|12%|15%|18%|21%|25%|28%|31%|34%|37%|40%|43%|46%|50%|53%|56%|59%|62%|65%|68%|72%|75%|78%|81%|84%|87%|90%|93%|97%|
+Ratio of accepted displacements: 0.856842
+Ratio of accepted type changes: 0.671483
+#VerletListBuilds: 203156
+Computation time: 319 s for 600000 runs
+T = 0.5. Simulation running. Progress: 3%|6%|9%|12%|15%|18%|21%|24%|27%|30%|33%|37%|40%|43%|46%|49%|52%|55%|58%|61%|64%|67%|70%|73%|76%|79%|82%|86%|89%|92%|95%|98%|
+Ratio of accepted displacements: 0.836818
+Ratio of accepted type changes: 0.616497
+#VerletListBuilds: 197170
+Computation time: 325 s for 600000 runs
+T = 0.45. Simulation running. Progress: 3%|6%|9%|12%|15%|18%|21%|24%|27%|30%|33%|36%|39%|42%|45%|48%|51%|54%|57%|60%|63%|66%|69%|72%|75%|78%|81%|84%|87%|90%|93%|96%|99%|
+Ratio of accepted displacements: 0.809565
+Ratio of accepted type changes: 0.541423
+#VerletListBuilds: 189979
+Computation time: 331 s for 600000 runs
+T = 0.4. Simulation running. Progress: 2%|5%|8%|11%|14%|17%|20%|23%|25%|28%|31%|34%|37%|40%|43%|46%|49%|51%|54%|57%|60%|63%|66%|69%|71%|74%|77%|80%|83%|86%|89%|92%|94%|97%|
+Ratio of accepted displacements: 0.76378
+Ratio of accepted type changes: 0.423289
+#VerletListBuilds: 177717
+Computation time: 348 s for 600000 runs
+T = 0.35. Simulation running. Progress: 2%|5%|7%|10%|13%|15%|18%|20%|22%|25%|27%|30%|32%|34%|37%|39%|41%|44%|46%|48%|51%|53%|55%|57%|60%|62%|64%|66%|68%|71%|73%|75%|77%|80%|82%|84%|86%|88%|90%|92%|94%|97%|99%|
+Ratio of accepted displacements: 0.655779
+Ratio of accepted type changes: 0.208268
+#VerletListBuilds: 151217
+Computation time: 433 s for 600000 runs
+T = 0.3. Simulation running. Progress: 2%|3%|5%|7%|9%|11%|13%|15%|17%|19%|21%|23%|24%|26%|28%|30%|32%|34%|36%|38%|39%|41%|43%|45%|47%|49%|51%|52%|54%|56%|58%|60%|62%|64%|65%|67%|69%|71%|73%|75%|77%|78%|80%|82%|84%|86%|88%|89%|91%|93%|95%|97%|99%|
+Ratio of accepted displacements: 0.519653
+Ratio of accepted type changes: 0.0593895
+#VerletListBuilds: 111796
+Computation time: 535 s for 600000 runs
