@@ -31,9 +31,8 @@ static const double MAX_VERLET_DIST_SQUARED = MAX_VERLET_DIST * MAX_VERLET_DIST;
 static const double SKINDISTANCE = MAX_VERLET_DIST - CUTOFF;
 static int NUMBER_OF_SUBDIVISIONS;
 
-static const int THERMALIZE_TRIES_PER_PARTICLE = 1000;
-static const double DISPLACEMENT_PROBABILITY = 0.8;
-static const int UPDATE_TIME_INTERVAL = 10;
+static const double DISPLACEMENT_PROBABILITY = 0.9;
+static const int UPDATE_TIME_INTERVAL = 60;
 static const int POT_ENERGY_UPDATE_INTERVAL = 200;
 
 
@@ -642,8 +641,8 @@ struct SimulationManager {
 		writeResults();
 		NumberOfABuffer.clear();
 		PotEnergyBuffer.clear();
-		cerr << endl << "Ratio of accepted displacements: " << static_cast<double>(NumberOfAcceptedDisplacements)/static_cast<double>(NumberOfTriedDisplacements) << endl;
-		cerr << "Ratio of accepted type changes: " << static_cast<double>(NumberOfAcceptedTypeChanges)/static_cast<double>(NumberOfTriedTypeChanges) << endl;
+		cerr << endl << "Tried displacements: " << NumberOfTriedDisplacements << "| Accepted displacements:" << NumberOfAcceptedDisplacements << "| Ratio of accepted displacements: " << static_cast<double>(NumberOfAcceptedDisplacements)/static_cast<double>(NumberOfTriedDisplacements) << endl;
+		cerr << "Tried type changes: " << NumberOfTriedTypeChanges << "| Accepted type changes:" << NumberOfAcceptedTypeChanges << "| Ratio of accepted type changes: " << static_cast<double>(NumberOfAcceptedTypeChanges)/static_cast<double>(NumberOfTriedTypeChanges) << endl;
 		cerr << "#VerletListBuilds: " << P.NumberOfVerletListBuilds << endl;
 		cerr << "Computation time: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s for " << NumberOfMCSweeps << " runs" <<  endl;
 	}
