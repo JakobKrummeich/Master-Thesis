@@ -530,7 +530,7 @@ struct SimulationManager {
 		NumberOfAcceptedDisplacements(0),
 		NumberOfTriedTypeChanges(0),
 		NumberOfAcceptedTypeChanges(0),
-		FileNameString("N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_AvgDens="+to_string(DENSITY)+"_MCRuns="+to_string(NumberOfMCSweeps)+".dat"){
+		FileNameString("N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_AvgDens="+to_string(DENSITY)+"_MCRuns="+to_string(NumberOfMCSweeps)+"_epsAB="+to_string(AB_INTERACTION_STRENGTH)+".dat"){
 	}
 	
 	void initialize() {
@@ -546,7 +546,7 @@ struct SimulationManager {
 	void changeTemperature(double NewTemperature){	
 		Temperature = NewTemperature;
 		Beta = 1.0/Temperature;
-		FileNameString = "N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_AvgDens="+to_string(DENSITY)+"_MCRuns="+to_string(NumberOfMCSweeps)+".dat";
+		FileNameString = "N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_AvgDens="+to_string(DENSITY)+"_MCRuns="+to_string(NumberOfMCSweeps)+"_epsAB="+to_string(AB_INTERACTION_STRENGTH)+".dat";
 	}
 	
 	void reset(){
@@ -648,27 +648,27 @@ struct SimulationManager {
 	}
 
 	void writeMetaData() const {
-		string FileName("data/NA_Series_"+FileNameString);
+		string FileName("unsorted_data/NA_Series_"+FileNameString);
 		string MetaDataString("AA_INTERACTION_STRENGTH = "+to_string(AA_INTERACTION_STRENGTH)+" | AB_INTERACTION_STRENGTH = "+to_string(AB_INTERACTION_STRENGTH)+" | MAXIMUM_DISPLACEMENT = "+to_string(MAXIMUM_DISPLACEMENT)+" | DISPLACEMENT_PROBABILITY = "+to_string(DISPLACEMENT_PROBABILITY)+" | MinNA = "+to_string(MinNumberOfA)+" | MaxNA "+to_string(MaxNumberOfA)+'\n');
 		ofstream FileStreamToWrite;
 		FileStreamToWrite.open(FileName);
 		FileStreamToWrite << MetaDataString;
 		FileStreamToWrite.close();
-		FileName = "data/PotEnergySeries_"+FileNameString;
+		FileName = "unsorted_data/PotEnergySeries_"+FileNameString;
 		FileStreamToWrite.open(FileName);
 		FileStreamToWrite << MetaDataString;
 		FileStreamToWrite.close();
 	}
 
 	void writeResults() const {
-		string FileName("data/NA_Series_"+FileNameString);
+		string FileName("unsorted_data/NA_Series_"+FileNameString);
 		ofstream FileStreamToWrite;
 		FileStreamToWrite.open(FileName, ios_base::app);
 		for (int i = 0; i < NumberOfABuffer.size(); i++){
 			FileStreamToWrite << NumberOfABuffer[i] << '\n';
 		}
 		FileStreamToWrite.close();
-		FileName = "data/PotEnergySeries_"+FileNameString;
+		FileName = "unsorted_data/PotEnergySeries_"+FileNameString;
 		FileStreamToWrite.open(FileName, ios_base::app);
 		for (int i = 0; i < PotEnergyBuffer.size(); i++){
 			FileStreamToWrite << PotEnergyBuffer[i] << '\n';
@@ -697,14 +697,14 @@ int main(int argc, char* argv[]){
 	int NumberOfSweeps = atof(argv[5]);
 
 	initializeBox();
-	SimulationManager S(CurrentTemperature, 0.0, 0, TOTAL_NUMBER_OF_PARTICLES, NumberOfSweeps);
+	SimulationManager S(CurrentTemperature, 0.0, 0, TOTAL_NUMBER_OF_PARTICLES/2, NumberOfSweeps);
 	S.initialize();
 
 	while (CurrentTemperature > MinTemperature){
 		S.changeTemperature(CurrentTemperature);
 		S.reset();
 		S.runSimulation();
-		S.writeParticleConfigurationToFile("data/FinalParticleConfig_"+S.FileNameString);
+		S.writeParticleConfigurationToFile("unsorted_data/FinalParticleConfig_"+S.FileNameString);
 		CurrentTemperature -= TemperatureStep;
 	}
 }
