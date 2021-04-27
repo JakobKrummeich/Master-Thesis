@@ -13,7 +13,7 @@ static const int DIMENSION = 2;
 static const int TOTAL_NUMBER_OF_PARTICLES = 1000;
 
 static const double AA_INTERACTION_STRENGTH = 1.0;
-static const double AB_INTERACTION_STRENGTH = 0.5;
+static double AB_INTERACTION_STRENGTH;
 static const double CUTOFF = 2.5;
 static const double CUTOFF_SQUARED = CUTOFF * CUTOFF;
 static const double INVERSE_CUTOFF = 1.0/CUTOFF;
@@ -685,11 +685,12 @@ struct SimulationManager {
 };
 
 int main(int argc, char* argv[]){
-	if (argc != 6){
-		cerr << argc-1 <<  " arguments were given, but exactly 5 arguments are needed: Average density, MaxTemperature, Temperature Stepsize, MinTemperature (not included), NumberOfMCSweeps. Stopping now." << endl;
+	if (argc != 7){
+		cerr << argc-1 <<  " arguments were given, but exactly 5 arguments are needed: Average density, MaxTemperature, Temperature Stepsize, MinTemperature (not included), NumberOfMCSweeps, AB_INTERACTION_STRENGTH. Stopping now." << endl;
 		return 0;
 	}
 	DENSITY = atof(argv[1]);
+	AB_INTERACTION_STRENGTH = atof(argv[6]);
 	double CurrentTemperature = atof(argv[2]);
 	double TemperatureStep = atof(argv[3]);
 	double MinTemperature = atof(argv[4]);
