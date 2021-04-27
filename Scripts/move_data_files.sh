@@ -1,11 +1,7 @@
 #!/bin/bash
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-
-cd $DIR
-
-targetpath=../Data_Analysis/data
-sourcepath=../Simulation/semi_gcmc_no_field/data
+sourcepath=$1
+targetpath=$2
 
 function make_directory_if_necessary() {
 	echo -n "${!1} "
