@@ -16,8 +16,12 @@ function make_directory_if_necessary() {
 
 for filename in $sourcepath/*.dat; do
 
+		[[ ${filename} =~ _epsAB=([[:digit:]]*.[[:digit:]]*). ]] && epsAB=${BASH_REMATCH[1]}
+		currentpath=${targetpath}/epsAB=$epsAB
+		make_directory_if_necessary currentpath
+
 		[[ ${filename} =~ _AvgDens=([[:digit:]]*.[[:digit:]]*)_ ]] && density=${BASH_REMATCH[1]}
-		currentpath=${targetpath}/Roh=$density
+		currentpath=${currentpath}/Roh=$density
 		make_directory_if_necessary currentpath
 
 		[[ ${filename} =~ _N=([[:digit:]]*)_ ]] && number_of_particles=${BASH_REMATCH[1]}
