@@ -102,7 +102,6 @@ int main(int argc, char* argv[]){
 	vector<int> NASeries = readInSeries(FilePath);
 	int TotalNumberOfParticles = stoi(argv[2]);
 	int EquilibrationIndex = computeEquilibrationIndex(NASeries);
-	cerr << EquilibrationIndex << endl;
 	FunctionValues NAHist = computeNAHist(NASeries, EquilibrationIndex, TotalNumberOfParticles);
-	cerr << computeFirstMomentInSubInterval(NAHist, 0, static_cast<int>(TotalNumberOfParticles/2)) << endl;
+	cout << computeFirstMomentInSubInterval(NAHist, 0, static_cast<int>(TotalNumberOfParticles/2)) << endl;
 }
