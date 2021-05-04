@@ -118,10 +118,16 @@ double computeSelfStructureFactor(const vector<double>& Positions, double kx, do
 
 double computeAverageSelfStructureFactor(const vector<double>& Positions, double kMagnitudeCenter, double kMagnitudeWidth, int NumberOfAverageValues){
 	double AverageStructureFactor = 0.0;
-	for (int i = 0; i < NumberOfAverageValues; i++){
-		double RandomAngle = RNG.drawRandomNumber(0.0, 2.0 * M_PI);
-		double kMagnitude = RNG.drawRandomNumber(-kMagnitudeWidth,kMagnitudeWidth) + kMagnitudeCenter;
-		AverageStructureFactor += computeSelfStructureFactor(Positions, kMagnitude*cos(RandomAngle), kMagnitude*sin(RandomAngle));
+	#pragma omp parallel num_threads(8)
+	{
+		#pragma omp for
+		for (int i = 0; i < NumberOfAverageValues; i++){
+			double RandomAngle = RNG.drawRandomNumber(0.0, 2.0 * M_PI);
+			double kMagnitude = RNG.drawRandomNumber(-kMagnitudeWidth,kMagnitudeWidth) + kMagnitudeCenter;
+			double StructureFactor = computeSelfStructureFactor(Positions, kMagnitude*cos(RandomAngle), kMagnitude*sin(RandomAngle));
+			#pragma omp atomic update 
+			AverageStructureFactor += StructureFactor;
+		}
 	}
 	return AverageStructureFactor/static_cast<double>(NumberOfAverageValues);
 }
@@ -154,10 +160,16 @@ double computeABStructureFactor(const vector<double>& ABDifferences, double kx, 
 
 double computeAverageABStructureFactor(const vector<double> ABDifferences, double kMagnitudeCenter, double kMagnitudeWidth, int NumberOfAverageValues){
 	double AverageStructureFactor = 0.0;
-	for (int i = 0; i < NumberOfAverageValues; i++){
-		double RandomAngle = RNG.drawRandomNumber(0.0, 2.0 * M_PI);
-		double kMagnitude = RNG.drawRandomNumber(-kMagnitudeWidth,kMagnitudeWidth) + kMagnitudeCenter;
-		AverageStructureFactor += computeABStructureFactor(Positions, kMagnitude*cos(RandomAngle), kMagnitude*sin(RandomAngle));
+	#pragma omp paralell num_threads(8)
+	{
+		#pragma omp for
+		for (int i = 0; i < NumberOfAverageValues; i++){
+			double RandomAngle = RNG.drawRandomNumber(0.0, 2.0 * M_PI);
+			double kMagnitude = RNG.drawRandomNumber(-kMagnitudeWidth,kMagnitudeWidth) + kMagnitudeCenter;
+			double StructureFactor = computeABStructureFactor(Positions, kMagnitude*cos(RandomAngle), kMagnitude*sin(RandomAngle));
+			#pragma omp atomic update
+			AverageStructureFactor += StructureFactor;
+		}
 	}
 	return AverageStructureFactor/static_cast<double>(NumberOfAverageValues);
 }
