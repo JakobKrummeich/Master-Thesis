@@ -6,7 +6,6 @@
 #include <vector>
 #include <iomanip>
 #include <stdlib.h>
-#include <omp.h>
 
 using namespace std;
 
@@ -195,13 +194,8 @@ int main(int argc, char* argv[]){
 		CurrentkMag += kDelta;
 	}
 
-	#pragma omp parallel num_threads(2)
+	#pragma omp parallel num_threads(8)
 	{
-		#pragma omp critical 
-		{
-			cerr << omp_get_thread_num() << endl;
-		}
-		
 		#pragma omp for
 		for (int i = 0; i < NumberOfkValues; i++){
 			if (NumberOfAParticles > 0){
