@@ -6,6 +6,7 @@
 #include <vector>
 #include <iomanip>
 #include <stdlib.h>
+#include <omp.h>
 
 using namespace std;
 
@@ -118,16 +119,10 @@ double computeSelfStructureFactor(const vector<double>& Positions, double kx, do
 
 double computeAverageSelfStructureFactor(const vector<double>& Positions, double kMagnitudeCenter, double kMagnitudeWidth, int NumberOfAverageValues){
 	double AverageStructureFactor = 0.0;
-	#pragma omp parallel num_threads(8)
-	{
-		#pragma omp for
-		for (int i = 0; i < NumberOfAverageValues; i++){
-			double RandomAngle = RNG.drawRandomNumber(0.0, 2.0 * M_PI);
-			double kMagnitude = RNG.drawRandomNumber(-kMagnitudeWidth,kMagnitudeWidth) + kMagnitudeCenter;
-			double StructureFactor = computeSelfStructureFactor(Positions, kMagnitude*cos(RandomAngle), kMagnitude*sin(RandomAngle));
-			#pragma omp atomic update 
-			AverageStructureFactor += StructureFactor;
-		}
+	for (int i = 0; i < NumberOfAverageValues; i++){
+		double RandomAngle = RNG.drawRandomNumber(0.0, 2.0 * M_PI);
+		double kMagnitude = RNG.drawRandomNumber(-kMagnitudeWidth,kMagnitudeWidth) + kMagnitudeCenter;
+		AverageStructureFactor += computeSelfStructureFactor(Positions, kMagnitude*cos(RandomAngle), kMagnitude*sin(RandomAngle));
 	}
 	return AverageStructureFactor/static_cast<double>(NumberOfAverageValues);
 }
@@ -158,18 +153,12 @@ double computeABStructureFactor(const vector<double>& ABDifferences, double kx, 
 	return Result/static_cast<double>(TotalNumberOfParticles);
 }
 
-double computeAverageABStructureFactor(const vector<double> ABDifferences, double kMagnitudeCenter, double kMagnitudeWidth, int NumberOfAverageValues){
+double computeAverageABStructureFactor(const vector<double>& ABDifferences, double kMagnitudeCenter, double kMagnitudeWidth, int NumberOfAverageValues){
 	double AverageStructureFactor = 0.0;
-	#pragma omp paralell num_threads(8)
-	{
-		#pragma omp for
-		for (int i = 0; i < NumberOfAverageValues; i++){
-			double RandomAngle = RNG.drawRandomNumber(0.0, 2.0 * M_PI);
-			double kMagnitude = RNG.drawRandomNumber(-kMagnitudeWidth,kMagnitudeWidth) + kMagnitudeCenter;
-			double StructureFactor = computeABStructureFactor(Positions, kMagnitude*cos(RandomAngle), kMagnitude*sin(RandomAngle));
-			#pragma omp atomic update
-			AverageStructureFactor += StructureFactor;
-		}
+	for (int i = 0; i < NumberOfAverageValues; i++){
+		double RandomAngle = RNG.drawRandomNumber(0.0, 2.0 * M_PI);
+		double kMagnitude = RNG.drawRandomNumber(-kMagnitudeWidth,kMagnitudeWidth) + kMagnitudeCenter;
+		AverageStructureFactor += computeABStructureFactor(Positions, kMagnitude*cos(RandomAngle), kMagnitude*sin(RandomAngle));
 	}
 	return AverageStructureFactor/static_cast<double>(NumberOfAverageValues);
 }
@@ -187,13 +176,6 @@ int main(int argc, char* argv[]){
 
 	computeABDistances();
 
-	vector<double> AAStructureFactorValues;
-	vector<double> BBStructureFactorValues;
-	vector<double> ABStructureFactorValues;
-	vector<double> ConcentrationStructureValues;
-	vector<double> kValues;
-
-
 	double kMin = 2.0*M_PI/BoxLength;
 	double kMax = 9.0;
 	int NumberOfkValues = 400;
@@ -201,21 +183,38 @@ int main(int argc, char* argv[]){
 	double kWidth = kDelta*0.5;
 	double CurrentkMag = kMin;
 	int NumberOfAveragesPerk = 2000;
+	
+	double AAStructureFactorValues [NumberOfkValues];
+	double BBStructureFactorValues [NumberOfkValues];
+	double ABStructureFactorValues [NumberOfkValues];
+	double ConcentrationStructureValues [NumberOfkValues];
+	double kValues [NumberOfkValues];
 
 	for (int i = 0; i < NumberOfkValues; i++){
-		cerr << i / (NumberOfkValues/100) << "%|";
-		kValues.push_back(CurrentkMag);
-		if (NumberOfAParticles > 0){
-			AAStructureFactorValues.push_back(computeAverageSelfStructureFactor(APositions, CurrentkMag, kWidth, NumberOfAveragesPerk));
-		}
-		if (NumberOfBParticles > 0){
-			BBStructureFactorValues.push_back(computeAverageSelfStructureFactor(BPositions, CurrentkMag, kWidth, NumberOfAveragesPerk));
-		}
-		if (NumberOfAParticles > 0 && NumberOfBParticles > 0){
-			ABStructureFactorValues.push_back(computeAverageABStructureFactor(rABDifferences, CurrentkMag, kWidth, NumberOfAveragesPerk));
-			ConcentrationStructureValues.push_back(computeConcentrationFactorValue(AAStructureFactorValues.back(), BBStructureFactorValues.back(), ABStructureFactorValues.back()));
-		}
+		kValues[i] = CurrentkMag;
 		CurrentkMag += kDelta;
+	}
+
+	#pragma omp parallel num_threads(2)
+	{
+		#pragma omp critical 
+		{
+			cerr << omp_get_thread_num() << endl;
+		}
+		
+		#pragma omp for
+		for (int i = 0; i < NumberOfkValues; i++){
+			if (NumberOfAParticles > 0){
+				AAStructureFactorValues[i] = computeAverageSelfStructureFactor(APositions, kValues[i], kWidth, NumberOfAveragesPerk);
+			}
+			if (NumberOfBParticles > 0){
+				BBStructureFactorValues[i] = computeAverageSelfStructureFactor(BPositions, kValues[i], kWidth, NumberOfAveragesPerk);
+			}
+			if (NumberOfAParticles > 0 && NumberOfBParticles > 0){
+				ABStructureFactorValues[i] = computeAverageABStructureFactor(rABDifferences, kValues[i], kWidth, NumberOfAveragesPerk);
+				ConcentrationStructureValues[i] = computeConcentrationFactorValue(AAStructureFactorValues[i], BBStructureFactorValues[i], ABStructureFactorValues[i]);
+			}
+		}
 	}
 
 	string FileName("structure_factor_T=0.9.dat");
