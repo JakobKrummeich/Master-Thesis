@@ -41,7 +41,6 @@ int TotalNumberOfParticles;
 double BoxLength;
 vector<double> APositions;
 vector<double> BPositions;
-vector<double> rABDifferences;
 
 
 void readInParticleState(string FileNameToReadIn) {
@@ -83,83 +82,20 @@ void readInParticleState(string FileNameToReadIn) {
 	FileStreamToReadIn.close();
 }
 
-void computeABDistances(){
-	for (int i = 0; i < NumberOfAParticles; i++){
-		for (int j = 0; j < NumberOfBParticles; j++){
-			for (int k = 0; k < DIMENSION; k++){
-				double CoordinateDifference = APositions[DIMENSION * i + k] - BPositions[DIMENSION * j + k];
-				rABDifferences.push_back(CoordinateDifference);
-			}
-		}
-	}
-}
-
-void computeSelfDifferences(const vector<double>& Positions, vector<double>& SelfDifferences){
-	SelfDifferences.clear();
+double computeCosSum(const vector<double>& Positions, double kx, double ky){
+	double Sum = 0.0;
 	for (int i = 0; i < Positions.size(); i += DIMENSION){
-		for (int j = 0; j < i; j += DIMENSION){
-			for (int k = 0; k < DIMENSION; k++){
-				double CoordinateDifference = Positions[i + k] - Positions[j + k];
-				SelfDifferences.push_back(CoordinateDifference);
-			}
-		}
+		Sum += cos(kx*Positions[i]+ky*Positions[i+1]);
 	}
+	return Sum;
 }
 
-double computeSelfStructureFactor(const vector<double>& Positions, double kx, double ky){
-	double cosSum = 0.0;
-	double sinSum = 0.0;
+double computeSinSum(const vector<double>& Positions, double kx, double ky){
+	double Sum = 0.0;
 	for (int i = 0; i < Positions.size(); i += DIMENSION){
-		cosSum += cos(kx*Positions[i]+ky*Positions[i+1]);
-		sinSum += sin(kx*Positions[i]+ky*Positions[i+1]);
+		Sum += sin(kx*Positions[i]+ky*Positions[i+1]);
 	}
-	return (cosSum*cosSum+sinSum*sinSum)/static_cast<int>(TotalNumberOfParticles);
-}
-
-double computeAverageSelfStructureFactor(const vector<double>& Positions, double kMagnitudeCenter, double kMagnitudeWidth, int NumberOfAverageValues){
-	double AverageStructureFactor = 0.0;
-	for (int i = 0; i < NumberOfAverageValues; i++){
-		double RandomAngle = RNG.drawRandomNumber(0.0, 2.0 * M_PI);
-		double kMagnitude = RNG.drawRandomNumber(-kMagnitudeWidth,kMagnitudeWidth) + kMagnitudeCenter;
-		AverageStructureFactor += computeSelfStructureFactor(Positions, kMagnitude*cos(RandomAngle), kMagnitude*sin(RandomAngle));
-	}
-	return AverageStructureFactor/static_cast<double>(NumberOfAverageValues);
-}
-
-double computeSelfStructureFactorAlternative(const vector<double>& SelfDifferences, int NumberOfParticles, double kx, double ky){
-	double Result = static_cast<double>(NumberOfParticles)/static_cast<double>(TotalNumberOfParticles);
-	for (int i = 0; i < SelfDifferences.size(); i += DIMENSION){
-		Result += 2.0/static_cast<double>(TotalNumberOfParticles)*cos(kx*SelfDifferences[i]+ky*SelfDifferences[i+1]);
-	}
-	return Result;
-}
-
-double computeAverageSelfStructureFactorAlternative(const vector<double>& SelfDifferences, int NumberOfParticles, double kMagnitudeCenter, double kMagnitudeWidth, int NumberOfAverageValues){
-	double AverageStructureFactor = 0.0;
-	for (int i = 0; i < NumberOfAverageValues; i++){
-		double RandomAngle = RNG.drawRandomNumber(0.0, 2.0 * M_PI);
-		double kMagnitude = RNG.drawRandomNumber(-kMagnitudeWidth,kMagnitudeWidth) + kMagnitudeCenter;
-		AverageStructureFactor += computeSelfStructureFactorAlternative(SelfDifferences, NumberOfParticles, kMagnitude*cos(RandomAngle), kMagnitude*sin(RandomAngle));
-	}
-	return AverageStructureFactor/static_cast<double>(NumberOfAverageValues);
-}
-
-double computeABStructureFactor(const vector<double>& ABDifferences, double kx, double ky){
-	double Result = 0.0;
-	for (int i = 0; i < ABDifferences.size(); i += DIMENSION){
-		Result += cos(kx*ABDifferences[i]+ky*ABDifferences[i+1]);
-	}
-	return Result/static_cast<double>(TotalNumberOfParticles);
-}
-
-double computeAverageABStructureFactor(const vector<double>& ABDifferences, double kMagnitudeCenter, double kMagnitudeWidth, int NumberOfAverageValues){
-	double AverageStructureFactor = 0.0;
-	for (int i = 0; i < NumberOfAverageValues; i++){
-		double RandomAngle = RNG.drawRandomNumber(0.0, 2.0 * M_PI);
-		double kMagnitude = RNG.drawRandomNumber(-kMagnitudeWidth,kMagnitudeWidth) + kMagnitudeCenter;
-		AverageStructureFactor += computeABStructureFactor(Positions, kMagnitude*cos(RandomAngle), kMagnitude*sin(RandomAngle));
-	}
-	return AverageStructureFactor/static_cast<double>(NumberOfAverageValues);
+	return Sum;
 }
 
 double computeConcentrationFactorValue(double AAStructureFactorValue, double BBStructureFactorValue, double ABStructureFactorValue){
@@ -170,10 +106,8 @@ double computeConcentrationFactorValue(double AAStructureFactorValue, double BBS
 
 int main(int argc, char* argv[]){
 	BoxLength = atof(argv[2]);
-	BoxLength = 35.3553;
-	readInParticleState("FinalParticleConfig_N=1000_T=0.900000_AvgDens=0.600000_MCRuns=600000.dat");
-
-	computeABDistances();
+	BoxLength = 40.8248905;
+	readInParticleState("FinalParticleConfig_N=1000_T=0.335000_AvgDens=0.600000_MCRuns=500000_epsAB=0.100000.dat");
 
 	double kMin = 2.0*M_PI/BoxLength;
 	double kMax = 9.0;
@@ -181,63 +115,95 @@ int main(int argc, char* argv[]){
 	double kDelta = (kMax - kMin)/static_cast<double>(NumberOfkValues);
 	double kWidth = kDelta*0.5;
 	double CurrentkMag = kMin;
-	int NumberOfAveragesPerk = 2000;
+	int NumberOfAveragesPerk = 1000;
 	
 	double AAStructureFactorValues [NumberOfkValues];
 	double BBStructureFactorValues [NumberOfkValues];
 	double ABStructureFactorValues [NumberOfkValues];
 	double ConcentrationStructureValues [NumberOfkValues];
 	double kValues [NumberOfkValues];
+	bool kValuesOnGridFound [NumberOfkValues];
 
 	for (int i = 0; i < NumberOfkValues; i++){
 		kValues[i] = CurrentkMag;
 		CurrentkMag += kDelta;
 	}
 
-	#pragma omp parallel num_threads(8)
-	{
-		#pragma omp for
-		for (int i = 0; i < NumberOfkValues; i++){
-			if (NumberOfAParticles > 0){
-				AAStructureFactorValues[i] = computeAverageSelfStructureFactor(APositions, kValues[i], kWidth, NumberOfAveragesPerk);
+	for (int i = 0; i < NumberOfkValues; i++){
+		double AverageStructureFactorAA = 0.0;
+		double AverageStructureFactorBB = 0.0;
+		double AverageStructureFactorAB = 0.0;
+		int NumberOfSuccessfulAverages = 0;
+		for (int j = 0; j < NumberOfAveragesPerk; j++){
+			double RandomAngle = RNG.drawRandomNumber(0.0, 2.0 * M_PI);
+			double kMagnitude = RNG.drawRandomNumber(-kWidth,kWidth) + kValues[i];
+			int nx = round(BoxLength*kMagnitude*cos(RandomAngle)/(2.0*M_PI));
+			int ny = round(BoxLength*kMagnitude*sin(RandomAngle)/(2.0*M_PI));
+			double GridkMagnitude = 2.0*M_PI/BoxLength*sqrt(static_cast<double>(nx*nx+ny*ny));
+			if (GridkMagnitude <= (kValues[i]+kWidth) && GridkMagnitude >= (kValues[i]-kWidth)){
+				NumberOfSuccessfulAverages++;
+				double kx = nx * 2.0*M_PI/BoxLength;
+				double ky = ny * 2.0*M_PI/BoxLength;
+				double cosSumA;
+				double sinSumA;
+				double cosSumB;
+				double sinSumB;
+				if (NumberOfAParticles > 0){
+					cosSumA = computeCosSum(APositions, kx, ky);
+					sinSumA = computeSinSum(APositions, kx, ky);
+					AverageStructureFactorAA += (cosSumA*cosSumA+sinSumA*sinSumA);
+				}
+				if (NumberOfBParticles > 0){
+					cosSumB = computeCosSum(BPositions, kx, ky);
+					sinSumB = computeSinSum(BPositions, kx, ky);
+					AverageStructureFactorBB += (cosSumB*cosSumB+sinSumB*sinSumB);
+				}
+				if (NumberOfAParticles > 0 && NumberOfBParticles > 0){
+					AverageStructureFactorAB += (cosSumA*cosSumB + sinSumA*sinSumB);
+				}
 			}
-			if (NumberOfBParticles > 0){
-				BBStructureFactorValues[i] = computeAverageSelfStructureFactor(BPositions, kValues[i], kWidth, NumberOfAveragesPerk);
-			}
-			if (NumberOfAParticles > 0 && NumberOfBParticles > 0){
-				ABStructureFactorValues[i] = computeAverageABStructureFactor(rABDifferences, kValues[i], kWidth, NumberOfAveragesPerk);
-				ConcentrationStructureValues[i] = computeConcentrationFactorValue(AAStructureFactorValues[i], BBStructureFactorValues[i], ABStructureFactorValues[i]);
-			}
+		}
+		if (NumberOfSuccessfulAverages > 0){
+			kValuesOnGridFound[i] = true;
+			AAStructureFactorValues[i] = AverageStructureFactorAA / (static_cast<double>(NumberOfSuccessfulAverages)*static_cast<double>(TotalNumberOfParticles));
+			BBStructureFactorValues[i] = AverageStructureFactorBB / (static_cast<double>(NumberOfSuccessfulAverages)*static_cast<double>(TotalNumberOfParticles));
+			ABStructureFactorValues[i] = AverageStructureFactorAB / (static_cast<double>(NumberOfSuccessfulAverages)*static_cast<double>(TotalNumberOfParticles));
+			ConcentrationStructureValues [i] = computeConcentrationFactorValue(AAStructureFactorValues[i],BBStructureFactorValues[i],ABStructureFactorValues[i]);
+		}
+		else {
+			kValuesOnGridFound[i] = false;
 		}
 	}
 
-	string FileName("structure_factor_T=0.9.dat");
+	string FileName("structure_factor_T=0.335_Roh=0.6_epsAB=0.1.dat");
 	ofstream FileStreamToWrite;
 	FileStreamToWrite.open(FileName);
 	FileStreamToWrite << "k" << '\t' << "AAStructureFactor\t" << "BBStructureFactor\t" << "ABStructureFactor\t" << "ConcentrationStructureFactor\n";
 	for (int i = 0; i < NumberOfkValues; i++){
-		FileStreamToWrite << kValues[i] << '\t';
-		if (NumberOfAParticles > 0){
-			FileStreamToWrite << AAStructureFactorValues[i];
+		if (kValuesOnGridFound[i]){
+			FileStreamToWrite << kValues[i] << '\t';
+			if (NumberOfAParticles > 0){
+				FileStreamToWrite << AAStructureFactorValues[i];
+			}
+			else {
+				FileStreamToWrite << 0.0;
+			}
+			FileStreamToWrite << '\t';
+			if (NumberOfBParticles > 0){
+				FileStreamToWrite << BBStructureFactorValues[i];
+			}
+			else {
+				FileStreamToWrite << 0.0;
+			}
+			FileStreamToWrite << '\t';
+			if (NumberOfAParticles > 0 && NumberOfBParticles > 0){
+				FileStreamToWrite << ABStructureFactorValues[i] << '\t' << ConcentrationStructureValues[i];
+			}
+			else {
+				FileStreamToWrite << 0.0 << '\t' << 0.0;
+			}
+			FileStreamToWrite << '\n';
 		}
-		else {
-			FileStreamToWrite << 0.0;
-		}
-		FileStreamToWrite << '\t';
-		if (NumberOfBParticles > 0){
-			FileStreamToWrite << BBStructureFactorValues[i];
-		}
-		else {
-			FileStreamToWrite << 0.0;
-		}
-		FileStreamToWrite << '\t';
-		if (NumberOfAParticles > 0 && NumberOfBParticles > 0){
-			FileStreamToWrite << ABStructureFactorValues[i] << '\t' << ConcentrationStructureValues[i];
-		}
-		else {
-			FileStreamToWrite << 0.0 << '\t' << 0.0;
-		}
-		FileStreamToWrite << '\n';
 	}
 	FileStreamToWrite.close();
 }
