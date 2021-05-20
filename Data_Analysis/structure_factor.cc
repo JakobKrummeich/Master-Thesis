@@ -115,7 +115,7 @@ int main(int argc, char* argv[]){
 	double kDelta = (kMax - kMin)/static_cast<double>(NumberOfkValues);
 	double kWidth = kDelta*0.5;
 	double CurrentkMag = kMin;
-	int NumberOfAveragesPerk = 1000;
+	int NumberOfAttemptedAveragesPerk = 1000;
 	
 	double AAStructureFactorValues [NumberOfkValues];
 	double BBStructureFactorValues [NumberOfkValues];
@@ -123,6 +123,7 @@ int main(int argc, char* argv[]){
 	double ConcentrationStructureValues [NumberOfkValues];
 	double kValues [NumberOfkValues];
 	bool kValuesOnGridFound [NumberOfkValues];
+	vector<int> CombinationsFound;
 
 	for (int i = 0; i < NumberOfkValues; i++){
 		kValues[i] = CurrentkMag;
@@ -134,32 +135,54 @@ int main(int argc, char* argv[]){
 		double AverageStructureFactorBB = 0.0;
 		double AverageStructureFactorAB = 0.0;
 		int NumberOfSuccessfulAverages = 0;
-		for (int j = 0; j < NumberOfAveragesPerk; j++){
-			double RandomAngle = RNG.drawRandomNumber(0.0, 2.0 * M_PI);
+		int NumberOfCombinationsFound = 0;
+		CombinationsFound.clear();
+		for (int j = 0; j < NumberOfAttemptedAveragesPerk; j++){
+			double RandomAngle = RNG.drawRandomNumber(0.0, 0.5 * M_PI);
 			double kMagnitude = RNG.drawRandomNumber(-kWidth,kWidth) + kValues[i];
 			int nx = round(BoxLength*kMagnitude*cos(RandomAngle)/(2.0*M_PI));
 			int ny = round(BoxLength*kMagnitude*sin(RandomAngle)/(2.0*M_PI));
 			double GridkMagnitude = 2.0*M_PI/BoxLength*sqrt(static_cast<double>(nx*nx+ny*ny));
-			if (GridkMagnitude <= (kValues[i]+kWidth) && GridkMagnitude >= (kValues[i]-kWidth)){
-				NumberOfSuccessfulAverages++;
-				double kx = nx * 2.0*M_PI/BoxLength;
-				double ky = ny * 2.0*M_PI/BoxLength;
-				double cosSumA;
-				double sinSumA;
-				double cosSumB;
-				double sinSumB;
-				if (NumberOfAParticles > 0){
-					cosSumA = computeCosSum(APositions, kx, ky);
-					sinSumA = computeSinSum(APositions, kx, ky);
-					AverageStructureFactorAA += (cosSumA*cosSumA+sinSumA*sinSumA);
+			if (GridkMagnitude <= (kValues[i]+kWidth) && GridkMagnitude >= (kValues[i]-kWidth) && GridkMagnitude >= kMin){
+				bool sameCombinationAlreadyFoundBefore = false;
+				for (int k = 0; k < NumberOfCombinationsFound && !sameCombinationAlreadyFoundBefore; k++){
+					if ((CombinationsFound[DIMENSION*k] == nx && CombinationsFound[DIMENSION*k+1] == ny) || (CombinationsFound[DIMENSION*k] == ny && CombinationsFound[DIMENSION*k+1] == nx)){
+						sameCombinationAlreadyFoundBefore = true;
+					}
 				}
-				if (NumberOfBParticles > 0){
-					cosSumB = computeCosSum(BPositions, kx, ky);
-					sinSumB = computeSinSum(BPositions, kx, ky);
-					AverageStructureFactorBB += (cosSumB*cosSumB+sinSumB*sinSumB);
-				}
-				if (NumberOfAParticles > 0 && NumberOfBParticles > 0){
-					AverageStructureFactorAB += (cosSumA*cosSumB + sinSumA*sinSumB);
+				if (!sameCombinationAlreadyFoundBefore){
+					NumberOfCombinationsFound++;
+					CombinationsFound.push_back(nx);
+					CombinationsFound.push_back(ny);
+					for (int k = 0; k < (abs(nx) == abs(ny) ? 1 : 2); k++){
+						for (int xSign = 1; xSign >= (nx == 0 ? 1 : -1); xSign-=2){
+							for (int ySign = 1; ySign >= (ny == 0 ? 1 : -1); ySign-=2){
+								NumberOfSuccessfulAverages++;
+								double kx = xSign * nx * 2.0*M_PI/BoxLength;
+								double ky = ySign * ny * 2.0*M_PI/BoxLength;
+								double cosSumA;
+								double sinSumA;
+								double cosSumB;
+								double sinSumB;
+								if (NumberOfAParticles > 0){
+									cosSumA = computeCosSum(APositions, kx, ky);
+									sinSumA = computeSinSum(APositions, kx, ky);
+									AverageStructureFactorAA += (cosSumA*cosSumA+sinSumA*sinSumA);
+								}
+								if (NumberOfBParticles > 0){
+									cosSumB = computeCosSum(BPositions, kx, ky);
+									sinSumB = computeSinSum(BPositions, kx, ky);
+									AverageStructureFactorBB += (cosSumB*cosSumB+sinSumB*sinSumB);
+								}
+								if (NumberOfAParticles > 0 && NumberOfBParticles > 0){
+									AverageStructureFactorAB += (cosSumA*cosSumB + sinSumA*sinSumB);
+								}
+							}
+						}
+						int temp = nx;
+						nx = ny;
+						ny = temp;
+					}
 				}
 			}
 		}
