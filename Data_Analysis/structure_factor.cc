@@ -110,7 +110,7 @@ struct ResultEntry{
 int main(int argc, char* argv[]){
 	BoxLength = atof(argv[2]);
 	BoxLength = 40.8248905;
-	readInParticleState("data/FinalParticleConfig_N=1000_T=1.000000_AvgDens=0.600000_MCRuns=500000_epsAB=0.100000.dat");
+	readInParticleState("data/FinalParticleConfig_N=1000_T=0.335000_AvgDens=0.600000_MCRuns=500000_epsAB=0.100000.dat");
 
 	double kMin = 2.0*M_PI/BoxLength;
 	double kMax = 9.0;
@@ -189,7 +189,7 @@ int main(int argc, char* argv[]){
 		CurrentkMag += kDelta;
 	}
 
-	string FileName("structure_factor_T=1.0_Roh=0.6_epsAB=0.1.dat");
+	string FileName("structure_factor_T=0.335_Roh=0.6_epsAB=0.1.dat");
 	ofstream FileStreamToWrite;
 	FileStreamToWrite.open(FileName);
 	FileStreamToWrite << "k" << '\t' << "AAStructureFactor\t" << "BBStructureFactor\t" << "ABStructureFactor\t" << "ConcentrationStructureFactor\n";
