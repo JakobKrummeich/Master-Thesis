@@ -1,6 +1,7 @@
 #include <random>
 #include <fstream>
 #include <vector>
+#include <algorithm>
 
 using namespace std;
 
@@ -110,11 +111,11 @@ struct ResultEntry{
 int main(int argc, char* argv[]){
 	BoxLength = atof(argv[2]);
 	BoxLength = 40.8248905;
-	readInParticleState("data/FinalParticleConfig_N=1000_T=0.335000_AvgDens=0.600000_MCRuns=500000_epsAB=0.100000.dat");
+	readInParticleState("data/FinalParticleConfig_N=1000_T=1.000000_AvgDens=0.600000_MCRuns=500000_epsAB=0.100000.dat");
 
 	double kMin = 2.0*M_PI/BoxLength;
 	double kMax = 9.0;
-	int NumberOfkValueSubdivisions = 200;
+	int NumberOfkValueSubdivisions = 400;
 	double kDelta = (kMax - kMin)/static_cast<double>(NumberOfkValueSubdivisions);
 	double kWidth = kDelta*0.5;
 	double CurrentkMag = kMin;
@@ -123,13 +124,17 @@ int main(int argc, char* argv[]){
 	vector<ResultEntry> Results;
 
 	vector<int> CombinationsFound;
+	vector<int> MagnitudesFound;
+	vector<ResultEntry> IntermediateResults;
+	vector<int> NumberOfDifferentkPerMagnitude;
 
 	for (int i = 0; i < NumberOfkValueSubdivisions; i++){
 		int NumberOfCombinationsFound = 0;
 		CombinationsFound.clear();
-		int NumberOfSuccessfulAverages = 0;
-		ResultEntry NewEntry{};
-		NewEntry.kMagnitude = CurrentkMag;
+		MagnitudesFound.clear();
+		IntermediateResults.clear();
+		NumberOfDifferentkPerMagnitude.clear();
+
 		for (int j = 0; j < NumberOfAttemptedAveragesPerk; j++){
 			double RandomAngle = RNG.drawRandomNumber(0.0, 0.5 * M_PI);
 			double kMagnitude = RNG.drawRandomNumber(-kWidth,kWidth) + CurrentkMag;
@@ -147,10 +152,23 @@ int main(int argc, char* argv[]){
 					NumberOfCombinationsFound++;
 					CombinationsFound.push_back(nx);
 					CombinationsFound.push_back(ny);
+					int NewGridMagnitude = nx*nx+ny*ny;
+					bool sameMagnitudeFoundBefore = false;
+					int IndexOfMagnitude;
+					for (int k = 0; k < MagnitudesFound.size(); k++){
+						if (NewGridMagnitude == MagnitudesFound[k]){
+							sameMagnitudeFoundBefore = true;
+							IndexOfMagnitude = k;
+							break;
+						}
+					}
+					ResultEntry NewEntry{};
+					NewEntry.kMagnitude = GridkMagnitude;
+					int NumberOfkWithThisCombination = 0;
 					for (int k = 0; k < (abs(nx) == abs(ny) ? 1 : 2); k++){
 						for (int xSign = 1; xSign >= (nx == 0 ? 1 : -1); xSign-=2){
 							for (int ySign = 1; ySign >= (ny == 0 ? 1 : -1); ySign-=2){
-								NumberOfSuccessfulAverages++;
+								NumberOfkWithThisCombination++;
 								double kx = xSign * nx * 2.0*M_PI/BoxLength;
 								double ky = ySign * ny * 2.0*M_PI/BoxLength;
 								double cosSumA;
@@ -176,20 +194,36 @@ int main(int argc, char* argv[]){
 						nx = ny;
 						ny = temp;
 					}
+					if (!sameMagnitudeFoundBefore){
+						MagnitudesFound.push_back(NewGridMagnitude);
+						NumberOfDifferentkPerMagnitude.push_back(NumberOfkWithThisCombination);
+						IntermediateResults.push_back(NewEntry);
+						for (int CurrentIndex = MagnitudesFound.size() - 1; CurrentIndex > 0 && MagnitudesFound[CurrentIndex-1] > MagnitudesFound[CurrentIndex]; CurrentIndex--){
+							swap(MagnitudesFound[CurrentIndex], MagnitudesFound[CurrentIndex-1]);
+							swap(IntermediateResults[CurrentIndex], IntermediateResults[CurrentIndex-1]);
+							swap(NumberOfDifferentkPerMagnitude[CurrentIndex], NumberOfDifferentkPerMagnitude[CurrentIndex-1]);
+						}
+					}
+					else {
+						IntermediateResults[IndexOfMagnitude].AAStructureFactor += NewEntry.AAStructureFactor;
+						IntermediateResults[IndexOfMagnitude].BBStructureFactor += NewEntry.BBStructureFactor;
+						IntermediateResults[IndexOfMagnitude].ABStructureFactor += NewEntry.ABStructureFactor;
+						NumberOfDifferentkPerMagnitude[IndexOfMagnitude] += NumberOfkWithThisCombination;
+					}
 				}
 			}
 		}
-		if (NumberOfSuccessfulAverages > 0){
-			NewEntry.AAStructureFactor /= (static_cast<double>(NumberOfSuccessfulAverages)*static_cast<double>(TotalNumberOfParticles));
-			NewEntry.BBStructureFactor /= (static_cast<double>(NumberOfSuccessfulAverages)*static_cast<double>(TotalNumberOfParticles));
-			NewEntry.ABStructureFactor /= (static_cast<double>(NumberOfSuccessfulAverages)*static_cast<double>(TotalNumberOfParticles));
-			NewEntry.ConcentrationStructureFactor = computeConcentrationFactorValue(NewEntry.AAStructureFactor,NewEntry.BBStructureFactor,NewEntry.ABStructureFactor);
-			Results.push_back(NewEntry);
+		for (int i = 0; i < IntermediateResults.size(); i++){
+			IntermediateResults[i].AAStructureFactor /= (static_cast<double>(NumberOfDifferentkPerMagnitude[i])*static_cast<double>(TotalNumberOfParticles));
+			IntermediateResults[i].BBStructureFactor /= (static_cast<double>(NumberOfDifferentkPerMagnitude[i])*static_cast<double>(TotalNumberOfParticles));
+			IntermediateResults[i].ABStructureFactor /= (static_cast<double>(NumberOfDifferentkPerMagnitude[i])*static_cast<double>(TotalNumberOfParticles));
+			IntermediateResults[i].ConcentrationStructureFactor = computeConcentrationFactorValue(IntermediateResults[i].AAStructureFactor,IntermediateResults[i].BBStructureFactor,IntermediateResults[i].ABStructureFactor);
+			Results.push_back(IntermediateResults[i]);
 		}
 		CurrentkMag += kDelta;
 	}
 
-	string FileName("structure_factor_T=0.335_Roh=0.6_epsAB=0.1.dat");
+	string FileName("structure_factor_T=1.0_Roh=0.6_epsAB=0.1.dat");
 	ofstream FileStreamToWrite;
 	FileStreamToWrite.open(FileName);
 	FileStreamToWrite << "k" << '\t' << "AAStructureFactor\t" << "BBStructureFactor\t" << "ABStructureFactor\t" << "ConcentrationStructureFactor\n";
