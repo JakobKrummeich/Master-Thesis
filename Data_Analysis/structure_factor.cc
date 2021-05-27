@@ -190,9 +190,7 @@ int main(int argc, char* argv[]){
 								}
 							}
 						}
-						int temp = nx;
-						nx = ny;
-						ny = temp;
+						swap(nx,ny);
 					}
 					if (!sameMagnitudeFoundBefore){
 						MagnitudesFound.push_back(NewGridMagnitude);
@@ -223,33 +221,43 @@ int main(int argc, char* argv[]){
 		CurrentkMag += kDelta;
 	}
 
+	vector<ResultEntry> SmoothedResults;
+	double SmoothingWindowSize = 0.5;
+	for (int i = 0; i < Results.size(); i++){
+		ResultEntry NewEntry = Results[i];
+		int AveragedValues = 1;
+		int SearchIndex = i-1;
+		while (SearchIndex >= 0 && Results[i].kMagnitude - Results[SearchIndex].kMagnitude < SmoothingWindowSize*0.5){
+			NewEntry.AAStructureFactor += Results[SearchIndex].AAStructureFactor;
+			NewEntry.BBStructureFactor += Results[SearchIndex].BBStructureFactor;
+			NewEntry.ABStructureFactor += Results[SearchIndex].ABStructureFactor;
+			NewEntry.ConcentrationStructureFactor += Results[SearchIndex].ConcentrationStructureFactor;
+			SearchIndex--;
+			AveragedValues++;
+		}
+		SearchIndex = i+1;
+		while (SearchIndex < Results.size() && Results[SearchIndex].kMagnitude - Results[i].kMagnitude < SmoothingWindowSize*0.5){
+			NewEntry.AAStructureFactor += Results[SearchIndex].AAStructureFactor;
+			NewEntry.BBStructureFactor += Results[SearchIndex].BBStructureFactor;
+			NewEntry.ABStructureFactor += Results[SearchIndex].ABStructureFactor;
+			NewEntry.ConcentrationStructureFactor += Results[SearchIndex].ConcentrationStructureFactor;
+			AveragedValues++;
+			SearchIndex++;
+		}
+		NewEntry.AAStructureFactor /= static_cast<double>(AveragedValues);
+		NewEntry.BBStructureFactor /= static_cast<double>(AveragedValues);
+		NewEntry.ABStructureFactor /= static_cast<double>(AveragedValues);
+		NewEntry.ConcentrationStructureFactor /= static_cast<double>(AveragedValues);
+		SmoothedResults.push_back(NewEntry);
+	}
+	
+
 	string FileName("structure_factor_T=1.0_Roh=0.6_epsAB=0.1.dat");
 	ofstream FileStreamToWrite;
 	FileStreamToWrite.open(FileName);
-	FileStreamToWrite << "k" << '\t' << "AAStructureFactor\t" << "BBStructureFactor\t" << "ABStructureFactor\t" << "ConcentrationStructureFactor\n";
+	FileStreamToWrite << "k" << '\t' << "AAStructureFactor\tBBStructureFactor\tABStructureFactor\tConcentrationStructureFactor\tSmoothedAAStructureFactor\tSmoothedBBStructureFactor\tSmoothedABStructureFactor\tSmoothedConcentrationStructureFactor\n";
 	for (int i = 0; i < Results.size(); i++){
-		FileStreamToWrite << Results[i].kMagnitude << '\t';
-		if (NumberOfAParticles > 0){
-			FileStreamToWrite << Results[i].AAStructureFactor;
-		}
-		else {
-			FileStreamToWrite << 0.0;
-		}
-		FileStreamToWrite << '\t';
-		if (NumberOfBParticles > 0){
-			FileStreamToWrite << Results[i].BBStructureFactor;
-		}
-		else {
-			FileStreamToWrite << 0.0;
-		}
-		FileStreamToWrite << '\t';
-		if (NumberOfAParticles > 0 && NumberOfBParticles > 0){
-			FileStreamToWrite << Results[i].ABStructureFactor << '\t' << Results[i].ConcentrationStructureFactor;
-		}
-		else {
-			FileStreamToWrite << 0.0 << '\t' << 0.0;
-		}
-		FileStreamToWrite << '\n';
+		FileStreamToWrite << Results[i].kMagnitude << '\t' << Results[i].AAStructureFactor << '\t' << Results[i].BBStructureFactor << '\t' << Results[i].ABStructureFactor << '\t' << Results[i].ConcentrationStructureFactor << '\t' << SmoothedResults[i].AAStructureFactor << '\t' << SmoothedResults[i].BBStructureFactor << '\t' << SmoothedResults[i].ABStructureFactor << '\t' << SmoothedResults[i].ConcentrationStructureFactor << '\n';
 	}
 	FileStreamToWrite.close();
 }
