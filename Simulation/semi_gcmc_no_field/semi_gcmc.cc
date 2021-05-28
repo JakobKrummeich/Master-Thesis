@@ -35,7 +35,7 @@ int NUMBER_OF_SUBDIVISIONS;
 const double DISPLACEMENT_PROBABILITY = 0.9;
 const int UPDATE_TIME_INTERVAL = 60;
 const int POT_ENERGY_UPDATE_INTERVAL = 200;
-const int NUMBER_OF_STRUCTURE_FACTOR_AVERAGES = 1000;
+const int NUMBER_OF_STRUCTURE_FACTOR_AVERAGES = 100;
 
 void initializeBox(){
 	BOX_LENGTH = sqrt(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES) / DENSITY);
@@ -481,7 +481,7 @@ class StructureFactorComputator{
 		double computeCosSum(const double* const Positions, const fvec<int, TOTAL_NUMBER_OF_PARTICLES>& ParticleIndices, double kx, double ky) const{
 			double Sum = 0.0;
 			for (int i = 0; i < ParticleIndices.size(); i++){
-				Sum += cos(kx* (*(Positions+DIMENSION*ParticleIndices[i])) + ky * (*(Positions+DIMENSION*ParticleIndices[i]+1)));
+				Sum += cos( kx* BOX_LENGTH*(*(Positions+DIMENSION*ParticleIndices[i])) + ky * BOX_LENGTH * (*(Positions+DIMENSION*ParticleIndices[i]+1)));
 			}
 			return Sum;
 		}
@@ -489,7 +489,7 @@ class StructureFactorComputator{
 		double computeSinSum(const double* const Positions, const fvec<int, TOTAL_NUMBER_OF_PARTICLES>& ParticleIndices, double kx, double ky) const{
 			double Sum = 0.0;
 			for (int i = 0; i < ParticleIndices.size(); i++){
-				Sum += sin(kx* (*(Positions+DIMENSION*ParticleIndices[i])) + ky * (*(Positions+DIMENSION*ParticleIndices[i]+1)));
+				Sum += sin(kx* BOX_LENGTH * (*(Positions+DIMENSION*ParticleIndices[i])) + ky * BOX_LENGTH * (*(Positions+DIMENSION*ParticleIndices[i]+1)));
 			}
 			return Sum;
 		}
@@ -765,8 +765,10 @@ struct SimulationManager {
 				NextUpdateTime += UPDATE_TIME_INTERVAL;
 			}
 			if (i >= static_cast<int>(NumberOfMCSweeps*0.5) && i == NextStructureFactorComputation){
+				const auto TimeBeforeStructureFactorComputation = chrono::steady_clock::now();
 				NextStructureFactorComputation += StructureFactorComputationInterval;
 				SFComputator.computeNewStructureFactorValues(P.Positions, P.TypeAParticleIndices, P.TypeBParticleIndices);
+				cerr << "i = " << i << ", Time for structurefactorcomputation: " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now()-TimeBeforeStructureFactorComputation).count() << endl;
 			}
 		}
 		writeResults();
