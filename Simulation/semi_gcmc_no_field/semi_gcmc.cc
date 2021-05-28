@@ -1,40 +1,41 @@
 #include <iostream>
 #include <cmath>
 #include <chrono>
-#include <random>
 #include <fstream>
 #include <vector>
 #include <iomanip>
 #include <stdlib.h>
+#include "../../General_Code/realRNG.h"
+#include "../../General_Code/fvec.h"
 
 using namespace std;
 
-static const int DIMENSION = 2;
-static const int TOTAL_NUMBER_OF_PARTICLES = 1000;
+const int DIMENSION = 2;
+const int TOTAL_NUMBER_OF_PARTICLES = 1000;
 
-static const double AA_INTERACTION_STRENGTH = 1.0;
-static double AB_INTERACTION_STRENGTH;
-static const double CUTOFF = 2.5;
-static const double CUTOFF_SQUARED = CUTOFF * CUTOFF;
-static const double INVERSE_CUTOFF = 1.0/CUTOFF;
-static const double POTENTIAL_CONSTANT_1 = pow(INVERSE_CUTOFF, 6.0) - pow(INVERSE_CUTOFF, 12.0);
-static const double POTENTIAL_CONSTANT_2 = 6.0 * pow(INVERSE_CUTOFF, 7.0) - 12.0 * pow(INVERSE_CUTOFF, 13.0);
+const double AA_INTERACTION_STRENGTH = 1.0;
+double AB_INTERACTION_STRENGTH;
+const double CUTOFF = 2.5;
+const double CUTOFF_SQUARED = CUTOFF * CUTOFF;
+const double INVERSE_CUTOFF = 1.0/CUTOFF;
+const double POTENTIAL_CONSTANT_1 = pow(INVERSE_CUTOFF, 6.0) - pow(INVERSE_CUTOFF, 12.0);
+const double POTENTIAL_CONSTANT_2 = 6.0 * pow(INVERSE_CUTOFF, 7.0) - 12.0 * pow(INVERSE_CUTOFF, 13.0);
 
-static double DENSITY;
-static double BOX_LENGTH;
-static double BOX_LENGTH_SQUARED;
-static double INVERSE_BOX_LENGTH;
+double DENSITY;
+double BOX_LENGTH;
+double BOX_LENGTH_SQUARED;
+double INVERSE_BOX_LENGTH;
 
-static const double MAXIMUM_DISPLACEMENT = 0.1;
-static const double MAX_VERLET_DIST = 1.3*CUTOFF;
-static const double MAX_VERLET_DIST_SQUARED = MAX_VERLET_DIST * MAX_VERLET_DIST;
-static const double SKINDISTANCE = MAX_VERLET_DIST - CUTOFF;
-static int NUMBER_OF_SUBDIVISIONS;
+const double MAXIMUM_DISPLACEMENT = 0.1;
+const double MAX_VERLET_DIST = 1.3*CUTOFF;
+const double MAX_VERLET_DIST_SQUARED = MAX_VERLET_DIST * MAX_VERLET_DIST;
+const double SKINDISTANCE = MAX_VERLET_DIST - CUTOFF;
+int NUMBER_OF_SUBDIVISIONS;
 
-static const double DISPLACEMENT_PROBABILITY = 0.9;
-static const int UPDATE_TIME_INTERVAL = 60;
-static const int POT_ENERGY_UPDATE_INTERVAL = 200;
-
+const double DISPLACEMENT_PROBABILITY = 0.9;
+const int UPDATE_TIME_INTERVAL = 60;
+const int POT_ENERGY_UPDATE_INTERVAL = 200;
+const int NUMBER_OF_STRUCTURE_FACTOR_AVERAGES = 1000;
 
 void initializeBox(){
 	BOX_LENGTH = sqrt(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES) / DENSITY);
@@ -42,27 +43,6 @@ void initializeBox(){
 	INVERSE_BOX_LENGTH = 1.0/BOX_LENGTH;
 	NUMBER_OF_SUBDIVISIONS = static_cast<int>(BOX_LENGTH/MAX_VERLET_DIST) > 3 ? static_cast<int>(BOX_LENGTH/MAX_VERLET_DIST) : 1;
 }
-
-class realRNG{
-	private:
-		mt19937 rng;
-		uniform_real_distribution<double> UnifRealDist;
-	public:
-		realRNG():
-			UnifRealDist(0.0,1.0){
-			random_device rd;
-			seed_seq sd{rd(),rd()};
-			rng = mt19937(sd);
-		}
-		
-		double drawRandomNumber(){
-			return UnifRealDist(rng);
-		}
-		
-		double drawRandomNumber(double Min, double Max){
-			return (Max - Min) * UnifRealDist(rng) + Min;
-		}
-};
 
 enum class ParticleType{
 	A = 0,
@@ -79,51 +59,15 @@ ostream& operator<<(ostream& OStream, ParticleType T){
 	return OStream;
 }
 
-template<typename T, size_t Nm> struct fvec{
-	T arr [Nm];
-	size_t Ncurr;
-	
-	fvec():
-		Ncurr(0){
-	}
-	
-	void clear(){
-		Ncurr = 0;
-	}
-	
-	void push_back(const T& NewEntry){
-		arr[Ncurr] = NewEntry;
-		Ncurr++;
-	}
-	
-	bool empty() const{
-		return (Ncurr == 0);
-	}
-	
-	size_t size() const{
-		return Ncurr;
-	}
-	
-	const T& operator[](int ID) const{
-		return arr[ID];
-	}
-	
-	T& operator[](int ID){
-		return arr[ID];
-	}
-	
-	void erase(int ID){
-		Ncurr--;
-		arr[ID] = arr[Ncurr];
-	}
-};
-
 struct Particles {
 	private:
 	double Positions [DIMENSION*TOTAL_NUMBER_OF_PARTICLES];
-	
+
 	ParticleType ParticleTypes [TOTAL_NUMBER_OF_PARTICLES];
-	
+
+	fvec<int, TOTAL_NUMBER_OF_PARTICLES> TypeAParticleIndices;
+	fvec<int, TOTAL_NUMBER_OF_PARTICLES> TypeBParticleIndices;
+
 	vector<int> CellListHead;
 	int CellListIndices [TOTAL_NUMBER_OF_PARTICLES];
 	int VerletListHead [2*TOTAL_NUMBER_OF_PARTICLES];
@@ -133,10 +77,11 @@ struct Particles {
 	double MostTraveledDistances [2];
 	int MostTraveledParticleIndex;
 
+	friend class StructureFactorComputator;
+	friend class SimulationManager;
+
 	public:
 
-	fvec<int, TOTAL_NUMBER_OF_PARTICLES> TypeAParticleIndices;
-	fvec<int, TOTAL_NUMBER_OF_PARTICLES> TypeBParticleIndices;
 	int NumberOfVerletListBuilds;
 
 	Particles(){
@@ -191,7 +136,7 @@ struct Particles {
 	void readInParticleState(string FileNameToReadIn) {
 		ifstream FileStreamToReadIn;
 		FileStreamToReadIn.open(FileNameToReadIn);
-			
+
 		string CurrentString;
 
 		getline(FileStreamToReadIn,CurrentString, '\n');
@@ -214,7 +159,7 @@ struct Particles {
 		}
 		FileStreamToReadIn.close();
 	}
-	
+
 	double getPosition(int ParticleIndex, int Coordinate) const {
 		return Positions[DIMENSION*ParticleIndex+Coordinate];
 	}
@@ -222,7 +167,7 @@ struct Particles {
 	ParticleType getParticleType(int ParticleIndex) const {
 		return ParticleTypes[ParticleIndex];
 	}
-	
+
 	void switchParticleType(int ParticleID, int IndexInTypeArray) {
 		if (ParticleTypes[ParticleID] == ParticleType::A){
 			TypeAParticleIndices.erase(IndexInTypeArray);
@@ -234,21 +179,21 @@ struct Particles {
 		}
 		ParticleTypes[ParticleID] = ParticleTypes[ParticleID] == ParticleType::A ? ParticleType::B : ParticleType::A;
 	}
-	
+
 	int getNumberOfAParticles() const {
 		return TypeAParticleIndices.size();
 	}
-	
+
 	int getNumberOfBParticles() const {
 		return TypeBParticleIndices.size();
 	}
-	
+
 	static double computePairwiseParticlePotentialEnergy(double DimensionlessDistanceSquared) {
 		double InverseDistanceSquared = 1.0/(DimensionlessDistanceSquared*BOX_LENGTH_SQUARED);
 		double InverseDistanceToThePowerOfSix = InverseDistanceSquared * InverseDistanceSquared * InverseDistanceSquared;
 		return 4.0*(InverseDistanceToThePowerOfSix * InverseDistanceToThePowerOfSix - InverseDistanceToThePowerOfSix + POTENTIAL_CONSTANT_1 - (sqrt(DimensionlessDistanceSquared) * BOX_LENGTH - CUTOFF) * POTENTIAL_CONSTANT_2);
 	}
-	
+
 	static double computePairwiseParticlePotentialEnergy(const double* Position0, const double* Position1) {
 		double DistanceSquared = 0.0;
 		for (int i = 0; i < DIMENSION; i++){
@@ -266,7 +211,7 @@ struct Particles {
 		}
 		return computePairwiseParticlePotentialEnergy(DistanceSquared);
 	}
-	
+
 	double computeChangeInPotentialEnergyByMoving(int ParticleIndex, const double* Delta) const {
 		double PotEnergyChange = 0.0;
 		double UpdatedCoordinates [DIMENSION];
@@ -290,7 +235,7 @@ struct Particles {
 		}
 		return PotEnergyChange;
 	}
-	
+
 	double computeChangeInPotentialEnergyBySwitching(int ParticleIndex) const {
 		double PotEnergyChange = 0.0;
 		for (int i = 0; i < VerletListHead[2*ParticleIndex+1]; i++){
@@ -320,7 +265,7 @@ struct Particles {
 		}
 		return PotEnergy;
 	}
-	
+
 	void buildCellList(){
 		int NumberOfSubcells = NUMBER_OF_SUBDIVISIONS;
 		for (int i = 0; i < DIMENSION-1; i++){
@@ -341,7 +286,7 @@ struct Particles {
 			CellListHead[CurrentCellIndex] = ParticleIndex;
 		}
 	}
-	
+
 	void printCellList() const {
 		for (int i = 0; i < CellListHead.size(); i++)	{
 			cerr << "Cell " << i << ": Head: " << CellListHead[i] << endl;
@@ -353,13 +298,13 @@ struct Particles {
 			cerr << endl;
 		}
 	}
-	
+
 	void buildVerletList() {
 		buildCellList();
 		VerletIndicesOfNeighbors.clear();
 		VerletIndicesOfNeighbors.reserve(40*TOTAL_NUMBER_OF_PARTICLES);
 		int CurrentIndexInVerletIndices = 0;
-		
+
 		int Indices [DIMENSION];
 		for (int i = 0; i < DIMENSION; i++){
 			Indices[i] = 0;
@@ -370,7 +315,7 @@ struct Particles {
 			for (int i = 0; i < DIMENSION; i++){
 				Cell += Indices[i]*IndexFactor;
 				IndexFactor *= NUMBER_OF_SUBDIVISIONS;
-				
+
 			}
 			int CurrentParticleIndex = CellListHead[Cell];
 			while (CurrentParticleIndex >= 0){
@@ -448,7 +393,7 @@ struct Particles {
 		}
 			cerr << endl;
 	}
-	
+
 	void updatePosition(int ParticleIndex, const double* Deltas){
 		double CurrentTraveledDistance = 0.0;
 		for (int k = 0; k < DIMENSION; k++){
@@ -497,20 +442,195 @@ ostream& operator<<(ostream& OStream, const Particles& State){
 	return OStream;
 }
 
+class StructureFactorComputator{
+	private:
+		const double kMin;
+		const double kMax;
+
+		realRNG RNG;
+
+		struct Combination{
+			int nx;
+			int ny;
+
+			Combination(){
+			}
+
+			Combination(int nx, int ny):
+				nx(nx),
+				ny(ny){
+			}
+
+			bool operator==(const Combination& RHS) const {
+				return ((nx == RHS.nx && ny == RHS.ny) || (nx == RHS.ny && ny == RHS.nx));
+			}
+		};
+
+		struct RowEntry {
+			double kMagnitude;
+			vector<Combination> Combinations;
+			double SAA;
+			double SBB;
+			double SAB;
+			double Scc;
+			int NumberOfDataPoints;
+		};
+
+		vector<RowEntry> Results;
+
+		double computeCosSum(const double* const Positions, const fvec<int, TOTAL_NUMBER_OF_PARTICLES>& ParticleIndices, double kx, double ky) const{
+			double Sum = 0.0;
+			for (int i = 0; i < ParticleIndices.size(); i++){
+				Sum += cos(kx* (*(Positions+DIMENSION*ParticleIndices[i])) + ky * (*(Positions+DIMENSION*ParticleIndices[i]+1)));
+			}
+			return Sum;
+		}
+
+		double computeSinSum(const double* const Positions, const fvec<int, TOTAL_NUMBER_OF_PARTICLES>& ParticleIndices, double kx, double ky) const{
+			double Sum = 0.0;
+			for (int i = 0; i < ParticleIndices.size(); i++){
+				Sum += sin(kx* (*(Positions+DIMENSION*ParticleIndices[i])) + ky * (*(Positions+DIMENSION*ParticleIndices[i]+1)));
+			}
+			return Sum;
+		}
+
+	public:
+		StructureFactorComputator(double kMax):
+			kMin(2.0*M_PI/BOX_LENGTH),
+			kMax(kMax){
+		}
+
+		void findkValuesOnGrid(){
+			double kWidth = 0.01;
+			double CurrentkMag = kMin;
+			int NumberOfAttemptedAveragesPerk = 1000;
+			vector<Combination> CombinationsFound;
+			vector<int> MagnitudesFound;
+			vector<RowEntry> IntermediateResults;
+
+			while (CurrentkMag < kMax){
+				CombinationsFound.clear();
+				MagnitudesFound.clear();
+				IntermediateResults.clear();
+				for (int i = 0; i < NumberOfAttemptedAveragesPerk; i++){
+					double RandomAngle = RNG.drawRandomNumber(0.0, 0.5 * M_PI);
+					double RandomkMagnitude = RNG.drawRandomNumber(-kWidth,kWidth) + CurrentkMag;
+					int nx = round(BOX_LENGTH*RandomkMagnitude*cos(RandomAngle)/(2.0*M_PI));
+					int ny = round(BOX_LENGTH*RandomkMagnitude*sin(RandomAngle)/(2.0*M_PI));
+					double GridkMagnitude = 2.0*M_PI/BOX_LENGTH*sqrt(static_cast<double>(nx*nx+ny*ny));
+					if (GridkMagnitude <= (CurrentkMag+kWidth) && GridkMagnitude >= (CurrentkMag-kWidth) && GridkMagnitude >= kMin){
+						bool sameCombinationAlreadyFoundBefore = false;
+						Combination NewCombination(nx,ny);
+						for (int j = 0; j < CombinationsFound.size() && !sameCombinationAlreadyFoundBefore; j++){
+							if (CombinationsFound[j] == NewCombination){
+								sameCombinationAlreadyFoundBefore = true;
+							}
+						}
+						if (!sameCombinationAlreadyFoundBefore){
+							CombinationsFound.push_back(NewCombination);
+							int NewGridMagnitude = nx*nx+ny*ny;
+							bool sameMagnitudeFoundBefore = false;
+							for (int j = 0; j < MagnitudesFound.size(); j++){
+								if (NewGridMagnitude == MagnitudesFound[j]){
+									sameMagnitudeFoundBefore = true;
+									IntermediateResults[j].Combinations.push_back(NewCombination);
+									break;
+								}
+							}
+							if (!sameMagnitudeFoundBefore){
+								RowEntry NewEntry{};
+								NewEntry.kMagnitude = GridkMagnitude;
+								NewEntry.Combinations.push_back(NewCombination);
+								IntermediateResults.push_back(NewEntry);
+								MagnitudesFound.push_back(NewGridMagnitude);
+								for (int CurrentIndex = MagnitudesFound.size() - 1; CurrentIndex > 0 && MagnitudesFound[CurrentIndex-1] > MagnitudesFound[CurrentIndex]; CurrentIndex--){
+									swap(MagnitudesFound[CurrentIndex], MagnitudesFound[CurrentIndex-1]);
+									swap(IntermediateResults[CurrentIndex], IntermediateResults[CurrentIndex-1]);
+								}
+							}
+						}
+					}
+				}
+				for (int i = 0; i < IntermediateResults.size(); i++){
+					Results.push_back(IntermediateResults[i]);
+				}
+				CurrentkMag += 2.0*kWidth;
+			}
+		}
+
+		void computeNewStructureFactorValues(const double* const Positions, const fvec<int, TOTAL_NUMBER_OF_PARTICLES>& TypeAParticleIndices, const fvec<int, TOTAL_NUMBER_OF_PARTICLES>& TypeBParticleIndices){
+			double xA = static_cast<double>(TypeAParticleIndices.size())/static_cast<double>(TOTAL_NUMBER_OF_PARTICLES);
+			double xB = static_cast<double>(TypeBParticleIndices.size())/static_cast<double>(TOTAL_NUMBER_OF_PARTICLES);
+			for (int i = 0; i < Results.size(); i++){
+				for (int j = 0; j < Results[i].Combinations.size(); j++){
+					int nx = Results[i].Combinations[j].nx;
+					int ny = Results[i].Combinations[j].ny;
+					for (int k = 0; k < (abs(nx) == abs(ny) ? 1 : 2); k++){
+						for (int Sign = 1; Sign >= ((nx == 0 || ny == 0)? 1: -1); Sign -= 2){
+							double kx = Sign * nx * 2.0*M_PI/BOX_LENGTH;
+							double ky = ny * 2.0*M_PI/BOX_LENGTH;
+							double cosSumA = computeCosSum(Positions, TypeAParticleIndices, kx, ky);
+							double sinSumA = computeSinSum(Positions, TypeAParticleIndices, kx, ky);
+							double cosSumB = computeCosSum(Positions, TypeBParticleIndices, kx, ky);
+							double sinSumB = computeSinSum(Positions, TypeBParticleIndices, kx, ky);
+
+							double SAA = cosSumA*cosSumA + sinSumA * sinSumA;
+							double SBB = cosSumB*cosSumB + sinSumB * sinSumB;
+							double SAB = cosSumA*cosSumB + sinSumA * sinSumB;
+
+							Results[i].SAA += SAA;
+							Results[i].SBB += SBB;
+							Results[i].SAB += SAB;
+							Results[i].Scc += xB*xB*SAA + xA*xA*SBB - 2.0 * xA * xB * SAB;
+							Results[i].NumberOfDataPoints++;
+						}
+						swap(nx,ny);
+					}
+				}
+			}
+		}
+
+		void reset(){
+			for (int i = 0; i < Results.size(); i++){
+				Results[i].SAA = 0.0;
+				Results[i].SBB = 0.0;
+				Results[i].SAB = 0.0;
+				Results[i].Scc = 0.0;
+				Results[i].NumberOfDataPoints = 0;
+			}
+		}
+
+		void writeResultsToFile(string FileName) {
+			for (int i = 0; i < Results.size(); i++){
+				Results[i].SAA /= (static_cast<double>(Results[i].NumberOfDataPoints) * static_cast<double>(TOTAL_NUMBER_OF_PARTICLES));
+				Results[i].SBB /= (static_cast<double>(Results[i].NumberOfDataPoints) * static_cast<double>(TOTAL_NUMBER_OF_PARTICLES));
+				Results[i].SAB /= (static_cast<double>(Results[i].NumberOfDataPoints) * static_cast<double>(TOTAL_NUMBER_OF_PARTICLES));
+				Results[i].Scc /= (static_cast<double>(Results[i].NumberOfDataPoints) * static_cast<double>(TOTAL_NUMBER_OF_PARTICLES));
+			}
+			ofstream FileStreamToWriteTo;
+			FileStreamToWriteTo.open(FileName);
+			FileStreamToWriteTo << "k\tAAStructureFactor\tBBStructureFactor\tABStructureFactor\tConcentrationStructureFactor\n";
+			for (int i = 0; i < Results.size(); i++){
+				FileStreamToWriteTo << Results[i].kMagnitude << '\t' << Results[i].SAA << '\t' << Results[i].SBB << '\t' << Results[i].SAB << '\t' << Results[i].Scc << '\n';
+			}
+			FileStreamToWriteTo.close();
+		}
+};
+
 struct SimulationManager {
 	Particles P;
 	double Temperature;
 	double Beta;
 	realRNG RNG;
 	double ChemicalPotentialDiff;
-	
+
 	int MinNumberOfA;
 	int MaxNumberOfA;
 	int NumberOfMCSweeps;
 
 	vector<int> NumberOfABuffer;
 	vector<double> PotEnergyBuffer;
-	
+
 	int NumberOfTriedDisplacements;
 	int NumberOfAcceptedDisplacements;
 
@@ -519,7 +639,10 @@ struct SimulationManager {
 
 	string FileNameString;
 
-	SimulationManager(double _Temperature, double _ChemicalPotentialDiff, int _MinNumberOfA, int _MaxNumberOfA, int _NumberOfMCSweeps):
+	StructureFactorComputator SFComputator;
+
+	SimulationManager(double _Temperature, double _ChemicalPotentialDiff, int _MinNumberOfA, int _MaxNumberOfA, int _NumberOfMCSweeps, double kMax):
+		SFComputator(kMax),
 		Temperature(_Temperature),
 		Beta(1.0/Temperature),
 		ChemicalPotentialDiff(_ChemicalPotentialDiff),
@@ -532,23 +655,24 @@ struct SimulationManager {
 		NumberOfAcceptedTypeChanges(0),
 		FileNameString("N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_AvgDens="+to_string(DENSITY)+"_MCRuns="+to_string(NumberOfMCSweeps)+"_epsAB="+to_string(AB_INTERACTION_STRENGTH)+".dat"){
 	}
-	
+
 	void initialize() {
 		P.initialize(MinNumberOfA);
 		P.buildVerletList();
+		SFComputator.findkValuesOnGrid();
 	}
 
 	void initialize(string FileNameInitialConfiguration) {
 		P.readInParticleState(FileNameInitialConfiguration);
 		P.buildVerletList();
 	}
-	
-	void changeTemperature(double NewTemperature){	
+
+	void changeTemperature(double NewTemperature){
 		Temperature = NewTemperature;
 		Beta = 1.0/Temperature;
 		FileNameString = "N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_AvgDens="+to_string(DENSITY)+"_MCRuns="+to_string(NumberOfMCSweeps)+"_epsAB="+to_string(AB_INTERACTION_STRENGTH)+".dat";
 	}
-	
+
 	void reset(){
 		NumberOfABuffer.clear();
 		PotEnergyBuffer.clear();
@@ -558,7 +682,7 @@ struct SimulationManager {
 		NumberOfAcceptedTypeChanges = 0;
 		P.NumberOfVerletListBuilds = 0;
 	}
-	
+
 	void runDisplacementStep() {
 			NumberOfTriedDisplacements++;
 			int RandomParticleID = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(TOTAL_NUMBER_OF_PARTICLES));
@@ -572,7 +696,7 @@ struct SimulationManager {
 				NumberOfAcceptedDisplacements++;
 			}
 	}
-	
+
 	void runTypeChange() {
 		NumberOfTriedTypeChanges++;
 		int NumberOfAParticles = P.getNumberOfAParticles();
@@ -614,6 +738,8 @@ struct SimulationManager {
 		const auto StartTime = chrono::steady_clock::now();
 		int NextUpdateTime = UPDATE_TIME_INTERVAL;
 		int NextPotEnergyComputation = POT_ENERGY_UPDATE_INTERVAL;
+		int StructureFactorComputationInterval = (NumberOfMCSweeps > 2*NUMBER_OF_STRUCTURE_FACTOR_AVERAGES ? static_cast<int>(0.5 * NumberOfMCSweeps/NUMBER_OF_STRUCTURE_FACTOR_AVERAGES) : 1);
+		int NextStructureFactorComputation = (NumberOfMCSweeps > 2*NUMBER_OF_STRUCTURE_FACTOR_AVERAGES ? static_cast<int>(0.5 * NumberOfMCSweeps) : 1);
 		writeMetaData();
 		cerr << "T = " << Temperature << ". Simulation running. Progress: ";
 		for (int i = 0; i < NumberOfMCSweeps; i++){
@@ -632,10 +758,15 @@ struct SimulationManager {
 			}
 			if (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() == NextUpdateTime){
 				cerr << i / (NumberOfMCSweeps/100) << "%|";
+				cerr.flush();
 				writeResults();
 				NumberOfABuffer.clear();
 				PotEnergyBuffer.clear();
 				NextUpdateTime += UPDATE_TIME_INTERVAL;
+			}
+			if (i >= static_cast<int>(NumberOfMCSweeps*0.5) && i == NextStructureFactorComputation){
+				NextStructureFactorComputation += StructureFactorComputationInterval;
+				SFComputator.computeNewStructureFactorValues(P.Positions, P.TypeAParticleIndices, P.TypeBParticleIndices);
 			}
 		}
 		writeResults();
@@ -697,15 +828,17 @@ int main(int argc, char* argv[]){
 	int NumberOfSweeps = atof(argv[5]);
 
 	initializeBox();
-	SimulationManager S(CurrentTemperature, 0.0, 0, TOTAL_NUMBER_OF_PARTICLES/2, NumberOfSweeps);
+	SimulationManager S(CurrentTemperature, 0.0, 0, TOTAL_NUMBER_OF_PARTICLES, NumberOfSweeps, 8.0);
 	S.initialize();
 
 	while (CurrentTemperature > MinTemperature){
-		S.changeTemperature(CurrentTemperature);
 		S.reset();
 		S.runSimulation();
 		S.writeParticleConfigurationToFile("unsorted_data/FinalParticleConfig_"+S.FileNameString);
+		S.SFComputator.writeResultsToFile("unsorted_data/StructureFactors_"+S.FileNameString);
+		S.SFComputator.reset();
 		CurrentTemperature -= TemperatureStep;
+		S.changeTemperature(CurrentTemperature);
 	}
 }
 

@@ -105,3 +105,4 @@ int main(int argc, char* argv[]){
 	FunctionValues NAHist = computeNAHist(NASeries, EquilibrationIndex, TotalNumberOfParticles);
 	cout << computeFirstMomentInSubInterval(NAHist, 0, static_cast<int>(TotalNumberOfParticles/2)) << endl;
 }
+

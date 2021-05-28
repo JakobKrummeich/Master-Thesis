@@ -1,4 +1,4 @@
-#include <random>
+#include "../General_Code/realRNG.h"
 #include <fstream>
 #include <vector>
 #include <algorithm>
@@ -6,27 +6,6 @@
 using namespace std;
 
 static const int DIMENSION = 2;
-
-class realRNG{
-	private:
-		mt19937 rng;
-		uniform_real_distribution<double> UnifRealDist;
-	public:
-		realRNG():
-			UnifRealDist(0.0,1.0){
-			random_device rd;
-			seed_seq sd{rd(),rd()};
-			rng = mt19937(sd);
-		}
-
-		double drawRandomNumber(){
-			return UnifRealDist(rng);
-		}
-
-		double drawRandomNumber(double Min, double Max){
-			return (Max - Min) * UnifRealDist(rng) + Min;
-		}
-};
 
 realRNG RNG;
 vector<double> Positions;
