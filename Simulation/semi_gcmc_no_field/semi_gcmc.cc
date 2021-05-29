@@ -35,7 +35,7 @@ int NUMBER_OF_SUBDIVISIONS;
 const double DISPLACEMENT_PROBABILITY = 0.9;
 const int UPDATE_TIME_INTERVAL = 60;
 const int POT_ENERGY_UPDATE_INTERVAL = 200;
-const int NUMBER_OF_STRUCTURE_FACTOR_AVERAGES = 100;
+const int NUMBER_OF_STRUCTURE_FACTOR_AVERAGES = 1000;
 
 void initializeBox(){
 	BOX_LENGTH = sqrt(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES) / DENSITY);
@@ -77,7 +77,6 @@ struct Particles {
 	double MostTraveledDistances [2];
 	int MostTraveledParticleIndex;
 
-	friend class StructureFactorComputator;
 	friend class SimulationManager;
 
 	public:
@@ -504,15 +503,14 @@ class StructureFactorComputator{
 			double kWidth = 0.01;
 			double CurrentkMag = kMin;
 			int NumberOfAttemptedAveragesPerk = 1000;
+			int MaxNumberOfCombinationsPerInterval = 100;
 			vector<Combination> CombinationsFound;
-			vector<int> MagnitudesFound;
-			vector<RowEntry> IntermediateResults;
 
 			while (CurrentkMag < kMax){
 				CombinationsFound.clear();
-				MagnitudesFound.clear();
-				IntermediateResults.clear();
-				for (int i = 0; i < NumberOfAttemptedAveragesPerk; i++){
+				RowEntry NewEntry{};
+				bool MagnitudeFound = false;
+				for (int i = 0; i < NumberOfAttemptedAveragesPerk && CombinationsFound.size() < MaxNumberOfCombinationsPerInterval; i++){
 					double RandomAngle = RNG.drawRandomNumber(0.0, 0.5 * M_PI);
 					double RandomkMagnitude = RNG.drawRandomNumber(-kWidth,kWidth) + CurrentkMag;
 					int nx = round(BOX_LENGTH*RandomkMagnitude*cos(RandomAngle)/(2.0*M_PI));
@@ -528,31 +526,20 @@ class StructureFactorComputator{
 						}
 						if (!sameCombinationAlreadyFoundBefore){
 							CombinationsFound.push_back(NewCombination);
-							int NewGridMagnitude = nx*nx+ny*ny;
-							bool sameMagnitudeFoundBefore = false;
-							for (int j = 0; j < MagnitudesFound.size(); j++){
-								if (NewGridMagnitude == MagnitudesFound[j]){
-									sameMagnitudeFoundBefore = true;
-									IntermediateResults[j].Combinations.push_back(NewCombination);
-									break;
-								}
-							}
-							if (!sameMagnitudeFoundBefore){
-								RowEntry NewEntry{};
+							if (!MagnitudeFound){
 								NewEntry.kMagnitude = GridkMagnitude;
 								NewEntry.Combinations.push_back(NewCombination);
-								IntermediateResults.push_back(NewEntry);
-								MagnitudesFound.push_back(NewGridMagnitude);
-								for (int CurrentIndex = MagnitudesFound.size() - 1; CurrentIndex > 0 && MagnitudesFound[CurrentIndex-1] > MagnitudesFound[CurrentIndex]; CurrentIndex--){
-									swap(MagnitudesFound[CurrentIndex], MagnitudesFound[CurrentIndex-1]);
-									swap(IntermediateResults[CurrentIndex], IntermediateResults[CurrentIndex-1]);
-								}
+								MagnitudeFound = true;
+							}
+							else {
+								NewEntry.kMagnitude = CurrentkMag;
+								NewEntry.Combinations.push_back(NewCombination);
 							}
 						}
 					}
 				}
-				for (int i = 0; i < IntermediateResults.size(); i++){
-					Results.push_back(IntermediateResults[i]);
+				if (MagnitudeFound){
+					Results.push_back(NewEntry);
 				}
 				CurrentkMag += 2.0*kWidth;
 			}
@@ -611,7 +598,7 @@ class StructureFactorComputator{
 			FileStreamToWriteTo.open(FileName);
 			FileStreamToWriteTo << "k\tAAStructureFactor\tBBStructureFactor\tABStructureFactor\tConcentrationStructureFactor\n";
 			for (int i = 0; i < Results.size(); i++){
-				FileStreamToWriteTo << Results[i].kMagnitude << '\t' << Results[i].SAA << '\t' << Results[i].SBB << '\t' << Results[i].SAB << '\t' << Results[i].Scc << '\n';
+				FileStreamToWriteTo << setprecision(10) << Results[i].kMagnitude << '\t' << Results[i].SAA << '\t' << Results[i].SBB << '\t' << Results[i].SAB << '\t' << Results[i].Scc << '\n';
 			}
 			FileStreamToWriteTo.close();
 		}
@@ -830,7 +817,7 @@ int main(int argc, char* argv[]){
 	int NumberOfSweeps = atof(argv[5]);
 
 	initializeBox();
-	SimulationManager S(CurrentTemperature, 0.0, 0, TOTAL_NUMBER_OF_PARTICLES, NumberOfSweeps, 8.0);
+	SimulationManager S(CurrentTemperature, 0.0, 0, TOTAL_NUMBER_OF_PARTICLES, NumberOfSweeps, 20.0);
 	S.initialize();
 
 	while (CurrentTemperature > MinTemperature){

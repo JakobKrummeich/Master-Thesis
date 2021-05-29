@@ -89,8 +89,8 @@ struct ResultEntry{
 
 int main(int argc, char* argv[]){
 	BoxLength = atof(argv[2]);
-	BoxLength = 40.8248905;
-	readInParticleState("data/FinalParticleConfig_N=1000_T=1.000000_AvgDens=0.600000_MCRuns=500000_epsAB=0.100000.dat");
+	BoxLength = 40.8248;
+	readInParticleState("unsorted_data/FinalParticleConfig_N=1000_T=1.000000_AvgDens=0.600000_MCRuns=10000_epsAB=0.100000.dat");
 
 	double kMin = 2.0*M_PI/BoxLength;
 	double kMax = 9.0;
