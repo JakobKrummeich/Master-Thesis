@@ -84,7 +84,12 @@ struct Particles {
 
 	int NumberOfVerletListBuilds;
 
-	Particles(){
+	void initialize(int InitialNumberOfAParticles){
+		int InitialNumberOfBParticles = TOTAL_NUMBER_OF_PARTICLES - InitialNumberOfAParticles;
+		double FractionOfAParticles = static_cast<double>(InitialNumberOfAParticles)/static_cast<double>(TOTAL_NUMBER_OF_PARTICLES);
+		realRNG RNG;
+		TypeAParticleIndices.clear();
+		TypeBParticleIndices.clear();
 		for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
 			for (int j = 0; j < DIMENSION; j++){
 				ChangeInCoordinates[DIMENSION*i+j] = 0.0;
@@ -94,12 +99,6 @@ struct Particles {
 			MostTraveledDistances[i] = 0.0;
 		}
 		NumberOfVerletListBuilds = 0;
-	}
-
-	void initialize(int InitialNumberOfAParticles){
-		int InitialNumberOfBParticles = TOTAL_NUMBER_OF_PARTICLES - InitialNumberOfAParticles;
-		double FractionOfAParticles = static_cast<double>(InitialNumberOfAParticles)/static_cast<double>(TOTAL_NUMBER_OF_PARTICLES);
-		realRNG RNG;
 
 		int NumberOfParticlesInARow(ceil(pow(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES),1.0/static_cast<double>(DIMENSION))));
 		double Distance(1.0/static_cast<double>(NumberOfParticlesInARow));
@@ -252,10 +251,7 @@ struct Particles {
 			for (int i = 0; i < VerletListHead[2*ParticleIndex+1]; i++){
 				int OtherParticleIndex = VerletIndicesOfNeighbors[VerletListHead[2*ParticleIndex]+i];
 				if (OtherParticleIndex < ParticleIndex){
-					double InteractionStrength = AB_INTERACTION_STRENGTH;
-					if (ParticleTypes[ParticleIndex] == ParticleTypes[OtherParticleIndex]) {
-						InteractionStrength = AA_INTERACTION_STRENGTH;
-					}
+					double InteractionStrength = (ParticleTypes[ParticleIndex] == ParticleTypes[OtherParticleIndex] ? AA_INTERACTION_STRENGTH : AB_INTERACTION_STRENGTH);
 					PotEnergy += InteractionStrength * computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*OtherParticleIndex], &Positions[DIMENSION*ParticleIndex]);
 				}
 			}
@@ -647,24 +643,24 @@ struct SimulationManager {
 
 	StructureFactorComputator SFComputator;
 
-	SimulationManager(double _ChemicalPotentialDiff, int _MinNumberOfA, int _MaxNumberOfA, int _NumberOfMCSweeps, double kMax):
+	SimulationManager(double ChemicalPotentialDiff, int MinNumberOfA, int MaxNumberOfA, int NumberOfMCSweeps, double kMax):
 		SFComputator(kMax),
-		ChemicalPotentialDiff(_ChemicalPotentialDiff),
-		MinNumberOfA(_MinNumberOfA),
-		MaxNumberOfA(_MaxNumberOfA),
-		NumberOfMCSweeps(_NumberOfMCSweeps),
+		ChemicalPotentialDiff(ChemicalPotentialDiff),
+		MinNumberOfA(MinNumberOfA),
+		MaxNumberOfA(MaxNumberOfA),
+		NumberOfMCSweeps(NumberOfMCSweeps),
 		NumberOfTriedDisplacements(0),
 		NumberOfAcceptedDisplacements(0),
 		NumberOfTriedTypeChanges(0),
 		NumberOfAcceptedTypeChanges(0){
 	}
 
-	void initialize() {
+	void initializeParticles() {
 		P.initialize(MinNumberOfA);
 		P.buildVerletList();
 	}
 
-	void initialize(string FileNameInitialConfiguration) {
+	void readInParticleState(string FileNameInitialConfiguration) {
 		P.readInParticleState(FileNameInitialConfiguration);
 		P.buildVerletList();
 	}
@@ -678,7 +674,7 @@ struct SimulationManager {
 		FileNameString = "N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_AvgDens="+to_string(DENSITY)+"_MCRuns="+to_string(NumberOfMCSweeps)+"_epsAB="+to_string(AB_INTERACTION_STRENGTH)+"_"+to_string(RunNumber)+".dat";
 	}
 
-	void reset(){
+	void resetCountersAndBuffers(){
 		NumberOfABuffer.clear();
 		PotEnergyBuffer.clear();
 		NumberOfTriedDisplacements = 0;
@@ -797,18 +793,21 @@ struct SimulationManager {
 				}
 			}
 		}
+		cerr << endl << "Tried displacements: " << NumberOfTriedDisplacements << "| Accepted displacements:" << NumberOfAcceptedDisplacements << "| Ratio of accepted displacements: " << static_cast<double>(NumberOfAcceptedDisplacements)/static_cast<double>(NumberOfTriedDisplacements) << endl;
+		cerr << "Tried type changes: " << NumberOfTriedTypeChanges << "| Accepted type changes:" << NumberOfAcceptedTypeChanges << "| Ratio of accepted type changes: " << static_cast<double>(NumberOfAcceptedTypeChanges)/static_cast<double>(NumberOfTriedTypeChanges) << endl;
+		cerr << "#VerletListBuilds: " << P.NumberOfVerletListBuilds << endl;
 	}
 
 	void runSimulationForMultipleStartConfigurations(double MaxTemperature, double MinTemperature, double TemperatureStep, int NumberOfConfigurations) {
 		for (int ConfigurationCount = 0; ConfigurationCount < NumberOfConfigurations; ConfigurationCount++){
-			initialize();
+			initializeParticles();
 			randomizeInitialPosition();
 			double CurrentTemperature = MaxTemperature;
 			int TemperatureIndex = 0;
 			while (CurrentTemperature > MinTemperature){
 				setTemperature(CurrentTemperature);
 				setFileNameString(ConfigurationCount);
-				reset();
+				resetCountersAndBuffers();
 				runSimulationForSingleTemperature(TemperatureIndex);
 				writeParticleConfigurationToFile("unsorted_data/FinalParticleConfig_"+FileNameString);
 				CurrentTemperature -= TemperatureStep;
@@ -856,17 +855,30 @@ struct SimulationManager {
 };
 
 int main(int argc, char* argv[]){
+	double MaxTemperature;
+	double TemperatureStep;
+	double MinTemperature;
+	int NumberOfSweeps;
+	int NumberOfConfigurations;
 	if (argc != 8){
-		cerr << argc-1 <<  " arguments were given, but exactly 7 arguments are needed: Average density, MaxTemperature, Temperature Stepsize, MinTemperature (not included), NumberOfMCSweeps, AB_INTERACTION_STRENGTH, NumberOfConfigurations. Stopping now." << endl;
-		return 0;
+		cerr << "WARNING: " << argc-1 <<  " arguments were given, but exactly 7 arguments are needed: Average density, MaxTemperature, Temperature Stepsize, MinTemperature (not included), NumberOfMCSweeps, AB_INTERACTION_STRENGTH, NumberOfConfigurations. Running with default parameters: Average density = 0.6, MaxTemperature = 1.0, Temperature Stepsize = 0.1, MinTemperature = 0.85, NumberOfMCSweeps = 100, AB_INTERACTION_STRENGTH = 0.1, NumberOfConfigurations = 2" << endl;
+		DENSITY = 0.6;
+		AB_INTERACTION_STRENGTH = 0.1;
+		MaxTemperature = 1.0;
+		TemperatureStep = 0.1;
+		MinTemperature = 0.85;
+		NumberOfSweeps = 100;
+		NumberOfConfigurations = 2;
 	}
-	DENSITY = atof(argv[1]);
-	AB_INTERACTION_STRENGTH = atof(argv[6]);
-	double MaxTemperature = atof(argv[2]);
-	double TemperatureStep = atof(argv[3]);
-	double MinTemperature = atof(argv[4]);
-	int NumberOfSweeps = atoi(argv[5]);
-	int NumberOfConfigurations = atoi(argv[7]);
+	else {
+		DENSITY = atof(argv[1]);
+		AB_INTERACTION_STRENGTH = atof(argv[6]);
+		MaxTemperature = atof(argv[2]);
+		TemperatureStep = atof(argv[3]);
+		MinTemperature = atof(argv[4]);
+		NumberOfSweeps = atoi(argv[5]);
+		NumberOfConfigurations = atoi(argv[7]);
+	}
 
 	initializeBox();
 	SimulationManager S(0.0, 0, TOTAL_NUMBER_OF_PARTICLES, NumberOfSweeps, 25.0);
