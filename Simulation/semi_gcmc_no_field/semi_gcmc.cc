@@ -5,13 +5,14 @@
 #include <vector>
 #include <iomanip>
 #include <stdlib.h>
+#include <algorithm>
 #include "../../General_Code/realRNG.h"
 #include "../../General_Code/fvec.h"
 
 using namespace std;
 
 const int DIMENSION = 2;
-const int TOTAL_NUMBER_OF_PARTICLES = 1000;
+const int TOTAL_NUMBER_OF_PARTICLES = 16000;
 
 const double AA_INTERACTION_STRENGTH = 1.0;
 double AB_INTERACTION_STRENGTH;
@@ -35,7 +36,7 @@ int NUMBER_OF_SUBDIVISIONS;
 const double DISPLACEMENT_PROBABILITY = 0.9;
 const int UPDATE_TIME_INTERVAL = 60;
 const int POT_ENERGY_UPDATE_INTERVAL = 200;
-const int NUMBER_OF_STRUCTURE_FACTOR_AVERAGES_PER_CONFIGURATION = 20;
+const int NUMBER_OF_STRUCTURE_FACTOR_AVERAGES_PER_CONFIGURATION = 1;
 const int NUMBER_OF_INITIAL_RANDOMIZATION_SWEEPS = 100;
 
 void initializeBox(){
@@ -75,8 +76,8 @@ struct Particles {
 	vector<int> VerletIndicesOfNeighbors;
 
 	double ChangeInCoordinates [DIMENSION*TOTAL_NUMBER_OF_PARTICLES];
-	double MostTraveledDistances [2];
-	int MostTraveledParticleIndex;
+	double MostTraveledDistancesSquared [2];
+	int MostTraveledParticleIndices [2];
 
 	friend class SimulationManager;
 
@@ -96,8 +97,10 @@ struct Particles {
 			}
 		}
 		for (int i = 0; i < 2; i++){
-			MostTraveledDistances[i] = 0.0;
+			MostTraveledDistancesSquared[i] = 0.0;
+			MostTraveledParticleIndices[i] = i;
 		}
+
 		NumberOfVerletListBuilds = 0;
 
 		int NumberOfParticlesInARow(ceil(pow(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES),1.0/static_cast<double>(DIMENSION))));
@@ -388,7 +391,7 @@ struct Particles {
 	}
 
 	void updatePosition(int ParticleIndex, const double* Deltas){
-		double CurrentTraveledDistance = 0.0;
+		double CurrentTraveledDistanceSquared = 0.0;
 		for (int k = 0; k < DIMENSION; k++){
 			Positions[DIMENSION * ParticleIndex + k] += Deltas[k];
 			if (Positions[DIMENSION * ParticleIndex + k] < 0.0){
@@ -398,29 +401,80 @@ struct Particles {
 				Positions[DIMENSION * ParticleIndex + k] -= 1.0;
 			}
 			ChangeInCoordinates[DIMENSION * ParticleIndex + k] += Deltas[k];
-			CurrentTraveledDistance += ChangeInCoordinates[DIMENSION * ParticleIndex + k] * ChangeInCoordinates[DIMENSION * ParticleIndex + k];
+			CurrentTraveledDistanceSquared += ChangeInCoordinates[DIMENSION * ParticleIndex + k] * ChangeInCoordinates[DIMENSION * ParticleIndex + k];
 		}
-		CurrentTraveledDistance = sqrt(CurrentTraveledDistance);
-		if (CurrentTraveledDistance >= MostTraveledDistances[0]) {
-			if (ParticleIndex == MostTraveledParticleIndex) {
-				MostTraveledDistances[0] = CurrentTraveledDistance;
+		bool TraveledDistanceIncreased = false;
+		if (MostTraveledParticleIndices[0] == ParticleIndex){
+			if (CurrentTraveledDistanceSquared > MostTraveledDistancesSquared[0]){
+				MostTraveledDistancesSquared[0] = CurrentTraveledDistanceSquared;
+				TraveledDistanceIncreased = true;
+			}
+			else if (CurrentTraveledDistanceSquared > MostTraveledDistancesSquared[1]){
+				MostTraveledDistancesSquared[0] = CurrentTraveledDistanceSquared;
 			}
 			else {
-				MostTraveledDistances[1] = MostTraveledDistances[0];
-				MostTraveledDistances[0] = CurrentTraveledDistance;
-				MostTraveledParticleIndex = ParticleIndex;
+				MostTraveledDistancesSquared[0] = MostTraveledDistancesSquared[1];
+				MostTraveledParticleIndices[0] = MostTraveledParticleIndices[1];
+				MostTraveledDistancesSquared[1] = 0.0;
+				for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
+					double NewTraveledDistanceSquared = 0.0;
+					for (int j = 0; j < DIMENSION; j++){
+						NewTraveledDistanceSquared += ChangeInCoordinates[DIMENSION * i + j] * ChangeInCoordinates[DIMENSION * i + j];
+					}
+					if (NewTraveledDistanceSquared > MostTraveledDistancesSquared[1] && i != MostTraveledParticleIndices[0]){
+						MostTraveledParticleIndices[1] = i;
+						MostTraveledDistancesSquared[1] = NewTraveledDistanceSquared;
+					}
+				}
 			}
 		}
-		else if (CurrentTraveledDistance > MostTraveledDistances[1]) {
-			MostTraveledDistances[1] = CurrentTraveledDistance;
+		else if (MostTraveledParticleIndices[1] == ParticleIndex){
+			if (CurrentTraveledDistanceSquared > MostTraveledDistancesSquared[0]){
+				swap(MostTraveledParticleIndices[0], MostTraveledParticleIndices[1]);
+				MostTraveledDistancesSquared[1] = MostTraveledDistancesSquared[0];
+				MostTraveledDistancesSquared[0] = CurrentTraveledDistanceSquared;
+				TraveledDistanceIncreased = true;
+			}
+			else if (CurrentTraveledDistanceSquared > MostTraveledDistancesSquared[1]){
+				MostTraveledDistancesSquared[1] = CurrentTraveledDistanceSquared;
+				TraveledDistanceIncreased = true;
+			}
+			else {
+				MostTraveledDistancesSquared[1] = 0.0;
+				for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
+					double NewTraveledDistanceSquared = 0.0;
+					for (int j = 0; j < DIMENSION; j++){
+						NewTraveledDistanceSquared += ChangeInCoordinates[DIMENSION * i + j] * ChangeInCoordinates[DIMENSION * i + j];
+					}
+					if (NewTraveledDistanceSquared > MostTraveledDistancesSquared[1] && i != MostTraveledParticleIndices[0]){
+						MostTraveledParticleIndices[1] = i;
+						MostTraveledDistancesSquared[1] = NewTraveledDistanceSquared;
+					}
+				}
+			}
 		}
-		if (BOX_LENGTH*(MostTraveledDistances[0]+MostTraveledDistances[1]) > SKINDISTANCE){
+		else if (CurrentTraveledDistanceSquared > MostTraveledDistancesSquared[0]){
+			MostTraveledDistancesSquared[1] = MostTraveledDistancesSquared[0];
+			MostTraveledParticleIndices[1] = MostTraveledParticleIndices[0];
+			MostTraveledDistancesSquared[0] = CurrentTraveledDistanceSquared;
+			MostTraveledParticleIndices[0] = ParticleIndex;
+			TraveledDistanceIncreased = true;
+		}
+		else if (CurrentTraveledDistanceSquared > MostTraveledDistancesSquared[1]){
+			MostTraveledDistancesSquared[1] = CurrentTraveledDistanceSquared;
+			MostTraveledParticleIndices[1] = ParticleIndex;
+			TraveledDistanceIncreased = true;
+		}
+		if (TraveledDistanceIncreased && BOX_LENGTH*(sqrt(MostTraveledDistancesSquared[0])+sqrt(MostTraveledDistancesSquared[1])) > SKINDISTANCE){
 			buildVerletList();
-			for (int k = 0; k < DIMENSION * TOTAL_NUMBER_OF_PARTICLES; k++){
-				ChangeInCoordinates[k] = 0.0;
+			for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
+				for (int j = 0; j < DIMENSION; j++){
+					ChangeInCoordinates[DIMENSION*i+j] = 0.0;
+				}
 			}
 			for (int i = 0; i < 2; i++){
-				MostTraveledDistances[i] = 0.0;
+				MostTraveledDistancesSquared[i] = 0.0;
+				MostTraveledParticleIndices[i] = i;
 			}
 		}
 	}
@@ -516,7 +570,7 @@ class StructureFactorComputator{
 		}
 
 		void findkValuesOnGrid(){
-			double kWidth = 0.01;
+			double kWidth = 0.04;
 			double CurrentkMag = kMin;
 			int NumberOfAttemptedAveragesPerk = 1000;
 			int MaxNumberOfCombinationsPerInterval = 100;
@@ -739,8 +793,12 @@ struct SimulationManager {
 		const auto StartTime = chrono::steady_clock::now();
 		int NextUpdateTime = UPDATE_TIME_INTERVAL;
 		int NextPotEnergyComputation = POT_ENERGY_UPDATE_INTERVAL;
-		int StructureFactorComputationInterval = (NumberOfMCSweeps > 2*NUMBER_OF_STRUCTURE_FACTOR_AVERAGES_PER_CONFIGURATION ? static_cast<int>(0.5 * NumberOfMCSweeps/NUMBER_OF_STRUCTURE_FACTOR_AVERAGES_PER_CONFIGURATION) : 1);
-		int NextStructureFactorComputation = (NumberOfMCSweeps > 2*NUMBER_OF_STRUCTURE_FACTOR_AVERAGES_PER_CONFIGURATION ? static_cast<int>(0.5 * NumberOfMCSweeps) : 1);
+		int StructureFactorComputationInterval = 0;
+		int NextStructureFactorComputation = 0;
+		if (NUMBER_OF_STRUCTURE_FACTOR_AVERAGES_PER_CONFIGURATION > 0){
+			StructureFactorComputationInterval = (NumberOfMCSweeps > 2*NUMBER_OF_STRUCTURE_FACTOR_AVERAGES_PER_CONFIGURATION ? static_cast<int>(0.5 * NumberOfMCSweeps/NUMBER_OF_STRUCTURE_FACTOR_AVERAGES_PER_CONFIGURATION) : 1);
+			NextStructureFactorComputation = (NumberOfMCSweeps > 2*NUMBER_OF_STRUCTURE_FACTOR_AVERAGES_PER_CONFIGURATION ? static_cast<int>(0.5 * NumberOfMCSweeps) : 1);
+		}
 		writeMetaData();
 		cerr << "T = " << Temperature << ". Simulation running. Progress: ";
 		for (int i = 0; i < NumberOfMCSweeps; i++){
@@ -757,13 +815,13 @@ struct SimulationManager {
 				PotEnergyBuffer.push_back(P.computePotentialEnergy());
 				NextPotEnergyComputation += POT_ENERGY_UPDATE_INTERVAL;
 			}
-			if (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() == NextUpdateTime){
+			if (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() >= NextUpdateTime){
 				cerr << i / (NumberOfMCSweeps/100) << "%|";
 				cerr.flush();
 				writeResults();
 				NumberOfABuffer.clear();
 				PotEnergyBuffer.clear();
-				NextUpdateTime += UPDATE_TIME_INTERVAL;
+				NextUpdateTime += (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() + UPDATE_TIME_INTERVAL);
 			}
 			if (i >= static_cast<int>(NumberOfMCSweeps*0.5) && i == NextStructureFactorComputation){
 				const auto TimeBeforeStructureFactorComputation = chrono::steady_clock::now();
