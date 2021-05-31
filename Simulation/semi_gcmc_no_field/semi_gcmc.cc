@@ -34,10 +34,12 @@ const double SKINDISTANCE = MAX_VERLET_DIST - CUTOFF;
 int NUMBER_OF_SUBDIVISIONS;
 
 const double DISPLACEMENT_PROBABILITY = 0.9;
+const int NUMBER_OF_INITIAL_RANDOMIZATION_SWEEPS = 100;
+
 const int UPDATE_TIME_INTERVAL = 60;
 const int POT_ENERGY_UPDATE_INTERVAL = 200;
+
 const int NUMBER_OF_STRUCTURE_FACTOR_AVERAGES_PER_CONFIGURATION = 1;
-const int NUMBER_OF_INITIAL_RANDOMIZATION_SWEEPS = 100;
 
 void initializeBox(){
 	BOX_LENGTH = sqrt(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES) / DENSITY);
@@ -563,12 +565,6 @@ class StructureFactorComputator{
 			return Sum;
 		}
 
-	public:
-		StructureFactorComputator(double kMax):
-			kMin(2.0*M_PI/BOX_LENGTH),
-			kMax(kMax){
-		}
-
 		void findkValuesOnGrid(){
 			double kWidth = 0.04;
 			double CurrentkMag = kMin;
@@ -586,7 +582,7 @@ class StructureFactorComputator{
 					int nx = round(BOX_LENGTH*RandomkMagnitude*cos(RandomAngle)/(2.0*M_PI));
 					int ny = round(BOX_LENGTH*RandomkMagnitude*sin(RandomAngle)/(2.0*M_PI));
 					double GridkMagnitude = 2.0*M_PI/BOX_LENGTH*sqrt(static_cast<double>(nx*nx+ny*ny));
-					if (GridkMagnitude <= (CurrentkMag+kWidth) && GridkMagnitude >= (CurrentkMag-kWidth) && GridkMagnitude >= kMin){
+					if (GridkMagnitude <= (CurrentkMag + kWidth) && GridkMagnitude >= (CurrentkMag - kWidth) && GridkMagnitude >= kMin){
 						bool sameCombinationAlreadyFoundBefore = false;
 						Combination NewCombination(nx,ny);
 						for (int j = 0; j < CombinationsFound.size() && !sameCombinationAlreadyFoundBefore; j++){
@@ -615,13 +611,20 @@ class StructureFactorComputator{
 			}
 		}
 
-		void computeNewStructureFactorValues(const double* const Positions, const fvec<int, TOTAL_NUMBER_OF_PARTICLES>& TypeAParticleIndices, const fvec<int, TOTAL_NUMBER_OF_PARTICLES>& TypeBParticleIndices, int TemperatureIndex, double Temperature){
+	public:
+		StructureFactorComputator(double MaxTemperature, double MinTemperature, double TemperatureStep, double kMax):
+			kMin(2.0*M_PI/BOX_LENGTH),
+			kMax(kMax){
+			findkValuesOnGrid();
+			for (double CurrentTemperature = MaxTemperature; CurrentTemperature > MinTemperature; CurrentTemperature -= TemperatureStep){
+				Results.push_back(SingleTemperatureResults(kCombinationMapping.size(), CurrentTemperature));
+			}
+		}
+
+		void computeNewStructureFactorValues(const double* const Positions, const fvec<int, TOTAL_NUMBER_OF_PARTICLES>& TypeAParticleIndices, const fvec<int, TOTAL_NUMBER_OF_PARTICLES>& TypeBParticleIndices, int TemperatureIndex){
 			if (TemperatureIndex >= Results.size()){
-				if (TemperatureIndex > Results.size()){
-					cerr << "Invalid temperature index in computeNewStructureFactorValues! Size of Results:  " << Results.size() << " , TemperatureIndex given: " << TemperatureIndex << endl;
-					return;
-				}
-				Results.push_back(SingleTemperatureResults(kCombinationMapping.size(),Temperature));
+				cerr << "Invalid temperature index in computeNewStructureFactorValues! Size of Results:  " << Results.size() << " , TemperatureIndex given: " << TemperatureIndex << endl;
+				return;
 			}
 			double xA = static_cast<double>(TypeAParticleIndices.size())/static_cast<double>(TOTAL_NUMBER_OF_PARTICLES);
 			double xB = static_cast<double>(TypeBParticleIndices.size())/static_cast<double>(TOTAL_NUMBER_OF_PARTICLES);
@@ -695,10 +698,10 @@ struct SimulationManager {
 
 	string FileNameString;
 
-	StructureFactorComputator SFComputator;
+	StructureFactorComputator* const SFComputator;
 
-	SimulationManager(double ChemicalPotentialDiff, int MinNumberOfA, int MaxNumberOfA, int NumberOfMCSweeps, double kMax):
-		SFComputator(kMax),
+	SimulationManager(double ChemicalPotentialDiff, int MinNumberOfA, int MaxNumberOfA, int NumberOfMCSweeps, StructureFactorComputator* SFComputator):
+		SFComputator(SFComputator),
 		ChemicalPotentialDiff(ChemicalPotentialDiff),
 		MinNumberOfA(MinNumberOfA),
 		MaxNumberOfA(MaxNumberOfA),
@@ -826,7 +829,7 @@ struct SimulationManager {
 			if (i >= static_cast<int>(NumberOfMCSweeps*0.5) && i == NextStructureFactorComputation){
 				const auto TimeBeforeStructureFactorComputation = chrono::steady_clock::now();
 				NextStructureFactorComputation += StructureFactorComputationInterval;
-				SFComputator.computeNewStructureFactorValues(P.Positions, P.TypeAParticleIndices, P.TypeBParticleIndices, TemperatureIndex, Temperature);
+				SFComputator -> computeNewStructureFactorValues(P.Positions, P.TypeAParticleIndices, P.TypeBParticleIndices, TemperatureIndex);
 				cerr << "i = " << i << ", Time for structurefactorcomputation: " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now()-TimeBeforeStructureFactorComputation).count() << endl;
 			}
 		}
@@ -860,19 +863,17 @@ struct SimulationManager {
 		for (int ConfigurationCount = 0; ConfigurationCount < NumberOfConfigurations; ConfigurationCount++){
 			initializeParticles();
 			randomizeInitialPosition();
-			double CurrentTemperature = MaxTemperature;
 			int TemperatureIndex = 0;
-			while (CurrentTemperature > MinTemperature){
+			for (double CurrentTemperature = MaxTemperature; CurrentTemperature > MinTemperature; CurrentTemperature -= TemperatureStep){
 				setTemperature(CurrentTemperature);
 				setFileNameString(ConfigurationCount);
 				resetCountersAndBuffers();
 				runSimulationForSingleTemperature(TemperatureIndex);
 				writeParticleConfigurationToFile("unsorted_data/FinalParticleConfig_"+FileNameString);
-				CurrentTemperature -= TemperatureStep;
 				TemperatureIndex++;
 			}
 		}
-		SFComputator.writeResultsToFile("unsorted_data/StructureFactors_N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_AvgDens="+to_string(DENSITY)+"_MCRuns="+to_string(NumberOfMCSweeps)+"_epsAB="+to_string(AB_INTERACTION_STRENGTH));
+		SFComputator -> writeResultsToFile("unsorted_data/StructureFactors_N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_AvgDens="+to_string(DENSITY)+"_MCRuns="+to_string(NumberOfMCSweeps)+"_epsAB="+to_string(AB_INTERACTION_STRENGTH));
 	}
 
 	void writeMetaData() const {
@@ -939,8 +940,9 @@ int main(int argc, char* argv[]){
 	}
 
 	initializeBox();
-	SimulationManager S(0.0, 0, TOTAL_NUMBER_OF_PARTICLES, NumberOfSweeps, 25.0);
-	S.SFComputator.findkValuesOnGrid();
+	StructureFactorComputator SFComputator(MaxTemperature, MinTemperature, TemperatureStep, 25.0);
+
+	SimulationManager S(0.0, 0, TOTAL_NUMBER_OF_PARTICLES, NumberOfSweeps, &SFComputator);
 
 	S.runSimulationForMultipleStartConfigurations(MaxTemperature, MinTemperature, TemperatureStep, NumberOfConfigurations);
 }
