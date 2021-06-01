@@ -12,7 +12,7 @@
 using namespace std;
 
 const int DIMENSION = 2;
-const int TOTAL_NUMBER_OF_PARTICLES = 16000;
+const int TOTAL_NUMBER_OF_PARTICLES = 1000;
 
 const double AA_INTERACTION_STRENGTH = 1.0;
 double AB_INTERACTION_STRENGTH;
@@ -540,7 +540,7 @@ class StructureFactorComputator{
 				this -> SBB += RHS.SBB;
 				this -> SAB += RHS.SAB;
 				this -> Scc += RHS.Scc;
-				this -> NumberOfDataPoints += NumberOfDataPoints;
+				this -> NumberOfDataPoints += RHS.NumberOfDataPoints;
 				return *this;
 			}
 		};
@@ -851,7 +851,7 @@ struct SimulationManager {
 				const auto TimeBeforeStructureFactorComputation = chrono::steady_clock::now();
 				NextStructureFactorComputation += StructureFactorComputationInterval;
 				SFComputator -> computeNewStructureFactorValues(P.Positions, P.TypeAParticleIndices, P.TypeBParticleIndices, TemperatureIndex);
-				cerr << "i = " << i << ", Time for structurefactorcomputation: " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now()-TimeBeforeStructureFactorComputation).count() << endl;
+				cerr << "i = " << i << ", Time for structurefactorcomputation: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-TimeBeforeStructureFactorComputation).count() << " s" << endl;
 			}
 		}
 		writeResults();
