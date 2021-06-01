@@ -873,7 +873,7 @@ struct SimulationManager {
 				TemperatureIndex++;
 			}
 		}
-		SFComputator -> writeResultsToFile("unsorted_data/StructureFactors_N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_AvgDens="+to_string(DENSITY)+"_MCRuns="+to_string(NumberOfMCSweeps)+"_epsAB="+to_string(AB_INTERACTION_STRENGTH));
+		SFComputator -> writeResultsToFile("unsorted_data/StructureFactors_N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_AvgDens="+to_string(DENSITY)+"_MCRuns="+to_string(NumberOfMCSweeps)+"_epsAB="+to_string(AB_INTERACTION_STRENGTH)+"_#Configs="+to_string(NUMBER_OF_STRUCTURE_FACTOR_AVERAGES_PER_CONFIGURATION*NumberOfConfigurations));
 	}
 
 	void writeMetaData() const {
