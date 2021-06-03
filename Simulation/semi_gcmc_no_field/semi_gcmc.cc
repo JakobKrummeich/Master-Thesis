@@ -663,7 +663,7 @@ struct SimulationManager {
 			cerr << "Tried displacements: " << NumberOfTriedDisplacements << "| Accepted displacements: " << NumberOfAcceptedDisplacements << "| Ratio of accepted displacements: " << static_cast<double>(NumberOfAcceptedDisplacements)/static_cast<double>(NumberOfTriedDisplacements) << endl;
 			cerr << "Tried type changes: " << NumberOfTriedTypeChanges << "| Accepted type changes: " << NumberOfAcceptedTypeChanges << "| Ratio of accepted type changes: " << static_cast<double>(NumberOfAcceptedTypeChanges)/static_cast<double>(NumberOfTriedTypeChanges) << endl;
 			cerr << "#VerletListBuilds: " << P.NumberOfVerletListBuilds << endl;
-			cerr << "Computation time: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s for " << NumberOfMCSweeps << " runs." <<  endl << endl;
+			cerr << "Computation time: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s for " << NumberOfMCSweeps << " MCSweeps." <<  endl << endl;
 		}
 	}
 
@@ -689,7 +689,7 @@ struct SimulationManager {
 
 	void writeMetaData() const {
 		string FileName(DirectoryString+"/NA_Series_"+FileNameString+".dat");
-		string MetaDataString("BOX_LENGTH = "+to_string(BOX_LENGTH)+"AA_INTERACTION_STRENGTH = "+to_string(AA_INTERACTION_STRENGTH)+" | AB_INTERACTION_STRENGTH = "+to_string(AB_INTERACTION_STRENGTH)+" | MAXIMUM_DISPLACEMENT = "+to_string(MAXIMUM_DISPLACEMENT)+" | DISPLACEMENT_PROBABILITY = "+to_string(DISPLACEMENT_PROBABILITY)+" | MinNA = "+to_string(MinNumberOfA)+" | MaxNA "+to_string(MaxNumberOfA)+'\n');
+		string MetaDataString("BOX_LENGTH = "+to_string(BOX_LENGTH)+" | AA_INTERACTION_STRENGTH = "+to_string(AA_INTERACTION_STRENGTH)+" | AB_INTERACTION_STRENGTH = "+to_string(AB_INTERACTION_STRENGTH)+" | MAXIMUM_DISPLACEMENT = "+to_string(MAXIMUM_DISPLACEMENT)+" | DISPLACEMENT_PROBABILITY = "+to_string(DISPLACEMENT_PROBABILITY)+" | MinNA = "+to_string(MinNumberOfA)+" | MaxNA "+to_string(MaxNumberOfA)+'\n');
 		ofstream FileStreamToWrite;
 		FileStreamToWrite.open(FileName);
 		FileStreamToWrite << MetaDataString;
