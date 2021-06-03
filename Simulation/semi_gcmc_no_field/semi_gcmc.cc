@@ -645,7 +645,7 @@ struct SimulationManager {
 			if (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() >= NextUpdateTime){
 				#pragma omp critical(WRITE_TO_ERROR_STREAM)
 				{
-					int Progress = NumberOfSweeps >= 100 ? (i / (NumberOfMCSweeps/100)) : i;
+					int Progress = NumberOfMCSweeps >= 100 ? (i / (NumberOfMCSweeps/100)) : i;
 					cerr << "Run " << RunCount << ": T = " << Temperature <<  ". Progress: " << Progress << "%| Time passed: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
 				}
 				writeResults();
