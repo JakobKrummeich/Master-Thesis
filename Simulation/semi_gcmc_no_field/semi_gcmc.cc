@@ -658,7 +658,7 @@ struct SimulationManager {
 		PotEnergyBuffer.clear();
 		#pragma omp critical(WRITE_TO_ERROR_STREAM)
 		{
-			cerr << "Run " << RunCount << ": Simulation of T=" << Temperature << " finished. Simulation-metadata: " << endl; 
+			cerr << "Run " << RunCount << ": Simulation of T=" << Temperature << " finished. Simulation-metadata: " << endl;
 			cerr << "Tried displacements: " << NumberOfTriedDisplacements << "| Accepted displacements: " << NumberOfAcceptedDisplacements << "| Ratio of accepted displacements: " << static_cast<double>(NumberOfAcceptedDisplacements)/static_cast<double>(NumberOfTriedDisplacements) << endl;
 			cerr << "Tried type changes: " << NumberOfTriedTypeChanges << "| Accepted type changes: " << NumberOfAcceptedTypeChanges << "| Ratio of accepted type changes: " << static_cast<double>(NumberOfAcceptedTypeChanges)/static_cast<double>(NumberOfTriedTypeChanges) << endl;
 			cerr << "#VerletListBuilds: " << P.NumberOfVerletListBuilds << endl;
