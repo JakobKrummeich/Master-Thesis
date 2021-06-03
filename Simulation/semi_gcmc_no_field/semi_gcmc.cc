@@ -747,20 +747,13 @@ void runSimulationForMultipleStartStates(double MaxTemperature, double MinTemper
 }
 
 int main(int argc, char* argv[]){
-	double MaxTemperature;
-	double TemperatureStep;
-	double MinTemperature;
-	int NumberOfSweeps;
-	int NumberOfRuns;
+	double MaxTemperature = 1.0;
+	double TemperatureStep = 0.1;
+	double MinTemperature = 0.85;
+	int NumberOfSweeps = 100;
+	int NumberOfRuns = 2;
 	if (argc != 8){
 		cerr << "WARNING: " << argc-1 <<  " arguments were given, but exactly 7 arguments are needed: Average density, MaxTemperature, Temperature Stepsize, MinTemperature (not included), NumberOfMCSweeps, AB_INTERACTION_STRENGTH, NumberOfRuns. Running with default parameters: Average density = 0.6, MaxTemperature = 1.0, Temperature Stepsize = 0.1, MinTemperature = 0.85, NumberOfMCSweeps = 100, AB_INTERACTION_STRENGTH = 0.1, NumberOfRuns = 2" << endl;
-		DENSITY = 0.6;
-		AB_INTERACTION_STRENGTH = 0.1;
-		MaxTemperature = 1.0;
-		TemperatureStep = 0.1;
-		MinTemperature = 0.85;
-		NumberOfSweeps = 100;
-		NumberOfRuns = 2;
 	}
 	else {
 		DENSITY = atof(argv[1]);

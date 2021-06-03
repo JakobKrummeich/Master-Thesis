@@ -1,9 +1,29 @@
+#ifndef STRUCTURE_FACTOR_INCLUDED
+#define STRUCTURE_FACTOR_INCLUDED
+
+#include <vector>
+#include "realRNG.h"
+#include <fstream>
+#include <iomanip>
+#include <chrono>
+#include <iostream>
+
+static const int DIMENSION = 2;
+
 class StructureFactorComputator{
 	private:
-		const double kMin;
+		double kMin;
 		const double kMax;
 
 		realRNG RNG;
+
+		double BoxLength;
+
+		vector<double> APositions;
+		vector<double> BPositions;
+		int TotalNumberOfParticles;
+		int NumberOfAParticles;
+		int NumberOfBParticles;
 
 		struct Combination{
 			int nx;
@@ -52,31 +72,21 @@ class StructureFactorComputator{
 			}
 		};
 
-		struct SingleTemperatureResults{
-			double Temperature;
-			vector<RowEntry> StructureFactors;
-
-			SingleTemperatureResults(int NumberOfkEntries, double Temperature):
-				StructureFactors(NumberOfkEntries),
-				Temperature(Temperature){
-			}
-		};
-
 		vector<kCombinationMappingEntry> kCombinationMapping;
-		vector< SingleTemperatureResults > Results;
+		vector<RowEntry> Results;
 
-		double computeCosSum(const double* const Positions, const fvec<int, TOTAL_NUMBER_OF_PARTICLES>& ParticleIndices, double kx, double ky) const{
+		double computeCosSum(const vector<double>& Positions, double kx, double ky) const{
 			double Sum = 0.0;
-			for (int i = 0; i < ParticleIndices.size(); i++){
-				Sum += cos( kx* BOX_LENGTH*(*(Positions+DIMENSION*ParticleIndices[i])) + ky * BOX_LENGTH * (*(Positions+DIMENSION*ParticleIndices[i]+1)));
+			for (int i = 0; i < Positions.size(); i += DIMENSION){
+				Sum += cos( kx* BoxLength* Positions[DIMENSION * i] + ky * BoxLength * Positions[DIMENSION * i + 1]);
 			}
 			return Sum;
 		}
 
-		double computeSinSum(const double* const Positions, const fvec<int, TOTAL_NUMBER_OF_PARTICLES>& ParticleIndices, double kx, double ky) const{
+		double computeSinSum(const vector<double>& Positions, double kx, double ky) const{
 			double Sum = 0.0;
-			for (int i = 0; i < ParticleIndices.size(); i++){
-				Sum += sin(kx* BOX_LENGTH * (*(Positions+DIMENSION*ParticleIndices[i])) + ky * BOX_LENGTH * (*(Positions+DIMENSION*ParticleIndices[i]+1)));
+			for (int i = 0; i < Positions.size(); i += DIMENSION){
+				Sum += sin( kx* BoxLength* Positions[DIMENSION * i] + ky * BoxLength * Positions[DIMENSION * i + 1]);
 			}
 			return Sum;
 		}
@@ -95,9 +105,9 @@ class StructureFactorComputator{
 				for (int i = 0; i < NumberOfAttemptedAveragesPerk && CombinationsFound.size() < MaxNumberOfCombinationsPerInterval; i++){
 					double RandomAngle = RNG.drawRandomNumber(0.0, 0.5 * M_PI);
 					double RandomkMagnitude = RNG.drawRandomNumber(-kWidth,kWidth) + CurrentkMag;
-					int nx = round(BOX_LENGTH*RandomkMagnitude*cos(RandomAngle)/(2.0*M_PI));
-					int ny = round(BOX_LENGTH*RandomkMagnitude*sin(RandomAngle)/(2.0*M_PI));
-					double GridkMagnitude = 2.0*M_PI/BOX_LENGTH*sqrt(static_cast<double>(nx*nx+ny*ny));
+					int nx = round(BoxLength*RandomkMagnitude*cos(RandomAngle)/(2.0*M_PI));
+					int ny = round(BoxLength*RandomkMagnitude*sin(RandomAngle)/(2.0*M_PI));
+					double GridkMagnitude = 2.0*M_PI/BoxLength*sqrt(static_cast<double>(nx*nx+ny*ny));
 					if (GridkMagnitude <= (CurrentkMag + kWidth) && GridkMagnitude >= (CurrentkMag - kWidth) && GridkMagnitude >= kMin){
 						bool sameCombinationAlreadyFoundBefore = false;
 						Combination NewCombination(nx,ny);
@@ -128,78 +138,106 @@ class StructureFactorComputator{
 		}
 
 	public:
-		StructureFactorComputator(double MaxTemperature, double MinTemperature, double TemperatureStep, double kMax):
-			kMin(2.0*M_PI/BOX_LENGTH),
+		StructureFactorComputator(double kMax):
 			kMax(kMax){
-			findkValuesOnGrid();
-			for (double CurrentTemperature = MaxTemperature; CurrentTemperature > MinTemperature; CurrentTemperature -= TemperatureStep){
-				Results.push_back(SingleTemperatureResults(kCombinationMapping.size(), CurrentTemperature));
-			}
 		}
 
-		void computeNewStructureFactorValues(const double* const Positions, const fvec<int, TOTAL_NUMBER_OF_PARTICLES>& TypeAParticleIndices, const fvec<int, TOTAL_NUMBER_OF_PARTICLES>& TypeBParticleIndices, int TemperatureIndex){
-			if (TemperatureIndex >= Results.size()){
-				cerr << "Invalid temperature index in computeNewStructureFactorValues! Size of Results:  " << Results.size() << " , TemperatureIndex given: " << TemperatureIndex << endl;
-				return;
+		void initialize(double _BoxLength){
+			BoxLength = _BoxLength;
+			kMin = 2.0*M_PI/BoxLength;
+			findkValuesOnGrid();
+			Results = vector<RowEntry>(kCombinationMapping.size(), RowEntry());
+		}
+
+		void readInParticleState(string FileNameToReadIn) {
+			ifstream FileStreamToReadIn;
+			FileStreamToReadIn.open(FileNameToReadIn);
+
+			string CurrentString;
+
+			APositions.clear();
+			BPositions.clear();
+
+			getline(FileStreamToReadIn, CurrentString, ':');
+			getline(FileStreamToReadIn, CurrentString, '|');
+			NumberOfAParticles =  stoi(CurrentString);
+			getline(FileStreamToReadIn, CurrentString, ':');
+			getline(FileStreamToReadIn, CurrentString, '|');
+			NumberOfBParticles = stoi(CurrentString);
+			TotalNumberOfParticles = NumberOfAParticles + NumberOfBParticles;
+			getline(FileStreamToReadIn, CurrentString, '\n');
+
+			for (int ParticleIndex = 0; ParticleIndex < TotalNumberOfParticles; ParticleIndex++){
+				getline(FileStreamToReadIn, CurrentString, '\t');
+				double CurrentPosition [DIMENSION];
+				for (int j = 0; j < DIMENSION; j++){
+					getline(FileStreamToReadIn, CurrentString, '\t');
+					CurrentPosition[j] = stod(CurrentString)*BoxLength;
+				}
+				getline(FileStreamToReadIn, CurrentString, '\n');
+				if (CurrentString == "A"){
+					for (int j = 0; j < DIMENSION; j++){
+						APositions.push_back(CurrentPosition[j]);
+					}
+				}
+				else {
+					for (int j = 0; j < DIMENSION; j++){
+						BPositions.push_back(CurrentPosition[j]);
+					}
+				}
 			}
-			double xA = static_cast<double>(TypeAParticleIndices.size())/static_cast<double>(TOTAL_NUMBER_OF_PARTICLES);
-			double xB = static_cast<double>(TypeBParticleIndices.size())/static_cast<double>(TOTAL_NUMBER_OF_PARTICLES);
+			FileStreamToReadIn.close();
+		}
+
+		void computeNewStructureFactorValues(){
+			const auto StartTime = chrono::steady_clock::now();
+			double xA = static_cast<double>(NumberOfAParticles)/static_cast<double>(TotalNumberOfParticles);
+			double xB = static_cast<double>(NumberOfBParticles)/static_cast<double>(TotalNumberOfParticles);
 			for (int i = 0; i < kCombinationMapping.size(); i++){
 				for (int j = 0; j < kCombinationMapping[i].Combinations.size(); j++){
 					int nx = kCombinationMapping[i].Combinations[j].nx;
 					int ny = kCombinationMapping[i].Combinations[j].ny;
 					for (int k = 0; k < (abs(nx) == abs(ny) ? 1 : 2); k++){
 						for (int Sign = 1; Sign >= ((nx == 0 || ny == 0)? 1: -1); Sign -= 2){
-							double kx = Sign * nx * 2.0*M_PI/BOX_LENGTH;
-							double ky = ny * 2.0*M_PI/BOX_LENGTH;
-							double cosSumA = computeCosSum(Positions, TypeAParticleIndices, kx, ky);
-							double sinSumA = computeSinSum(Positions, TypeAParticleIndices, kx, ky);
-							double cosSumB = computeCosSum(Positions, TypeBParticleIndices, kx, ky);
-							double sinSumB = computeSinSum(Positions, TypeBParticleIndices, kx, ky);
+							double kx = Sign * nx * 2.0*M_PI/BoxLength;
+							double ky = ny * 2.0*M_PI/BoxLength;
+							double cosSumA = computeCosSum(APositions, kx, ky);
+							double sinSumA = computeSinSum(APositions, kx, ky);
+							double cosSumB = computeCosSum(BPositions, kx, ky);
+							double sinSumB = computeSinSum(BPositions, kx, ky);
 
 							double SAA = cosSumA*cosSumA + sinSumA * sinSumA;
 							double SBB = cosSumB*cosSumB + sinSumB * sinSumB;
 							double SAB = cosSumA*cosSumB + sinSumA * sinSumB;
 
-							Results[TemperatureIndex].StructureFactors[i].SAA += SAA;
-							Results[TemperatureIndex].StructureFactors[i].SBB += SBB;
-							Results[TemperatureIndex].StructureFactors[i].SAB += SAB;
-							Results[TemperatureIndex].StructureFactors[i].Scc += xB*xB*SAA + xA*xA*SBB - 2.0 * xA * xB * SAB;
-							Results[TemperatureIndex].StructureFactors[i].NumberOfDataPoints++;
+							Results[i].SAA += SAA;
+							Results[i].SBB += SBB;
+							Results[i].SAB += SAB;
+							Results[i].Scc += xB*xB*SAA + xA*xA*SBB - 2.0 * xA * xB * SAB;
+							Results[i].NumberOfDataPoints++;
 						}
 						swap(nx,ny);
 					}
 				}
 			}
+			cerr << "Computation time for structure factors: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
 		}
 
 		void writeResultsToFile(string FileName) {
-			for (int TemperatureIndex = 0; TemperatureIndex < Results.size(); TemperatureIndex++){
-				for (int kIndex = 0; kIndex < kCombinationMapping.size(); kIndex++){
-					Results[TemperatureIndex].StructureFactors[kIndex].SAA /= (static_cast<double>(Results[TemperatureIndex].StructureFactors[kIndex].NumberOfDataPoints) * static_cast<double>(TOTAL_NUMBER_OF_PARTICLES));
-					Results[TemperatureIndex].StructureFactors[kIndex].SBB /= (static_cast<double>(Results[TemperatureIndex].StructureFactors[kIndex].NumberOfDataPoints) * static_cast<double>(TOTAL_NUMBER_OF_PARTICLES));
-					Results[TemperatureIndex].StructureFactors[kIndex].SAB /= (static_cast<double>(Results[TemperatureIndex].StructureFactors[kIndex].NumberOfDataPoints) * static_cast<double>(TOTAL_NUMBER_OF_PARTICLES));
-					Results[TemperatureIndex].StructureFactors[kIndex].Scc /= (static_cast<double>(Results[TemperatureIndex].StructureFactors[kIndex].NumberOfDataPoints) * static_cast<double>(TOTAL_NUMBER_OF_PARTICLES));
-				}
-				ofstream FileStreamToWriteTo;
-				FileStreamToWriteTo.open(FileName+"_T="+to_string(Results[TemperatureIndex].Temperature)+".dat");
-				FileStreamToWriteTo << "k\tAAStructureFactor\tBBStructureFactor\tABStructureFactor\tConcentrationStructureFactor\n";
-				for (int i = 0; i < kCombinationMapping.size(); i++){
-					FileStreamToWriteTo << setprecision(10) << kCombinationMapping[i].kMagnitude << '\t' << Results[TemperatureIndex].StructureFactors[i].SAA << '\t' << Results[TemperatureIndex].StructureFactors[i].SBB << '\t' << Results[TemperatureIndex].StructureFactors[i].SAB << '\t' << Results[TemperatureIndex].StructureFactors[i].Scc << '\n';
-				}
-				FileStreamToWriteTo.close();
+			for (int kIndex = 0; kIndex < kCombinationMapping.size(); kIndex++){
+				Results[kIndex].SAA /= (static_cast<double>(Results[kIndex].NumberOfDataPoints) * static_cast<double>(TotalNumberOfParticles));
+				Results[kIndex].SBB /= (static_cast<double>(Results[kIndex].NumberOfDataPoints) * static_cast<double>(TotalNumberOfParticles));
+				Results[kIndex].SAB /= (static_cast<double>(Results[kIndex].NumberOfDataPoints) * static_cast<double>(TotalNumberOfParticles));
+				Results[kIndex].Scc /= (static_cast<double>(Results[kIndex].NumberOfDataPoints) * static_cast<double>(TotalNumberOfParticles));
 			}
-		}
-
-		void addComputationResultsFromOtherComputator(const StructureFactorComputator& OtherComputator){
-			if (Results.size() != OtherComputator.Results.size()){
-				cerr << "WARNING: The Results of the computators have different sizes! Can't add them. Returning without doing anything." << endl;
-				return;
+			ofstream FileStreamToWriteTo;
+			FileStreamToWriteTo.open(FileName);
+			FileStreamToWriteTo << "k\tAAStructureFactor\tBBStructureFactor\tABStructureFactor\tConcentrationStructureFactor\n";
+			for (int i = 0; i < kCombinationMapping.size(); i++){
+				FileStreamToWriteTo << setprecision(6) << kCombinationMapping[i].kMagnitude << '\t' << Results[i].SAA << '\t' << Results[i].SBB << '\t' << Results[i].SAB << '\t' << Results[i].Scc << '\n';
 			}
-			for (int i = 0; i < Results.size(); i++){
-				for (int j = 0; j < kCombinationMapping.size(); j++){
-					Results[i].StructureFactors[j] += OtherComputator.Results[i].StructureFactors[j];
-				}
-			}
+			FileStreamToWriteTo.close();
 		}
 };
+
+#endif /* STRUCTURE_FACTOR_INCLUDED */
