@@ -12,7 +12,7 @@
 using namespace std;
 
 const int DIMENSION = 2;
-const int TOTAL_NUMBER_OF_PARTICLES = 1000;
+const int TOTAL_NUMBER_OF_PARTICLES = 16000;
 
 const double AA_INTERACTION_STRENGTH = 1.0;
 double AB_INTERACTION_STRENGTH;
@@ -39,7 +39,9 @@ const int NUMBER_OF_INITIAL_RANDOMIZATION_SWEEPS = 100;
 const int UPDATE_TIME_INTERVAL = 60;
 const int POT_ENERGY_UPDATE_INTERVAL = 200;
 
-const int NUMBER_OF_STRUCTURE_FACTOR_AVERAGES_PER_CONFIGURATION = 1;
+const int NUMBER_OF_SAVED_STATES_PER_TEMPERATURE = 10;
+
+const int NUMBER_OF_THREADS = 20;
 
 void initializeBox(){
 	BOX_LENGTH = sqrt(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES) / DENSITY);
@@ -107,8 +109,11 @@ struct Particles {
 
 		int NumberOfParticlesInARow(ceil(pow(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES),1.0/static_cast<double>(DIMENSION))));
 		double Distance(1.0/static_cast<double>(NumberOfParticlesInARow));
-		cerr << "NumberOfParticlesInRow: " << NumberOfParticlesInARow << endl;
-		cerr << "Distance: " << Distance*BOX_LENGTH << endl;
+		#pragma omp critical(WRITE_TO_ERROR_STREAM)
+		{
+			cerr << "NumberOfParticlesInRow: " << NumberOfParticlesInARow << endl;
+			cerr << "Distance: " << Distance*BOX_LENGTH << endl;
+		}
 		double CurrentPosition [DIMENSION];
 		for (int i = 0; i < DIMENSION; i++){
 			CurrentPosition[i] = Distance*0.5;
@@ -192,13 +197,13 @@ struct Particles {
 		return TypeBParticleIndices.size();
 	}
 
-	static double computePairwiseParticlePotentialEnergy(double DimensionlessDistanceSquared) {
+	double computePairwiseParticlePotentialEnergy(double DimensionlessDistanceSquared) const {
 		double InverseDistanceSquared = 1.0/(DimensionlessDistanceSquared*BOX_LENGTH_SQUARED);
 		double InverseDistanceToThePowerOfSix = InverseDistanceSquared * InverseDistanceSquared * InverseDistanceSquared;
 		return 4.0*(InverseDistanceToThePowerOfSix * InverseDistanceToThePowerOfSix - InverseDistanceToThePowerOfSix + POTENTIAL_CONSTANT_1 - (sqrt(DimensionlessDistanceSquared) * BOX_LENGTH - CUTOFF) * POTENTIAL_CONSTANT_2);
 	}
 
-	static double computePairwiseParticlePotentialEnergy(const double* Position0, const double* Position1) {
+	double computePairwiseParticlePotentialEnergy(const double* Position0, const double* Position1) const {
 		double DistanceSquared = 0.0;
 		for (int i = 0; i < DIMENSION; i++){
 			double CoordinateDifference = *(Position0 + i) - *(Position1 + i);
@@ -486,216 +491,10 @@ ostream& operator<<(ostream& OStream, const Particles& State){
 	OStream << "#ID\tX       Y       Type | #AParticles:  " << State.getNumberOfAParticles() << "| #BParticles: " << State.getNumberOfBParticles() << "| BOX_LENGTH: " << BOX_LENGTH << endl;
 	for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
 		OStream << i << "\t";
-		OStream << fixed << setprecision(5) << State.getPosition(i,0) << "\t" << State.getPosition(i,1) << "\t" << State.getParticleType(i) <<  endl;
+		OStream << fixed << setprecision(6) << State.getPosition(i,0) << "\t" << State.getPosition(i,1) << "\t" << State.getParticleType(i) <<  endl;
 	}
 	return OStream;
 }
-
-class StructureFactorComputator{
-	private:
-		const double kMin;
-		const double kMax;
-
-		realRNG RNG;
-
-		struct Combination{
-			int nx;
-			int ny;
-
-			Combination(){
-			}
-
-			Combination(int nx, int ny):
-				nx(nx),
-				ny(ny){
-			}
-
-			bool operator==(const Combination& RHS) const {
-				return ((nx == RHS.nx && ny == RHS.ny) || (nx == RHS.ny && ny == RHS.nx));
-			}
-		};
-
-		struct kCombinationMappingEntry{
-			double kMagnitude;
-			vector<Combination> Combinations;
-		};
-
-		struct RowEntry {
-			double SAA;
-			double SBB;
-			double SAB;
-			double Scc;
-			int NumberOfDataPoints;
-
-			RowEntry():
-				SAA(0.0),
-				SBB(0.0),
-				SAB(0.0),
-				Scc(0.0),
-				NumberOfDataPoints(0){
-			}
-
-			RowEntry& operator+=(const RowEntry& RHS){
-				this -> SAA += RHS.SAA;
-				this -> SBB += RHS.SBB;
-				this -> SAB += RHS.SAB;
-				this -> Scc += RHS.Scc;
-				this -> NumberOfDataPoints += RHS.NumberOfDataPoints;
-				return *this;
-			}
-		};
-
-		struct SingleTemperatureResults{
-			double Temperature;
-			vector<RowEntry> StructureFactors;
-
-			SingleTemperatureResults(int NumberOfkEntries, double Temperature):
-				StructureFactors(NumberOfkEntries),
-				Temperature(Temperature){
-			}
-		};
-
-		vector<kCombinationMappingEntry> kCombinationMapping;
-		vector< SingleTemperatureResults > Results;
-
-		double computeCosSum(const double* const Positions, const fvec<int, TOTAL_NUMBER_OF_PARTICLES>& ParticleIndices, double kx, double ky) const{
-			double Sum = 0.0;
-			for (int i = 0; i < ParticleIndices.size(); i++){
-				Sum += cos( kx* BOX_LENGTH*(*(Positions+DIMENSION*ParticleIndices[i])) + ky * BOX_LENGTH * (*(Positions+DIMENSION*ParticleIndices[i]+1)));
-			}
-			return Sum;
-		}
-
-		double computeSinSum(const double* const Positions, const fvec<int, TOTAL_NUMBER_OF_PARTICLES>& ParticleIndices, double kx, double ky) const{
-			double Sum = 0.0;
-			for (int i = 0; i < ParticleIndices.size(); i++){
-				Sum += sin(kx* BOX_LENGTH * (*(Positions+DIMENSION*ParticleIndices[i])) + ky * BOX_LENGTH * (*(Positions+DIMENSION*ParticleIndices[i]+1)));
-			}
-			return Sum;
-		}
-
-		void findkValuesOnGrid(){
-			double kWidth = 0.04;
-			double CurrentkMag = kMin;
-			int NumberOfAttemptedAveragesPerk = 1000;
-			int MaxNumberOfCombinationsPerInterval = 100;
-			vector<Combination> CombinationsFound;
-
-			while (CurrentkMag < kMax){
-				CombinationsFound.clear();
-				kCombinationMappingEntry NewMapping{};
-				bool MagnitudeFound = false;
-				for (int i = 0; i < NumberOfAttemptedAveragesPerk && CombinationsFound.size() < MaxNumberOfCombinationsPerInterval; i++){
-					double RandomAngle = RNG.drawRandomNumber(0.0, 0.5 * M_PI);
-					double RandomkMagnitude = RNG.drawRandomNumber(-kWidth,kWidth) + CurrentkMag;
-					int nx = round(BOX_LENGTH*RandomkMagnitude*cos(RandomAngle)/(2.0*M_PI));
-					int ny = round(BOX_LENGTH*RandomkMagnitude*sin(RandomAngle)/(2.0*M_PI));
-					double GridkMagnitude = 2.0*M_PI/BOX_LENGTH*sqrt(static_cast<double>(nx*nx+ny*ny));
-					if (GridkMagnitude <= (CurrentkMag + kWidth) && GridkMagnitude >= (CurrentkMag - kWidth) && GridkMagnitude >= kMin){
-						bool sameCombinationAlreadyFoundBefore = false;
-						Combination NewCombination(nx,ny);
-						for (int j = 0; j < CombinationsFound.size() && !sameCombinationAlreadyFoundBefore; j++){
-							if (CombinationsFound[j] == NewCombination){
-								sameCombinationAlreadyFoundBefore = true;
-							}
-						}
-						if (!sameCombinationAlreadyFoundBefore){
-							CombinationsFound.push_back(NewCombination);
-							if (!MagnitudeFound){
-								NewMapping.kMagnitude = GridkMagnitude;
-								NewMapping.Combinations.push_back(NewCombination);
-								MagnitudeFound = true;
-							}
-							else {
-								NewMapping.kMagnitude = CurrentkMag;
-								NewMapping.Combinations.push_back(NewCombination);
-							}
-						}
-					}
-				}
-				if (MagnitudeFound){
-					kCombinationMapping.push_back(NewMapping);
-				}
-				CurrentkMag += 2.0*kWidth;
-			}
-		}
-
-	public:
-		StructureFactorComputator(double MaxTemperature, double MinTemperature, double TemperatureStep, double kMax):
-			kMin(2.0*M_PI/BOX_LENGTH),
-			kMax(kMax){
-			findkValuesOnGrid();
-			for (double CurrentTemperature = MaxTemperature; CurrentTemperature > MinTemperature; CurrentTemperature -= TemperatureStep){
-				Results.push_back(SingleTemperatureResults(kCombinationMapping.size(), CurrentTemperature));
-			}
-		}
-
-		void computeNewStructureFactorValues(const double* const Positions, const fvec<int, TOTAL_NUMBER_OF_PARTICLES>& TypeAParticleIndices, const fvec<int, TOTAL_NUMBER_OF_PARTICLES>& TypeBParticleIndices, int TemperatureIndex){
-			if (TemperatureIndex >= Results.size()){
-				cerr << "Invalid temperature index in computeNewStructureFactorValues! Size of Results:  " << Results.size() << " , TemperatureIndex given: " << TemperatureIndex << endl;
-				return;
-			}
-			double xA = static_cast<double>(TypeAParticleIndices.size())/static_cast<double>(TOTAL_NUMBER_OF_PARTICLES);
-			double xB = static_cast<double>(TypeBParticleIndices.size())/static_cast<double>(TOTAL_NUMBER_OF_PARTICLES);
-			for (int i = 0; i < kCombinationMapping.size(); i++){
-				for (int j = 0; j < kCombinationMapping[i].Combinations.size(); j++){
-					int nx = kCombinationMapping[i].Combinations[j].nx;
-					int ny = kCombinationMapping[i].Combinations[j].ny;
-					for (int k = 0; k < (abs(nx) == abs(ny) ? 1 : 2); k++){
-						for (int Sign = 1; Sign >= ((nx == 0 || ny == 0)? 1: -1); Sign -= 2){
-							double kx = Sign * nx * 2.0*M_PI/BOX_LENGTH;
-							double ky = ny * 2.0*M_PI/BOX_LENGTH;
-							double cosSumA = computeCosSum(Positions, TypeAParticleIndices, kx, ky);
-							double sinSumA = computeSinSum(Positions, TypeAParticleIndices, kx, ky);
-							double cosSumB = computeCosSum(Positions, TypeBParticleIndices, kx, ky);
-							double sinSumB = computeSinSum(Positions, TypeBParticleIndices, kx, ky);
-
-							double SAA = cosSumA*cosSumA + sinSumA * sinSumA;
-							double SBB = cosSumB*cosSumB + sinSumB * sinSumB;
-							double SAB = cosSumA*cosSumB + sinSumA * sinSumB;
-
-							Results[TemperatureIndex].StructureFactors[i].SAA += SAA;
-							Results[TemperatureIndex].StructureFactors[i].SBB += SBB;
-							Results[TemperatureIndex].StructureFactors[i].SAB += SAB;
-							Results[TemperatureIndex].StructureFactors[i].Scc += xB*xB*SAA + xA*xA*SBB - 2.0 * xA * xB * SAB;
-							Results[TemperatureIndex].StructureFactors[i].NumberOfDataPoints++;
-						}
-						swap(nx,ny);
-					}
-				}
-			}
-		}
-
-		void writeResultsToFile(string FileName) {
-			for (int TemperatureIndex = 0; TemperatureIndex < Results.size(); TemperatureIndex++){
-				for (int kIndex = 0; kIndex < kCombinationMapping.size(); kIndex++){
-					Results[TemperatureIndex].StructureFactors[kIndex].SAA /= (static_cast<double>(Results[TemperatureIndex].StructureFactors[kIndex].NumberOfDataPoints) * static_cast<double>(TOTAL_NUMBER_OF_PARTICLES));
-					Results[TemperatureIndex].StructureFactors[kIndex].SBB /= (static_cast<double>(Results[TemperatureIndex].StructureFactors[kIndex].NumberOfDataPoints) * static_cast<double>(TOTAL_NUMBER_OF_PARTICLES));
-					Results[TemperatureIndex].StructureFactors[kIndex].SAB /= (static_cast<double>(Results[TemperatureIndex].StructureFactors[kIndex].NumberOfDataPoints) * static_cast<double>(TOTAL_NUMBER_OF_PARTICLES));
-					Results[TemperatureIndex].StructureFactors[kIndex].Scc /= (static_cast<double>(Results[TemperatureIndex].StructureFactors[kIndex].NumberOfDataPoints) * static_cast<double>(TOTAL_NUMBER_OF_PARTICLES));
-				}
-				ofstream FileStreamToWriteTo;
-				FileStreamToWriteTo.open(FileName+"_T="+to_string(Results[TemperatureIndex].Temperature)+".dat");
-				FileStreamToWriteTo << "k\tAAStructureFactor\tBBStructureFactor\tABStructureFactor\tConcentrationStructureFactor\n";
-				for (int i = 0; i < kCombinationMapping.size(); i++){
-					FileStreamToWriteTo << setprecision(10) << kCombinationMapping[i].kMagnitude << '\t' << Results[TemperatureIndex].StructureFactors[i].SAA << '\t' << Results[TemperatureIndex].StructureFactors[i].SBB << '\t' << Results[TemperatureIndex].StructureFactors[i].SAB << '\t' << Results[TemperatureIndex].StructureFactors[i].Scc << '\n';
-				}
-				FileStreamToWriteTo.close();
-			}
-		}
-
-		void addComputationResultsFromOtherComputator(const StructureFactorComputator& OtherComputator){
-			if (Results.size() != OtherComputator.Results.size()){
-				cerr << "WARNING: The Results of the computators have different sizes! Can't add them. Returning without doing anything." << endl;
-				return;
-			}
-			for (int i = 0; i < Results.size(); i++){
-				for (int j = 0; j < kCombinationMapping.size(); j++){
-					Results[i].StructureFactors[j] += OtherComputator.Results[i].StructureFactors[j];
-				}
-			}
-		}
-};
 
 struct SimulationManager {
 	Particles P;
@@ -718,11 +517,9 @@ struct SimulationManager {
 	int NumberOfAcceptedTypeChanges;
 
 	string FileNameString;
+	string DirectoryString;
 
-	StructureFactorComputator* const SFComputator;
-
-	SimulationManager(double ChemicalPotentialDiff, int MinNumberOfA, int MaxNumberOfA, int NumberOfMCSweeps, StructureFactorComputator* SFComputator):
-		SFComputator(SFComputator),
+	SimulationManager(double ChemicalPotentialDiff, int MinNumberOfA, int MaxNumberOfA, int NumberOfMCSweeps):
 		ChemicalPotentialDiff(ChemicalPotentialDiff),
 		MinNumberOfA(MinNumberOfA),
 		MaxNumberOfA(MaxNumberOfA),
@@ -730,7 +527,8 @@ struct SimulationManager {
 		NumberOfTriedDisplacements(0),
 		NumberOfAcceptedDisplacements(0),
 		NumberOfTriedTypeChanges(0),
-		NumberOfAcceptedTypeChanges(0){
+		NumberOfAcceptedTypeChanges(0),
+		DirectoryString("fresh_data/N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"/"){
 	}
 
 	void initializeParticles() {
@@ -738,8 +536,8 @@ struct SimulationManager {
 		P.buildVerletList();
 	}
 
-	void readInParticleState(string FileNameInitialConfiguration) {
-		P.readInParticleState(FileNameInitialConfiguration);
+	void readInParticleState(string FileNameInitialState) {
+		P.readInParticleState(FileNameInitialState);
 		P.buildVerletList();
 	}
 
@@ -749,7 +547,7 @@ struct SimulationManager {
 	}
 
 	void setFileNameString(int RunNumber){
-		FileNameString = "N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_AvgDens="+to_string(DENSITY)+"_MCRuns="+to_string(NumberOfMCSweeps)+"_epsAB="+to_string(AB_INTERACTION_STRENGTH)+"_"+to_string(RunNumber)+".dat";
+		FileNameString = "N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_AvgDens="+to_string(DENSITY)+"_MCRuns="+to_string(NumberOfMCSweeps)+"_epsAB="+to_string(AB_INTERACTION_STRENGTH)+"_"+to_string(RunNumber);
 	}
 
 	void resetCountersAndBuffers(){
@@ -813,18 +611,18 @@ struct SimulationManager {
 		}
 	}
 
-	void runSimulationForSingleTemperature(int TemperatureIndex) {
+	void runSimulationForSingleTemperature(int RunCount, int NumberOfSavedStatesPerRun) {
 		const auto StartTime = chrono::steady_clock::now();
 		int NextUpdateTime = UPDATE_TIME_INTERVAL;
 		int NextPotEnergyComputation = POT_ENERGY_UPDATE_INTERVAL;
-		int StructureFactorComputationInterval = 0;
-		int NextStructureFactorComputation = 0;
-		if (NUMBER_OF_STRUCTURE_FACTOR_AVERAGES_PER_CONFIGURATION > 0){
-			StructureFactorComputationInterval = (NumberOfMCSweeps > 2*NUMBER_OF_STRUCTURE_FACTOR_AVERAGES_PER_CONFIGURATION ? static_cast<int>(0.5 * NumberOfMCSweeps/NUMBER_OF_STRUCTURE_FACTOR_AVERAGES_PER_CONFIGURATION) : 1);
-			NextStructureFactorComputation = (NumberOfMCSweeps > 2*NUMBER_OF_STRUCTURE_FACTOR_AVERAGES_PER_CONFIGURATION ? static_cast<int>(0.5 * NumberOfMCSweeps) : 1);
-		}
+		int NextStateSave = NumberOfMCSweeps / 2;
+		int StateSaveInterval = (NumberOfMCSweeps / 2) / NumberOfSavedStatesPerRun;
+		int SavedStateCount = 0;
 		writeMetaData();
-		cerr << "T = " << Temperature << ". Simulation running. Progress: ";
+		#pragma omp critical(WRITE_TO_ERROR_STREAM)
+		{
+			cerr << "Run " << RunCount <<  ": T=" << Temperature << ". Simulation started." << endl << endl;
+		}
 		for (int i = 0; i < NumberOfMCSweeps; i++){
 			for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
 				if (RNG.drawRandomNumber() <= DISPLACEMENT_PROBABILITY){
@@ -839,31 +637,36 @@ struct SimulationManager {
 				PotEnergyBuffer.push_back(P.computePotentialEnergy());
 				NextPotEnergyComputation += POT_ENERGY_UPDATE_INTERVAL;
 			}
+			if (i == NextStateSave){
+				writeParticleStateToFile(DirectoryString+"State_"+FileNameString+"_"+to_string(SavedStateCount)+".dat");
+				NextStateSave += StateSaveInterval;
+				SavedStateCount++;
+			}
 			if (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() >= NextUpdateTime){
-				cerr << i / (NumberOfMCSweeps/100) << "%|";
-				cerr.flush();
+				#pragma omp critical(WRITE_TO_ERROR_STREAM)
+				{
+					cerr << "Run " << RunCount << ": T = " << Temperature <<  ". Progress: " << i / (NumberOfMCSweeps/100) << "%| Time passed: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
+				}
 				writeResults();
 				NumberOfABuffer.clear();
 				PotEnergyBuffer.clear();
-				NextUpdateTime += (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() + UPDATE_TIME_INTERVAL);
-			}
-			if (i >= static_cast<int>(NumberOfMCSweeps*0.5) && i == NextStructureFactorComputation){
-				const auto TimeBeforeStructureFactorComputation = chrono::steady_clock::now();
-				NextStructureFactorComputation += StructureFactorComputationInterval;
-				SFComputator -> computeNewStructureFactorValues(P.Positions, P.TypeAParticleIndices, P.TypeBParticleIndices, TemperatureIndex);
-				cerr << "i = " << i << ", Time for structurefactorcomputation: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-TimeBeforeStructureFactorComputation).count() << " s" << endl;
+				NextUpdateTime += UPDATE_TIME_INTERVAL;
 			}
 		}
 		writeResults();
 		NumberOfABuffer.clear();
 		PotEnergyBuffer.clear();
-		cerr << endl << "Tried displacements: " << NumberOfTriedDisplacements << "| Accepted displacements:" << NumberOfAcceptedDisplacements << "| Ratio of accepted displacements: " << static_cast<double>(NumberOfAcceptedDisplacements)/static_cast<double>(NumberOfTriedDisplacements) << endl;
-		cerr << "Tried type changes: " << NumberOfTriedTypeChanges << "| Accepted type changes:" << NumberOfAcceptedTypeChanges << "| Ratio of accepted type changes: " << static_cast<double>(NumberOfAcceptedTypeChanges)/static_cast<double>(NumberOfTriedTypeChanges) << endl;
-		cerr << "#VerletListBuilds: " << P.NumberOfVerletListBuilds << endl;
-		cerr << "Computation time: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s for " << NumberOfMCSweeps << " runs" <<  endl;
+		#pragma omp critical(WRITE_TO_ERROR_STREAM)
+		{
+			cerr << "Run " << RunCount << ": Simulation of T=" << Temperature << " finished. Simulation-metadata: " << endl; 
+			cerr << "Tried displacements: " << NumberOfTriedDisplacements << "| Accepted displacements: " << NumberOfAcceptedDisplacements << "| Ratio of accepted displacements: " << static_cast<double>(NumberOfAcceptedDisplacements)/static_cast<double>(NumberOfTriedDisplacements) << endl;
+			cerr << "Tried type changes: " << NumberOfTriedTypeChanges << "| Accepted type changes: " << NumberOfAcceptedTypeChanges << "| Ratio of accepted type changes: " << static_cast<double>(NumberOfAcceptedTypeChanges)/static_cast<double>(NumberOfTriedTypeChanges) << endl;
+			cerr << "#VerletListBuilds: " << P.NumberOfVerletListBuilds << endl;
+			cerr << "Computation time: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s for " << NumberOfMCSweeps << " runs." <<  endl << endl;
+		}
 	}
 
-	void randomizeInitialPosition(){
+	void randomizeInitialPosition(int RunCount){
 		setTemperature(AA_INTERACTION_STRENGTH*10.0);
 		for (int i = 0; i < NUMBER_OF_INITIAL_RANDOMIZATION_SWEEPS; i++){
 			for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
@@ -875,33 +678,36 @@ struct SimulationManager {
 				}
 			}
 		}
-		cerr << endl << "Tried displacements: " << NumberOfTriedDisplacements << "| Accepted displacements:" << NumberOfAcceptedDisplacements << "| Ratio of accepted displacements: " << static_cast<double>(NumberOfAcceptedDisplacements)/static_cast<double>(NumberOfTriedDisplacements) << endl;
-		cerr << "Tried type changes: " << NumberOfTriedTypeChanges << "| Accepted type changes:" << NumberOfAcceptedTypeChanges << "| Ratio of accepted type changes: " << static_cast<double>(NumberOfAcceptedTypeChanges)/static_cast<double>(NumberOfTriedTypeChanges) << endl;
-		cerr << "#VerletListBuilds: " << P.NumberOfVerletListBuilds << endl;
+		#pragma omp critical(WRITE_TO_ERROR_STREAM)
+		{
+			cerr << "Run " << RunCount << ": Initial randomization finished. Tried displacements: " << NumberOfTriedDisplacements << "| Accepted displacements:" << NumberOfAcceptedDisplacements << "| Ratio of accepted displacements: " << static_cast<double>(NumberOfAcceptedDisplacements)/static_cast<double>(NumberOfTriedDisplacements) << endl;
+			cerr << "Tried type changes: " << NumberOfTriedTypeChanges << "| Accepted type changes:" << NumberOfAcceptedTypeChanges << "| Ratio of accepted type changes: " << static_cast<double>(NumberOfAcceptedTypeChanges)/static_cast<double>(NumberOfTriedTypeChanges) << endl;
+			cerr << "#VerletListBuilds: " << P.NumberOfVerletListBuilds << endl << endl;
+		}
 	}
 
 	void writeMetaData() const {
-		string FileName("unsorted_data/NA_Series_"+FileNameString);
+		string FileName(DirectoryString+"/NA_Series_"+FileNameString+".dat");
 		string MetaDataString("BOX_LENGTH = "+to_string(BOX_LENGTH)+"AA_INTERACTION_STRENGTH = "+to_string(AA_INTERACTION_STRENGTH)+" | AB_INTERACTION_STRENGTH = "+to_string(AB_INTERACTION_STRENGTH)+" | MAXIMUM_DISPLACEMENT = "+to_string(MAXIMUM_DISPLACEMENT)+" | DISPLACEMENT_PROBABILITY = "+to_string(DISPLACEMENT_PROBABILITY)+" | MinNA = "+to_string(MinNumberOfA)+" | MaxNA "+to_string(MaxNumberOfA)+'\n');
 		ofstream FileStreamToWrite;
 		FileStreamToWrite.open(FileName);
 		FileStreamToWrite << MetaDataString;
 		FileStreamToWrite.close();
-		FileName = "unsorted_data/PotEnergySeries_"+FileNameString;
+		FileName = DirectoryString+"/PotEnergySeries_"+FileNameString+".dat";
 		FileStreamToWrite.open(FileName);
 		FileStreamToWrite << MetaDataString;
 		FileStreamToWrite.close();
 	}
 
 	void writeResults() const {
-		string FileName("unsorted_data/NA_Series_"+FileNameString);
+		string FileName(DirectoryString+"/NA_Series_"+FileNameString+".dat");
 		ofstream FileStreamToWrite;
 		FileStreamToWrite.open(FileName, ios_base::app);
 		for (int i = 0; i < NumberOfABuffer.size(); i++){
 			FileStreamToWrite << NumberOfABuffer[i] << '\n';
 		}
 		FileStreamToWrite.close();
-		FileName = "unsorted_data/PotEnergySeries_"+FileNameString;
+		FileName = DirectoryString+"/PotEnergySeries_"+FileNameString+".dat";
 		FileStreamToWrite.open(FileName, ios_base::app);
 		for (int i = 0; i < PotEnergyBuffer.size(); i++){
 			FileStreamToWrite << PotEnergyBuffer[i] << '\n';
@@ -909,7 +715,7 @@ struct SimulationManager {
 		FileStreamToWrite.close();
 	}
 
-	void writeParticleConfigurationToFile(string FileName) const {
+	void writeParticleStateToFile(string FileName) const {
 		ofstream FileStreamToWrite;
 		FileStreamToWrite.open(FileName);
 		FileStreamToWrite << P;
@@ -917,34 +723,26 @@ struct SimulationManager {
 	}
 };
 
-void runSimulationForMultipleStartConfigurations(double MaxTemperature, double MinTemperature, double TemperatureStep, int NumberOfConfigurations, int NumberOfMCSweeps) {
-	StructureFactorComputator GlobalSFComputator(MaxTemperature, MinTemperature, TemperatureStep, 25.0);
+void runSimulationForMultipleStartStates(double MaxTemperature, double MinTemperature, double TemperatureStep, int NumberOfRuns, int NumberOfMCSweeps) {
 
-	#pragma omp parallel num_threads(2)
+	const int NumberOfSavedStatesPerRun = NUMBER_OF_SAVED_STATES_PER_TEMPERATURE / NumberOfRuns;
+
+	#pragma omp parallel num_threads(NUMBER_OF_THREADS)
 	{
-		StructureFactorComputator ThreadLocalSFComputator = GlobalSFComputator;
-		SimulationManager S(0.0, 0, TOTAL_NUMBER_OF_PARTICLES, NumberOfMCSweeps, &ThreadLocalSFComputator);
+		SimulationManager S(0.0, 0, TOTAL_NUMBER_OF_PARTICLES, NumberOfMCSweeps);
 
 		#pragma omp for
-		for (int ConfigurationCount = 0; ConfigurationCount < NumberOfConfigurations; ConfigurationCount++){
+		for (int RunCount = 0; RunCount < NumberOfRuns; RunCount++){
 			S.initializeParticles();
-			S.randomizeInitialPosition();
-			int TemperatureIndex = 0;
+			S.randomizeInitialPosition(RunCount);
 			for (double CurrentTemperature = MaxTemperature; CurrentTemperature > MinTemperature; CurrentTemperature -= TemperatureStep){
 				S.setTemperature(CurrentTemperature);
-				S.setFileNameString(ConfigurationCount);
+				S.setFileNameString(RunCount);
 				S.resetCountersAndBuffers();
-				S.runSimulationForSingleTemperature(TemperatureIndex);
-				S.writeParticleConfigurationToFile("unsorted_data/FinalParticleConfig_"+S.FileNameString);
-				TemperatureIndex++;
+				S.runSimulationForSingleTemperature(RunCount, NumberOfSavedStatesPerRun);
 			}
 		}
-		#pragma omp critical(push_local_SFactors_to_global)
-		{
-			GlobalSFComputator.addComputationResultsFromOtherComputator(ThreadLocalSFComputator);
-		}
 	}
-	GlobalSFComputator.writeResultsToFile("unsorted_data/StructureFactors_N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_AvgDens="+to_string(DENSITY)+"_MCRuns="+to_string(NumberOfMCSweeps)+"_epsAB="+to_string(AB_INTERACTION_STRENGTH)+"_#Configs="+to_string(NUMBER_OF_STRUCTURE_FACTOR_AVERAGES_PER_CONFIGURATION*NumberOfConfigurations));
 }
 
 int main(int argc, char* argv[]){
@@ -952,16 +750,16 @@ int main(int argc, char* argv[]){
 	double TemperatureStep;
 	double MinTemperature;
 	int NumberOfSweeps;
-	int NumberOfConfigurations;
+	int NumberOfRuns;
 	if (argc != 8){
-		cerr << "WARNING: " << argc-1 <<  " arguments were given, but exactly 7 arguments are needed: Average density, MaxTemperature, Temperature Stepsize, MinTemperature (not included), NumberOfMCSweeps, AB_INTERACTION_STRENGTH, NumberOfConfigurations. Running with default parameters: Average density = 0.6, MaxTemperature = 1.0, Temperature Stepsize = 0.1, MinTemperature = 0.85, NumberOfMCSweeps = 100, AB_INTERACTION_STRENGTH = 0.1, NumberOfConfigurations = 2" << endl;
+		cerr << "WARNING: " << argc-1 <<  " arguments were given, but exactly 7 arguments are needed: Average density, MaxTemperature, Temperature Stepsize, MinTemperature (not included), NumberOfMCSweeps, AB_INTERACTION_STRENGTH, NumberOfRuns. Running with default parameters: Average density = 0.6, MaxTemperature = 1.0, Temperature Stepsize = 0.1, MinTemperature = 0.85, NumberOfMCSweeps = 100, AB_INTERACTION_STRENGTH = 0.1, NumberOfRuns = 2" << endl;
 		DENSITY = 0.6;
 		AB_INTERACTION_STRENGTH = 0.1;
 		MaxTemperature = 1.0;
 		TemperatureStep = 0.1;
 		MinTemperature = 0.85;
 		NumberOfSweeps = 100;
-		NumberOfConfigurations = 2;
+		NumberOfRuns = 2;
 	}
 	else {
 		DENSITY = atof(argv[1]);
@@ -970,11 +768,11 @@ int main(int argc, char* argv[]){
 		TemperatureStep = atof(argv[3]);
 		MinTemperature = atof(argv[4]);
 		NumberOfSweeps = atoi(argv[5]);
-		NumberOfConfigurations = atoi(argv[7]);
+		NumberOfRuns = atoi(argv[7]);
 	}
 
 	initializeBox();
 
-	runSimulationForMultipleStartConfigurations(MaxTemperature, MinTemperature, TemperatureStep, NumberOfConfigurations, NumberOfSweeps);
+	runSimulationForMultipleStartStates(MaxTemperature, MinTemperature, TemperatureStep, NumberOfRuns, NumberOfSweeps);
 }
 
