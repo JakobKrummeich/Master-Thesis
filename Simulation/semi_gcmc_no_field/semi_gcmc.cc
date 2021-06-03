@@ -645,7 +645,8 @@ struct SimulationManager {
 			if (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() >= NextUpdateTime){
 				#pragma omp critical(WRITE_TO_ERROR_STREAM)
 				{
-					cerr << "Run " << RunCount << ": T = " << Temperature <<  ". Progress: " << i / (NumberOfMCSweeps/100) << "%| Time passed: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
+					int Progress = NumberOfSweeps >= 100 ? (i / (NumberOfMCSweeps/100)) : i;
+					cerr << "Run " << RunCount << ": T = " << Temperature <<  ". Progress: " << Progress << "%| Time passed: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
 				}
 				writeResults();
 				NumberOfABuffer.clear();
@@ -725,7 +726,7 @@ struct SimulationManager {
 
 void runSimulationForMultipleStartStates(double MaxTemperature, double MinTemperature, double TemperatureStep, int NumberOfRuns, int NumberOfMCSweeps) {
 
-	const int NumberOfSavedStatesPerRun = NUMBER_OF_SAVED_STATES_PER_TEMPERATURE / NumberOfRuns;
+	const int NumberOfSavedStatesPerRun = NUMBER_OF_SAVED_STATES_PER_TEMPERATURE >= NumberOfRuns ?  NUMBER_OF_SAVED_STATES_PER_TEMPERATURE / NumberOfRuns : 1;
 
 	#pragma omp parallel num_threads(NUMBER_OF_THREADS)
 	{
