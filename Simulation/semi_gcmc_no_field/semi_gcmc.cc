@@ -12,7 +12,7 @@
 using namespace std;
 
 const int DIMENSION = 2;
-const int TOTAL_NUMBER_OF_PARTICLES = 16000;
+const int TOTAL_NUMBER_OF_PARTICLES = 1000;
 
 const double AA_INTERACTION_STRENGTH = 1.0;
 double AB_INTERACTION_STRENGTH;
@@ -534,6 +534,15 @@ class StructureFactorComputator{
 				Scc(0.0),
 				NumberOfDataPoints(0){
 			}
+
+			RowEntry& operator+=(const RowEntry& RHS){
+				this -> SAA += RHS.SAA;
+				this -> SBB += RHS.SBB;
+				this -> SAB += RHS.SAB;
+				this -> Scc += RHS.Scc;
+				this -> NumberOfDataPoints += RHS.NumberOfDataPoints;
+				return *this;
+			}
 		};
 
 		struct SingleTemperatureResults{
@@ -672,6 +681,18 @@ class StructureFactorComputator{
 					FileStreamToWriteTo << setprecision(10) << kCombinationMapping[i].kMagnitude << '\t' << Results[TemperatureIndex].StructureFactors[i].SAA << '\t' << Results[TemperatureIndex].StructureFactors[i].SBB << '\t' << Results[TemperatureIndex].StructureFactors[i].SAB << '\t' << Results[TemperatureIndex].StructureFactors[i].Scc << '\n';
 				}
 				FileStreamToWriteTo.close();
+			}
+		}
+
+		void addComputationResultsFromOtherComputator(const StructureFactorComputator& OtherComputator){
+			if (Results.size() != OtherComputator.Results.size()){
+				cerr << "WARNING: The Results of the computators have different sizes! Can't add them. Returning without doing anything." << endl;
+				return;
+			}
+			for (int i = 0; i < Results.size(); i++){
+				for (int j = 0; j < kCombinationMapping.size(); j++){
+					Results[i].StructureFactors[j] += OtherComputator.Results[i].StructureFactors[j];
+				}
 			}
 		}
 };
@@ -830,7 +851,7 @@ struct SimulationManager {
 				const auto TimeBeforeStructureFactorComputation = chrono::steady_clock::now();
 				NextStructureFactorComputation += StructureFactorComputationInterval;
 				SFComputator -> computeNewStructureFactorValues(P.Positions, P.TypeAParticleIndices, P.TypeBParticleIndices, TemperatureIndex);
-				cerr << "i = " << i << ", Time for structurefactorcomputation: " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now()-TimeBeforeStructureFactorComputation).count() << endl;
+				cerr << "i = " << i << ", Time for structurefactorcomputation: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-TimeBeforeStructureFactorComputation).count() << " s" << endl;
 			}
 		}
 		writeResults();
@@ -857,23 +878,6 @@ struct SimulationManager {
 		cerr << endl << "Tried displacements: " << NumberOfTriedDisplacements << "| Accepted displacements:" << NumberOfAcceptedDisplacements << "| Ratio of accepted displacements: " << static_cast<double>(NumberOfAcceptedDisplacements)/static_cast<double>(NumberOfTriedDisplacements) << endl;
 		cerr << "Tried type changes: " << NumberOfTriedTypeChanges << "| Accepted type changes:" << NumberOfAcceptedTypeChanges << "| Ratio of accepted type changes: " << static_cast<double>(NumberOfAcceptedTypeChanges)/static_cast<double>(NumberOfTriedTypeChanges) << endl;
 		cerr << "#VerletListBuilds: " << P.NumberOfVerletListBuilds << endl;
-	}
-
-	void runSimulationForMultipleStartConfigurations(double MaxTemperature, double MinTemperature, double TemperatureStep, int NumberOfConfigurations) {
-		for (int ConfigurationCount = 0; ConfigurationCount < NumberOfConfigurations; ConfigurationCount++){
-			initializeParticles();
-			randomizeInitialPosition();
-			int TemperatureIndex = 0;
-			for (double CurrentTemperature = MaxTemperature; CurrentTemperature > MinTemperature; CurrentTemperature -= TemperatureStep){
-				setTemperature(CurrentTemperature);
-				setFileNameString(ConfigurationCount);
-				resetCountersAndBuffers();
-				runSimulationForSingleTemperature(TemperatureIndex);
-				writeParticleConfigurationToFile("unsorted_data/FinalParticleConfig_"+FileNameString);
-				TemperatureIndex++;
-			}
-		}
-		SFComputator -> writeResultsToFile("unsorted_data/StructureFactors_N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_AvgDens="+to_string(DENSITY)+"_MCRuns="+to_string(NumberOfMCSweeps)+"_epsAB="+to_string(AB_INTERACTION_STRENGTH)+"_#Configs="+to_string(NUMBER_OF_STRUCTURE_FACTOR_AVERAGES_PER_CONFIGURATION*NumberOfConfigurations));
 	}
 
 	void writeMetaData() const {
@@ -913,6 +917,36 @@ struct SimulationManager {
 	}
 };
 
+void runSimulationForMultipleStartConfigurations(double MaxTemperature, double MinTemperature, double TemperatureStep, int NumberOfConfigurations, int NumberOfMCSweeps) {
+	StructureFactorComputator GlobalSFComputator(MaxTemperature, MinTemperature, TemperatureStep, 25.0);
+
+	#pragma omp parallel num_threads(2)
+	{
+		StructureFactorComputator ThreadLocalSFComputator = GlobalSFComputator;
+		SimulationManager S(0.0, 0, TOTAL_NUMBER_OF_PARTICLES, NumberOfMCSweeps, &ThreadLocalSFComputator);
+
+		#pragma omp for
+		for (int ConfigurationCount = 0; ConfigurationCount < NumberOfConfigurations; ConfigurationCount++){
+			S.initializeParticles();
+			S.randomizeInitialPosition();
+			int TemperatureIndex = 0;
+			for (double CurrentTemperature = MaxTemperature; CurrentTemperature > MinTemperature; CurrentTemperature -= TemperatureStep){
+				S.setTemperature(CurrentTemperature);
+				S.setFileNameString(ConfigurationCount);
+				S.resetCountersAndBuffers();
+				S.runSimulationForSingleTemperature(TemperatureIndex);
+				S.writeParticleConfigurationToFile("unsorted_data/FinalParticleConfig_"+S.FileNameString);
+				TemperatureIndex++;
+			}
+		}
+		#pragma omp critical(push_local_SFactors_to_global)
+		{
+			GlobalSFComputator.addComputationResultsFromOtherComputator(ThreadLocalSFComputator);
+		}
+	}
+	GlobalSFComputator.writeResultsToFile("unsorted_data/StructureFactors_N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_AvgDens="+to_string(DENSITY)+"_MCRuns="+to_string(NumberOfMCSweeps)+"_epsAB="+to_string(AB_INTERACTION_STRENGTH)+"_#Configs="+to_string(NUMBER_OF_STRUCTURE_FACTOR_AVERAGES_PER_CONFIGURATION*NumberOfConfigurations));
+}
+
 int main(int argc, char* argv[]){
 	double MaxTemperature;
 	double TemperatureStep;
@@ -940,10 +974,7 @@ int main(int argc, char* argv[]){
 	}
 
 	initializeBox();
-	StructureFactorComputator SFComputator(MaxTemperature, MinTemperature, TemperatureStep, 25.0);
 
-	SimulationManager S(0.0, 0, TOTAL_NUMBER_OF_PARTICLES, NumberOfSweeps, &SFComputator);
-
-	S.runSimulationForMultipleStartConfigurations(MaxTemperature, MinTemperature, TemperatureStep, NumberOfConfigurations);
+	runSimulationForMultipleStartConfigurations(MaxTemperature, MinTemperature, TemperatureStep, NumberOfConfigurations, NumberOfSweeps);
 }
 
