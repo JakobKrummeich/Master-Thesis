@@ -7,8 +7,11 @@
 #include <iomanip>
 #include <chrono>
 #include <iostream>
+#include <cmath>
 
 static const int DIMENSION = 2;
+
+static const int NUMBER_OF_THREADS = 2;
 
 class StructureFactorComputator{
 	private:
@@ -78,7 +81,7 @@ class StructureFactorComputator{
 		double computeCosSum(const vector<double>& Positions, double kx, double ky) const{
 			double Sum = 0.0;
 			for (int i = 0; i < Positions.size(); i += DIMENSION){
-				Sum += cos( kx* BoxLength* Positions[DIMENSION * i] + ky * BoxLength * Positions[DIMENSION * i + 1]);
+				Sum += cos( kx * Positions[i] + ky * Positions[i+1]);
 			}
 			return Sum;
 		}
@@ -86,7 +89,7 @@ class StructureFactorComputator{
 		double computeSinSum(const vector<double>& Positions, double kx, double ky) const{
 			double Sum = 0.0;
 			for (int i = 0; i < Positions.size(); i += DIMENSION){
-				Sum += sin( kx* BoxLength* Positions[DIMENSION * i] + ky * BoxLength * Positions[DIMENSION * i + 1]);
+				Sum += sin( kx * Positions[i] + ky * Positions[i+1]);
 			}
 			return Sum;
 		}
@@ -193,30 +196,39 @@ class StructureFactorComputator{
 			const auto StartTime = chrono::steady_clock::now();
 			double xA = static_cast<double>(NumberOfAParticles)/static_cast<double>(TotalNumberOfParticles);
 			double xB = static_cast<double>(NumberOfBParticles)/static_cast<double>(TotalNumberOfParticles);
-			for (int i = 0; i < kCombinationMapping.size(); i++){
-				for (int j = 0; j < kCombinationMapping[i].Combinations.size(); j++){
-					int nx = kCombinationMapping[i].Combinations[j].nx;
-					int ny = kCombinationMapping[i].Combinations[j].ny;
-					for (int k = 0; k < (abs(nx) == abs(ny) ? 1 : 2); k++){
-						for (int Sign = 1; Sign >= ((nx == 0 || ny == 0)? 1: -1); Sign -= 2){
-							double kx = Sign * nx * 2.0*M_PI/BoxLength;
-							double ky = ny * 2.0*M_PI/BoxLength;
-							double cosSumA = computeCosSum(APositions, kx, ky);
-							double sinSumA = computeSinSum(APositions, kx, ky);
-							double cosSumB = computeCosSum(BPositions, kx, ky);
-							double sinSumB = computeSinSum(BPositions, kx, ky);
 
-							double SAA = cosSumA*cosSumA + sinSumA * sinSumA;
-							double SBB = cosSumB*cosSumB + sinSumB * sinSumB;
-							double SAB = cosSumA*cosSumB + sinSumA * sinSumB;
+			#pragma omp parallel num_threads(NUMBER_OF_THREADS)
+			{
 
-							Results[i].SAA += SAA;
-							Results[i].SBB += SBB;
-							Results[i].SAB += SAB;
-							Results[i].Scc += xB*xB*SAA + xA*xA*SBB - 2.0 * xA * xB * SAB;
-							Results[i].NumberOfDataPoints++;
+				#pragma omp for
+				for (int i = 0; i < kCombinationMapping.size(); i++){
+					for (int j = 0; j < kCombinationMapping[i].Combinations.size(); j++){
+						int nx = kCombinationMapping[i].Combinations[j].nx;
+						int ny = kCombinationMapping[i].Combinations[j].ny;
+						for (int k = 0; k < (abs(nx) == abs(ny) ? 1 : 2); k++){
+							for (int Sign = 1; Sign >= ((nx == 0 || ny == 0)? 1: -1); Sign -= 2){
+								double kx = Sign * nx * 2.0*M_PI/BoxLength;
+								double ky = ny * 2.0*M_PI/BoxLength;
+								double cosSumA = computeCosSum(APositions, kx, ky);
+								double sinSumA = computeSinSum(APositions, kx, ky);
+								double cosSumB = computeCosSum(BPositions, kx, ky);
+								double sinSumB = computeSinSum(BPositions, kx, ky);
+
+								double SAA = cosSumA*cosSumA + sinSumA * sinSumA;
+								double SBB = cosSumB*cosSumB + sinSumB * sinSumB;
+								double SAB = cosSumA*cosSumB + sinSumA * sinSumB;
+
+								#pragma omp critical(UPDATE_RESULTS)
+								{
+									Results[i].SAA += SAA;
+									Results[i].SBB += SBB;
+									Results[i].SAB += SAB;
+									Results[i].Scc += xB*xB*SAA + xA*xA*SBB - 2.0 * xA * xB * SAB;
+									Results[i].NumberOfDataPoints++;
+								}
+							}
+							swap(nx,ny);
 						}
-						swap(nx,ny);
 					}
 				}
 			}
