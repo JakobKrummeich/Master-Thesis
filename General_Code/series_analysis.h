@@ -103,8 +103,6 @@ class SeriesAnalyzer{
 		void addNewSeries(string FileNameNASeries, string FileNamePotEnergySeries){
 			vector<double> NewNASeries = readInSeries(FileNameNASeries);
 			vector<double> NewPotEnergySeries = readInSeries(FileNamePotEnergySeries);
-			cerr << FileNameNASeries << endl;
-			cerr << FileNamePotEnergySeries << endl;
 			int IndexConversionFactor = ceil(static_cast<double>(NewNASeries.size())/(static_cast<double>(NewPotEnergySeries.size())));
 			int EquilibriumIndexNASeries = computeEquilibrationIndex(NewNASeries);
 			int EquilibriumIndexPotEnergySeries = computeEquilibrationIndex(NewPotEnergySeries);
@@ -124,6 +122,10 @@ class SeriesAnalyzer{
 				FileStreamToWriteTo << NADistribution[i].xValue << '\t' << NADistribution[i].yValue << '\n';
 			}
 			FileStreamToWriteTo.close();
+		}
+
+		double computeFirstMomentOfDistribution(){
+			return computeMomentOfDistribution(NADistribution, 1.0);
 		}
 };
 
