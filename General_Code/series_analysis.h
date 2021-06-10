@@ -47,7 +47,7 @@ class SeriesAnalyzer{
 			}
 		}
 
-		static int computeEquilibrationIndex(const vector<double>& Series){
+		static int computeEquilibrationIndex(const vector<double>& Series, int MinNumberOfThrowAwayPoints) {
 			for (int CurrentIndex = 0; CurrentIndex < Series.size(); CurrentIndex++){
 				double AverageValue = 0.0;
 				for (int j = CurrentIndex; j < Series.size(); j++){
@@ -60,13 +60,16 @@ class SeriesAnalyzer{
 				}
 				AverageDeviation /= static_cast<double>(Series.size()-CurrentIndex);
 				if (abs(AverageValue - Series[CurrentIndex]) < AverageDeviation){
+					if (MinNumberOfThrowAwayPoints < Series.size()){
+						return max(MinNumberOfThrowAwayPoints-1, CurrentIndex);
+					}
 					return CurrentIndex;
 				}
 			}
 			return 0;
 		}
 
-		double computeMomentOfDistribution(const vector<ValuePair>& Distribution, double Exponent){
+		static double computeMomentOfDistribution(const vector<ValuePair>& Distribution, double Exponent) {
 			double h = Distribution[1].xValue - Distribution[0].xValue;
 			double Moment = 0.5 * (pow(Distribution[0].xValue,Exponent) * Distribution[0].yValue + pow(Distribution.back().xValue, Exponent) * Distribution.back().yValue);
 			for (int i = 1; i < Distribution.size(); i++){
@@ -75,14 +78,14 @@ class SeriesAnalyzer{
 			return h*Moment;
 		}
 
-		void normalizeDistribution(vector<ValuePair>& Distribution){
+		static void normalizeDistribution(vector<ValuePair>& Distribution) {
 			double TotalIntegral = computeMomentOfDistribution(Distribution, 0.0);
 			for (int i = 0; i < Distribution.size(); i++){
 				Distribution[i].yValue /= TotalIntegral;
 			}
 		}
 
-		double computeFirstMomentInSubInterval(const vector<ValuePair>& Distribution, int LeftIntervalBoundary, int RightIntervalBoundary){
+		static double computeFirstMomentInSubInterval(const vector<ValuePair>& Distribution, int LeftIntervalBoundary, int RightIntervalBoundary) {
 			vector<ValuePair> SubIntervalDistribution;
 			for (int i = LeftIntervalBoundary; i <= RightIntervalBoundary; i++){
 				SubIntervalDistribution.emplace_back(Distribution[i].xValue,Distribution[i].yValue);
@@ -100,12 +103,12 @@ class SeriesAnalyzer{
 			}
 		}
 		
-		void addNewSeries(string FileNameNASeries, string FileNamePotEnergySeries){
+		void addNewSeries(string FileNameNASeries, string FileNamePotEnergySeries, int MinNumberOfEquilibrationSweeps){
 			vector<double> NewNASeries = readInSeries(FileNameNASeries);
 			vector<double> NewPotEnergySeries = readInSeries(FileNamePotEnergySeries);
 			int IndexConversionFactor = ceil(static_cast<double>(NewNASeries.size())/(static_cast<double>(NewPotEnergySeries.size())));
-			int EquilibriumIndexNASeries = computeEquilibrationIndex(NewNASeries);
-			int EquilibriumIndexPotEnergySeries = computeEquilibrationIndex(NewPotEnergySeries);
+			int EquilibriumIndexNASeries = computeEquilibrationIndex(NewNASeries, MinNumberOfEquilibrationSweeps);
+			int EquilibriumIndexPotEnergySeries = computeEquilibrationIndex(NewPotEnergySeries, MinNumberOfEquilibrationSweeps/IndexConversionFactor);
 			int EquilibriumIndex = max(EquilibriumIndexNASeries, IndexConversionFactor*EquilibriumIndexPotEnergySeries);
 			updateHistogramWithNewSeries(NewNASeries, EquilibriumIndex);
 		}
@@ -114,7 +117,7 @@ class SeriesAnalyzer{
 			normalizeDistribution(NADistribution);
 		}
 		
-		void writeNAProbabilityDistributionToFile(string FileName){
+		void writeNAProbabilityDistributionToFile(string FileName) const {
 			ofstream FileStreamToWriteTo;
 			FileStreamToWriteTo.open(FileName);
 			FileStreamToWriteTo << "xA\tprobability_density\n";
@@ -124,8 +127,29 @@ class SeriesAnalyzer{
 			FileStreamToWriteTo.close();
 		}
 
-		double computeFirstMomentOfDistribution(){
-			return computeMomentOfDistribution(NADistribution, 1.0);
+		double computeFirstMomentOfHalfDistribution() const {
+			vector<ValuePair> LeftDistribution;
+			for (int i = 0; i < TotalNumberOfParticles/2; i++){
+				LeftDistribution[i] = NADistribution[i];
+			}
+			double LeftHalfIntegral = computeMomentOfDistribution(LeftDistribution, 0.0);
+			vector<ValuePair> RightDistribution;
+			for (int i = TotalNumberOfParticles/2; i < NADistribution.size(); i++){
+				RightDistribution[i] = NADistribution[i];
+			}
+			double RightHalfIntegral = computeMomentOfDistribution(RightDistribution, 0.0);
+			if (LeftHalfIntegral > RightHalfIntegral){
+				normalizeDistribution(LeftDistribution);
+				return computeMomentOfDistribution(LeftDistribution, 1.0);
+			}
+			normalizeDistribution(RightDistribution);
+			return (1.0 - computeMomentOfDistribution(RightDistribution, 1.0));
+		}
+
+		double computeBinderCumulant() const {
+			double SecondMoment = computeMomentOfDistribution(NADistribution, 2.0);
+			double FourthMoment = computeMomentOfDistribution(NADistribution, 4.0);
+			return (FourthMoment/(SecondMoment*SecondMoment));
 		}
 };
 
