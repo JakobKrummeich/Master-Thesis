@@ -1,4 +1,4 @@
-#include "../General_Code/series_analysis.h"
+#include "../general_code/series_analysis.h"
 #include <iostream>
 #include <stdlib.h>
 

@@ -15,8 +15,8 @@ function make_directory_if_necessary() {
 
 [[ ${sourcepath} =~ (N=[[:digit:]]*) ]] && number_of_particles_string=${BASH_REMATCH[1]}
 target_filepath="${sourcepath}/analyzed_data/"
-make_directory_if_necessary $target_filepath
-phase_diagram_filename="${target_filepath}phase_diagram_${number_of_particles_string}.dat"
+make_directory_if_necessary target_filepath
+phase_diagram_filename="${target_filepath}first_moment_binder_cumulant_${number_of_particles_string}.dat"
 
 printf "T\tfirst_moment_xA\tBinder_cumulant\n" > ${phase_diagram_filename}
 
@@ -39,6 +39,6 @@ for temperature_dir in ${sourcepath}/T=*; do
 
 	results=$(echo ${file_pairs[@]} | ./compute_distribution_and_moments $distribution_filename $number_of_particles ${target_filepath} ${min_number_of_equilibration})
 
-	printf "${temperature}\t${results[0]}\t${results[1]}\n" >> ${phase_diagram_filename}
+	printf "${temperature}\t${results}\n" >> ${phase_diagram_filename}
 
 done

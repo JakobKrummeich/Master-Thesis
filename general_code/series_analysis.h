@@ -68,14 +68,18 @@ class SeriesAnalyzer{
 			}
 			return 0;
 		}
-
-		static double computeMomentOfDistribution(const vector<ValuePair>& Distribution, double Exponent) {
+		
+		static double computeCentralMomentOfDistribution(const vector<ValuePair>& Distribution, double Mean, double Exponent){
 			double h = Distribution[1].xValue - Distribution[0].xValue;
-			double Moment = 0.5 * (pow(Distribution[0].xValue,Exponent) * Distribution[0].yValue + pow(Distribution.back().xValue, Exponent) * Distribution.back().yValue);
+			double Moment = 0.5 * (pow(Distribution[0].xValue - Mean,Exponent) * Distribution[0].yValue + pow(Distribution.back().xValue - Mean, Exponent) * Distribution.back().yValue);
 			for (int i = 1; i < Distribution.size(); i++){
-				Moment += pow(Distribution[i].xValue, Exponent)*Distribution[i].yValue;
+				Moment += pow(Distribution[i].xValue - Mean, Exponent)*Distribution[i].yValue;
 			}
 			return h*Moment;
+		}
+		
+		static double computeMomentOfDistribution(const vector<ValuePair>& Distribution, double Exponent) {
+			return computeCentralMomentOfDistribution(Distribution, 0.0, Exponent);
 		}
 
 		static void normalizeDistribution(vector<ValuePair>& Distribution) {
@@ -92,6 +96,16 @@ class SeriesAnalyzer{
 			}
 			normalizeDistribution(SubIntervalDistribution);
 			return computeMomentOfDistribution(SubIntervalDistribution, 1.0);
+		}
+		
+		static void writeDistributionToFile(string FileName, const vector<ValuePair> Distribution) {
+			ofstream FileStreamToWriteTo;
+			FileStreamToWriteTo.open(FileName);
+			FileStreamToWriteTo << "xA\tprobability_density\n";
+			for (int i = 0; i < Distribution.size(); i++){
+				FileStreamToWriteTo << Distribution[i].xValue << '\t' << Distribution[i].yValue << '\n';
+			}
+			FileStreamToWriteTo.close();
 		}
 
 	public:
@@ -118,24 +132,18 @@ class SeriesAnalyzer{
 		}
 		
 		void writeNAProbabilityDistributionToFile(string FileName) const {
-			ofstream FileStreamToWriteTo;
-			FileStreamToWriteTo.open(FileName);
-			FileStreamToWriteTo << "xA\tprobability_density\n";
-			for (int i = 0; i < NADistribution.size(); i++){
-				FileStreamToWriteTo << NADistribution[i].xValue << '\t' << NADistribution[i].yValue << '\n';
-			}
-			FileStreamToWriteTo.close();
+			writeDistributionToFile(FileName, NADistribution);
 		}
 
 		double computeFirstMomentOfHalfDistribution() const {
 			vector<ValuePair> LeftDistribution;
 			for (int i = 0; i < TotalNumberOfParticles/2; i++){
-				LeftDistribution[i] = NADistribution[i];
+				LeftDistribution.push_back(NADistribution[i]);
 			}
 			double LeftHalfIntegral = computeMomentOfDistribution(LeftDistribution, 0.0);
 			vector<ValuePair> RightDistribution;
 			for (int i = TotalNumberOfParticles/2; i < NADistribution.size(); i++){
-				RightDistribution[i] = NADistribution[i];
+				RightDistribution.push_back(NADistribution[i]);
 			}
 			double RightHalfIntegral = computeMomentOfDistribution(RightDistribution, 0.0);
 			if (LeftHalfIntegral > RightHalfIntegral){
@@ -147,9 +155,30 @@ class SeriesAnalyzer{
 		}
 
 		double computeBinderCumulant() const {
-			double SecondMoment = computeMomentOfDistribution(NADistribution, 2.0);
-			double FourthMoment = computeMomentOfDistribution(NADistribution, 4.0);
-			return (FourthMoment/(SecondMoment*SecondMoment));
+			vector<ValuePair> LeftDistribution;
+			for (int i = 0; i < TotalNumberOfParticles/2; i++){
+				LeftDistribution.push_back(NADistribution[i]);
+			}
+			double LeftHalfIntegral = computeMomentOfDistribution(LeftDistribution, 0.0);
+			vector<ValuePair> RightDistribution;
+			for (int i = TotalNumberOfParticles/2; i < NADistribution.size(); i++){
+				RightDistribution.push_back(NADistribution[i]);
+			}
+			double RightHalfIntegral = computeMomentOfDistribution(RightDistribution, 0.0);
+			vector<ValuePair> SymmetrizedDistribution(NADistribution);
+			if (LeftHalfIntegral > RightHalfIntegral){
+				for (int i = 0; i < SymmetrizedDistribution.size()/2; i++){
+					SymmetrizedDistribution[SymmetrizedDistribution.size()-1-i].yValue = SymmetrizedDistribution[i].yValue;
+				}
+			}
+			else {
+				for (int i = 0; i < SymmetrizedDistribution.size()/2; i++){
+					SymmetrizedDistribution[i].yValue = SymmetrizedDistribution[SymmetrizedDistribution.size()-1-i].yValue;
+				}
+			}
+			double SecondCentralMoment = computeCentralMomentOfDistribution(SymmetrizedDistribution, 0.5, 2.0);
+			double FourthCentralMoment = computeCentralMomentOfDistribution(SymmetrizedDistribution, 0.5, 4.0);
+			return (1.0 - FourthCentralMoment/(SecondCentralMoment*SecondCentralMoment*3.0));
 		}
 };
 
