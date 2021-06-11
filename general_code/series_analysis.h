@@ -48,7 +48,7 @@ class SeriesAnalyzer{
 		}
 
 		static int computeEquilibrationIndex(const vector<double>& Series, int MinNumberOfThrowAwayPoints) {
-			for (int CurrentIndex = 0; CurrentIndex < Series.size(); CurrentIndex++){
+			for (int CurrentIndex = (MinNumberOfThrowAwayPoints < Series.size() ? MinNumberOfThrowAwayPoints : 0); CurrentIndex < Series.size(); CurrentIndex++){
 				double AverageValue = 0.0;
 				for (int j = CurrentIndex; j < Series.size(); j++){
 					AverageValue += static_cast<double>(Series[j]);
@@ -60,9 +60,6 @@ class SeriesAnalyzer{
 				}
 				AverageDeviation /= static_cast<double>(Series.size()-CurrentIndex);
 				if (abs(AverageValue - Series[CurrentIndex]) < AverageDeviation){
-					if (MinNumberOfThrowAwayPoints < Series.size()){
-						return max(MinNumberOfThrowAwayPoints-1, CurrentIndex);
-					}
 					return CurrentIndex;
 				}
 			}
