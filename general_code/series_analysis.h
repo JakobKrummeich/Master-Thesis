@@ -176,6 +176,7 @@ class SeriesAnalyzer{
 					SymmetrizedDistribution[i].yValue = SymmetrizedDistribution[SymmetrizedDistribution.size()-1-i].yValue;
 				}
 			}
+			normalizeDistribution(SymmetrizedDistribution);
 			double SecondCentralMoment = computeCentralMomentOfDistribution(SymmetrizedDistribution, 0.5, 2.0);
 			double FourthCentralMoment = computeCentralMomentOfDistribution(SymmetrizedDistribution, 0.5, 4.0);
 			return (1.0 - FourthCentralMoment/(SecondCentralMoment*SecondCentralMoment*3.0));
