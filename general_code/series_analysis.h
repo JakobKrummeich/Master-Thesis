@@ -23,7 +23,7 @@ class SeriesAnalyzer{
 			}
 		};
 
-		int TotalNumberOfParticles;
+		unsigned long TotalNumberOfParticles;
 		vector<ValuePair> NADistribution;
 		
 		vector<double> readInSeries(string FilePath){
@@ -41,21 +41,21 @@ class SeriesAnalyzer{
 			return Series;
 		}
 		
-		void updateHistogramWithNewSeries(const vector<double>& NASeries, int EquilibrationIndex){
-			for (int i = EquilibrationIndex; i < NASeries.size(); i++){
-				NADistribution[static_cast<int>(NASeries[i])].yValue++;
+		void updateHistogramWithNewSeries(const vector<double>& NASeries, unsigned long EquilibrationIndex){
+			for (unsigned long i = EquilibrationIndex; i < NASeries.size(); i++){
+				NADistribution[static_cast<unsigned long>(NASeries[i])].yValue++;
 			}
 		}
 
-		static int computeEquilibrationIndex(const vector<double>& Series, int MinNumberOfThrowAwayPoints) {
-			for (int CurrentIndex = (MinNumberOfThrowAwayPoints < Series.size() ? MinNumberOfThrowAwayPoints : 0); CurrentIndex < Series.size(); CurrentIndex++){
+		static unsigned long computeEquilibrationIndex(const vector<double>& Series, unsigned long MinNumberOfThrowAwayPoints) {
+			for (unsigned long CurrentIndex = (MinNumberOfThrowAwayPoints < Series.size() ? MinNumberOfThrowAwayPoints : 0); CurrentIndex < Series.size(); CurrentIndex++){
 				double AverageValue = 0.0;
-				for (int j = CurrentIndex; j < Series.size(); j++){
+				for (unsigned long j = CurrentIndex; j < Series.size(); j++){
 					AverageValue += static_cast<double>(Series[j]);
 				}
 				AverageValue /= static_cast<double>(Series.size()-CurrentIndex);
 				double AverageDeviation = 0.0;
-				for (int j = CurrentIndex; j < Series.size(); j++){
+				for (unsigned long j = CurrentIndex; j < Series.size(); j++){
 					AverageDeviation += abs(AverageValue - static_cast<double>(Series[j]));
 				}
 				AverageDeviation /= static_cast<double>(Series.size()-CurrentIndex);
@@ -71,7 +71,7 @@ class SeriesAnalyzer{
 		static double computeCentralMomentOfDistribution(const vector<ValuePair>& Distribution, double Mean, double Exponent){
 			double h = Distribution[1].xValue - Distribution[0].xValue;
 			double Moment = 0.5 * (pow(Distribution[0].xValue - Mean,Exponent) * Distribution[0].yValue + pow(Distribution.back().xValue - Mean, Exponent) * Distribution.back().yValue);
-			for (int i = 1; i < Distribution.size(); i++){
+			for (unsigned long i = 1; i < Distribution.size(); i++){
 				Moment += pow(Distribution[i].xValue - Mean, Exponent)*Distribution[i].yValue;
 			}
 			return h*Moment;
@@ -83,14 +83,14 @@ class SeriesAnalyzer{
 
 		static void normalizeDistribution(vector<ValuePair>& Distribution) {
 			double TotalIntegral = computeMomentOfDistribution(Distribution, 0.0);
-			for (int i = 0; i < Distribution.size(); i++){
+			for (unsigned long i = 0; i < Distribution.size(); i++){
 				Distribution[i].yValue /= TotalIntegral;
 			}
 		}
 
-		static double computeFirstMomentInSubInterval(const vector<ValuePair>& Distribution, int LeftIntervalBoundary, int RightIntervalBoundary) {
+		static double computeFirstMomentInSubInterval(const vector<ValuePair>& Distribution, unsigned long LeftIntervalBoundary, unsigned long RightIntervalBoundary) {
 			vector<ValuePair> SubIntervalDistribution;
-			for (int i = LeftIntervalBoundary; i <= RightIntervalBoundary; i++){
+			for (unsigned long i = LeftIntervalBoundary; i <= RightIntervalBoundary; i++){
 				SubIntervalDistribution.emplace_back(Distribution[i].xValue,Distribution[i].yValue);
 			}
 			normalizeDistribution(SubIntervalDistribution);
@@ -101,7 +101,7 @@ class SeriesAnalyzer{
 			ofstream FileStreamToWriteTo;
 			FileStreamToWriteTo.open(FileName);
 			FileStreamToWriteTo << "xA\tprobability_density\n";
-			for (int i = 0; i < Distribution.size(); i++){
+			for (unsigned long i = 0; i < Distribution.size(); i++){
 				FileStreamToWriteTo << Distribution[i].xValue << '\t' << Distribution[i].yValue << '\n';
 			}
 			FileStreamToWriteTo.close();
@@ -109,20 +109,20 @@ class SeriesAnalyzer{
 
 	public:
 
-		SeriesAnalyzer(int TotalNumberOfParticles):
+		SeriesAnalyzer(unsigned long TotalNumberOfParticles):
 			TotalNumberOfParticles(TotalNumberOfParticles){
-			for (int i = 0; i < TotalNumberOfParticles + 1; i++){
+			for (unsigned long i = 0; i < TotalNumberOfParticles + 1; i++){
 				NADistribution.emplace_back(static_cast<double>(i)/static_cast<double>(TotalNumberOfParticles), 0.0);
 			}
 		}
 		
-		void addNewSeries(string FileNameNASeries, string FileNamePotEnergySeries, int MinNumberOfEquilibrationSweeps){
+		void addNewSeries(string FileNameNASeries, string FileNamePotEnergySeries, unsigned long MinNumberOfEquilibrationSweeps){
 			vector<double> NewNASeries = readInSeries(FileNameNASeries);
 			vector<double> NewPotEnergySeries = readInSeries(FileNamePotEnergySeries);
-			int IndexConversionFactor = ceil(static_cast<double>(NewNASeries.size())/(static_cast<double>(NewPotEnergySeries.size())));
-			int EquilibriumIndexNASeries = computeEquilibrationIndex(NewNASeries, MinNumberOfEquilibrationSweeps);
-			int EquilibriumIndexPotEnergySeries = computeEquilibrationIndex(NewPotEnergySeries, MinNumberOfEquilibrationSweeps/IndexConversionFactor);
-			int EquilibriumIndex = max(EquilibriumIndexNASeries, IndexConversionFactor*EquilibriumIndexPotEnergySeries);
+			unsigned long IndexConversionFactor = ceil(static_cast<double>(NewNASeries.size())/(static_cast<double>(NewPotEnergySeries.size())));
+			unsigned long EquilibriumIndexNASeries = computeEquilibrationIndex(NewNASeries, MinNumberOfEquilibrationSweeps);
+			unsigned long EquilibriumIndexPotEnergySeries = computeEquilibrationIndex(NewPotEnergySeries, MinNumberOfEquilibrationSweeps/IndexConversionFactor);
+			unsigned long EquilibriumIndex = max(EquilibriumIndexNASeries, IndexConversionFactor*EquilibriumIndexPotEnergySeries);
 			cerr << "EquilibriumIndex: " << EquilibriumIndex << endl;
 			updateHistogramWithNewSeries(NewNASeries, EquilibriumIndex);
 		}
@@ -137,12 +137,12 @@ class SeriesAnalyzer{
 
 		double computeFirstMomentOfHalfDistribution() const {
 			vector<ValuePair> LeftDistribution;
-			for (int i = 0; i < TotalNumberOfParticles/2; i++){
+			for (unsigned long i = 0; i < TotalNumberOfParticles/2; i++){
 				LeftDistribution.push_back(NADistribution[i]);
 			}
 			double LeftHalfIntegral = computeMomentOfDistribution(LeftDistribution, 0.0);
 			vector<ValuePair> RightDistribution;
-			for (int i = TotalNumberOfParticles/2; i < NADistribution.size(); i++){
+			for (unsigned long i = TotalNumberOfParticles/2; i < NADistribution.size(); i++){
 				RightDistribution.push_back(NADistribution[i]);
 			}
 			double RightHalfIntegral = computeMomentOfDistribution(RightDistribution, 0.0);
@@ -156,23 +156,23 @@ class SeriesAnalyzer{
 
 		double computeBinderCumulant() const {
 			vector<ValuePair> LeftDistribution;
-			for (int i = 0; i < TotalNumberOfParticles/2; i++){
+			for (unsigned long i = 0; i < TotalNumberOfParticles/2; i++){
 				LeftDistribution.push_back(NADistribution[i]);
 			}
 			double LeftHalfIntegral = computeMomentOfDistribution(LeftDistribution, 0.0);
 			vector<ValuePair> RightDistribution;
-			for (int i = TotalNumberOfParticles/2; i < NADistribution.size(); i++){
+			for (unsigned long i = TotalNumberOfParticles/2; i < NADistribution.size(); i++){
 				RightDistribution.push_back(NADistribution[i]);
 			}
 			double RightHalfIntegral = computeMomentOfDistribution(RightDistribution, 0.0);
 			vector<ValuePair> SymmetrizedDistribution(NADistribution);
 			if (LeftHalfIntegral > RightHalfIntegral){
-				for (int i = 0; i < SymmetrizedDistribution.size()/2; i++){
+				for (unsigned long i = 0; i < SymmetrizedDistribution.size()/2; i++){
 					SymmetrizedDistribution[SymmetrizedDistribution.size()-1-i].yValue = SymmetrizedDistribution[i].yValue;
 				}
 			}
 			else {
-				for (int i = 0; i < SymmetrizedDistribution.size()/2; i++){
+				for (unsigned long i = 0; i < SymmetrizedDistribution.size()/2; i++){
 					SymmetrizedDistribution[i].yValue = SymmetrizedDistribution[SymmetrizedDistribution.size()-1-i].yValue;
 				}
 			}

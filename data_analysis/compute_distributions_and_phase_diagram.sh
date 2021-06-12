@@ -26,7 +26,7 @@ for temperature_dir in ${sourcepath}/T=*; do
 	
 	[[ ${temperature_dir} =~ T=([[:digit:]]*.[[:digit:]]*) ]] && temperature=${BASH_REMATCH[1]}
 
-	echo "T=${temperature} analysis running."
+	echo "T=${temperature} analysis running." 1>&2
 
 	filename=${NA_files[0]}
 

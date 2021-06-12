@@ -24,7 +24,9 @@ int main(int argc, char* argv[]){
 	string InputFileNameNASeries;
 	string InputFileNamePotEnergySeries;
 	while (cin >> InputFileNameNASeries){
+		cerr << "NewNASeriesFile: " << InputFileNameNASeries << endl;
 		cin >> InputFileNamePotEnergySeries;
+		cerr << "NewPotSeriesFile: " << InputFileNamePotEnergySeries << endl;
 		Analyzer.addNewSeries(InputFileNameNASeries, InputFileNamePotEnergySeries, MinNumberOfEquilibrationSweeps);
 	}
 	Analyzer.normalizeNADistribution();
