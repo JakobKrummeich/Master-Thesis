@@ -26,6 +26,8 @@ for temperature_dir in ${sourcepath}/T=*; do
 	
 	[[ ${temperature_dir} =~ T=([[:digit:]]*.[[:digit:]]*) ]] && temperature=${BASH_REMATCH[1]}
 
+	echo "T=${temperature} analysis running."
+
 	filename=${NA_files[0]}
 
 	[[ ${filename} =~ NA_Series_(.*_epsAB=[[:digit:]]*.[[:digit:]]*)_ ]] && distribution_filename=${BASH_REMATCH[1]}
@@ -34,7 +36,7 @@ for temperature_dir in ${sourcepath}/T=*; do
 	for NA_file in ${NA_files[@]}; do
 		file_pairs+=($NA_file)
 		[[ ${NA_file} =~ NA_Series_(.*_epsAB.*) ]] && file_info=${BASH_REMATCH[1]}
-		file_pairs+=($sourcepath/PotEnergySeries_${file_info})
+		file_pairs+=($sourcepath/T=${temperature}/PotEnergySeries_${file_info})
 	done
 
 	results=$(echo ${file_pairs[@]} | ./compute_distribution_and_moments $distribution_filename $number_of_particles ${target_filepath} ${min_number_of_equilibration})

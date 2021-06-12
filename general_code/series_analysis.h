@@ -60,9 +60,11 @@ class SeriesAnalyzer{
 				}
 				AverageDeviation /= static_cast<double>(Series.size()-CurrentIndex);
 				if (abs(AverageValue - Series[CurrentIndex]) < AverageDeviation){
+					cerr << "Equilibriumindex: " << CurrentIndex << ". AverageValue: " << AverageValue << " +- " << AverageDeviation << endl;
 					return CurrentIndex;
 				}
 			}
+			cerr << "No equilibriumindex found! Returning 0." << endl;
 			return 0;
 		}
 		
@@ -95,7 +97,7 @@ class SeriesAnalyzer{
 			return computeMomentOfDistribution(SubIntervalDistribution, 1.0);
 		}
 		
-		static void writeDistributionToFile(string FileName, const vector<ValuePair> Distribution) {
+		static void writeDistributionToFile(string FileName, const vector<ValuePair>& Distribution) {
 			ofstream FileStreamToWriteTo;
 			FileStreamToWriteTo.open(FileName);
 			FileStreamToWriteTo << "xA\tprobability_density\n";
@@ -121,6 +123,7 @@ class SeriesAnalyzer{
 			int EquilibriumIndexNASeries = computeEquilibrationIndex(NewNASeries, MinNumberOfEquilibrationSweeps);
 			int EquilibriumIndexPotEnergySeries = computeEquilibrationIndex(NewPotEnergySeries, MinNumberOfEquilibrationSweeps/IndexConversionFactor);
 			int EquilibriumIndex = max(EquilibriumIndexNASeries, IndexConversionFactor*EquilibriumIndexPotEnergySeries);
+			cerr << "EquilibriumIndex: " << EquilibriumIndex << endl;
 			updateHistogramWithNewSeries(NewNASeries, EquilibriumIndex);
 		}
 		
