@@ -39,7 +39,7 @@ const int NUMBER_OF_INITIAL_RANDOMIZATION_SWEEPS = 100;
 const int UPDATE_TIME_INTERVAL = 60;
 const int POT_ENERGY_UPDATE_INTERVAL = 200;
 
-const int NUMBER_OF_SAVED_STATES_PER_TEMPERATURE = 10;
+const int NUMBER_OF_SAVED_STATES_PER_TEMPERATURE = 1;
 
 const int NUMBER_OF_THREADS = 20;
 
@@ -510,11 +510,11 @@ struct SimulationManager {
 	vector<int> NumberOfABuffer;
 	vector<double> PotEnergyBuffer;
 
-	int NumberOfTriedDisplacements;
-	int NumberOfAcceptedDisplacements;
+	double NumberOfTriedDisplacements;
+	double NumberOfAcceptedDisplacements;
 
-	int NumberOfTriedTypeChanges;
-	int NumberOfAcceptedTypeChanges;
+	double NumberOfTriedTypeChanges;
+	double NumberOfAcceptedTypeChanges;
 
 	string FileNameString;
 	string DirectoryString;
@@ -524,10 +524,10 @@ struct SimulationManager {
 		MinNumberOfA(MinNumberOfA),
 		MaxNumberOfA(MaxNumberOfA),
 		NumberOfMCSweeps(NumberOfMCSweeps),
-		NumberOfTriedDisplacements(0),
-		NumberOfAcceptedDisplacements(0),
-		NumberOfTriedTypeChanges(0),
-		NumberOfAcceptedTypeChanges(0),
+		NumberOfTriedDisplacements(0.0),
+		NumberOfAcceptedDisplacements(0.0),
+		NumberOfTriedTypeChanges(0.0),
+		NumberOfAcceptedTypeChanges(0.0),
 		DirectoryString("fresh_data/N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"/"){
 	}
 
@@ -553,11 +553,11 @@ struct SimulationManager {
 	void resetCountersAndBuffers(){
 		NumberOfABuffer.clear();
 		PotEnergyBuffer.clear();
-		NumberOfTriedDisplacements = 0;
-		NumberOfAcceptedDisplacements = 0;
-		NumberOfTriedTypeChanges = 0;
-		NumberOfAcceptedTypeChanges = 0;
-		P.NumberOfVerletListBuilds = 0;
+		NumberOfTriedDisplacements = 0.0;
+		NumberOfAcceptedDisplacements = 0.0;
+		NumberOfTriedTypeChanges = 0.0;
+		NumberOfAcceptedTypeChanges = 0.0;
+		P.NumberOfVerletListBuilds = 0.0;
 	}
 
 	void runDisplacementStep() {
