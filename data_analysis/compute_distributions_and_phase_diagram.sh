@@ -26,7 +26,10 @@ for temperature_dir in ${sourcepath}/T=*; do
 	
 	[[ ${temperature_dir} =~ T=([[:digit:]]*.[[:digit:]]*) ]] && temperature=${BASH_REMATCH[1]}
 
+	echo 1>&2
+	echo "++++++++++++++++++++++++++++++++++++++++" 1>&2
 	echo "T=${temperature} analysis running." 1>&2
+	echo "++++++++++++++++++++++++++++++++++++++++" 1>&2
 
 	filename=${NA_files[0]}
 
@@ -42,5 +45,7 @@ for temperature_dir in ${sourcepath}/T=*; do
 	results=$(echo ${file_pairs[@]} | ./compute_distribution_and_moments $distribution_filename $number_of_particles ${target_filepath} ${min_number_of_equilibration})
 
 	printf "${temperature}\t${results}\n" >> ${phase_diagram_filename}
+
+	unset -v file_pairs
 
 done
