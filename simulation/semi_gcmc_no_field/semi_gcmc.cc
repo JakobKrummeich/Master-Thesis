@@ -6,8 +6,8 @@
 #include <iomanip>
 #include <stdlib.h>
 #include <algorithm>
-#include "../../General_Code/realRNG.h"
-#include "../../General_Code/fvec.h"
+#include "../../general_code/realRNG.h"
+#include "../../general_code/fvec.h"
 
 using namespace std;
 
@@ -724,7 +724,7 @@ struct SimulationManager {
 	}
 };
 
-void runSimulationForMultipleStartStates(double MaxTemperature, double MinTemperature, double TemperatureStep, int NumberOfRuns, int NumberOfMCSweeps) {
+void runSimulationForMultipleStartStates(double MaxTemperature, double MinTemperature, double TemperatureStep, int NumberOfRuns, int NumberOfMCSweeps, int RunNumberOffset) {
 
 	const int NumberOfSavedStatesPerRun = NUMBER_OF_SAVED_STATES_PER_TEMPERATURE >= NumberOfRuns ?  NUMBER_OF_SAVED_STATES_PER_TEMPERATURE / NumberOfRuns : 1;
 
@@ -733,7 +733,7 @@ void runSimulationForMultipleStartStates(double MaxTemperature, double MinTemper
 		SimulationManager S(0.0, 0, TOTAL_NUMBER_OF_PARTICLES, NumberOfMCSweeps);
 
 		#pragma omp for
-		for (int RunCount = 0; RunCount < NumberOfRuns; RunCount++){
+		for (int RunCount = RunNumberOffset; RunCount < NumberOfRuns+RunNumberOffset; RunCount++){
 			S.initializeParticles();
 			S.randomizeInitialPosition(RunCount);
 			for (double CurrentTemperature = MaxTemperature; CurrentTemperature > MinTemperature; CurrentTemperature -= TemperatureStep){
@@ -752,8 +752,9 @@ int main(int argc, char* argv[]){
 	double MinTemperature = 0.85;
 	int NumberOfSweeps = 100;
 	int NumberOfRuns = 2;
-	if (argc != 8){
-		cerr << "WARNING: " << argc-1 <<  " arguments were given, but exactly 7 arguments are needed: Average density, MaxTemperature, Temperature Stepsize, MinTemperature (not included), NumberOfMCSweeps, AB_INTERACTION_STRENGTH, NumberOfRuns. Running with default parameters: Average density = 0.6, MaxTemperature = 1.0, Temperature Stepsize = 0.1, MinTemperature = 0.85, NumberOfMCSweeps = 100, AB_INTERACTION_STRENGTH = 0.1, NumberOfRuns = 2" << endl;
+	int RunNumberOffset = 0;
+	if (argc != 9){
+		cerr << "WARNING: " << argc-1 <<  " arguments were given, but exactly 8 arguments are needed: Average density, MaxTemperature, Temperature Stepsize, MinTemperature (not included), NumberOfMCSweeps, AB_INTERACTION_STRENGTH, NumberOfRuns. Running with default parameters: Average density = 0.6, MaxTemperature = 1.0, Temperature Stepsize = 0.1, MinTemperature = 0.85, NumberOfMCSweeps = 100, AB_INTERACTION_STRENGTH = 0.1, NumberOfRuns = 2, RunNumberOffSet = 0" << endl;
 	}
 	else {
 		DENSITY = atof(argv[1]);
@@ -763,10 +764,11 @@ int main(int argc, char* argv[]){
 		MinTemperature = atof(argv[4]);
 		NumberOfSweeps = atoi(argv[5]);
 		NumberOfRuns = atoi(argv[7]);
+		RunNumberOffset = atoi(argv[8]);
 	}
 
 	initializeBox();
 
-	runSimulationForMultipleStartStates(MaxTemperature, MinTemperature, TemperatureStep, NumberOfRuns, NumberOfSweeps);
+	runSimulationForMultipleStartStates(MaxTemperature, MinTemperature, TemperatureStep, NumberOfRuns, NumberOfSweeps, RunNumberOffset);
 }
 
