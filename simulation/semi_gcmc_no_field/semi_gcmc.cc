@@ -4,6 +4,7 @@
 
 int main(int argc, char* argv[]){
 	double InitialDensity = 0.6;
+	AB_INTERACTION_STRENGTH = 0.1;
 	double MaxTemperature = 1.0;
 	double TemperatureStep = 0.1;
 	double MinTemperature = 0.85;

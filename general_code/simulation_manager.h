@@ -22,7 +22,7 @@ const int POT_ENERGY_UPDATE_INTERVAL = 200;
 
 const int NUMBER_OF_SAVED_STATES_PER_TEMPERATURE = 1;
 
-const int NUMBER_OF_THREADS = 20;
+const int NUMBER_OF_THREADS = 1;
 
 
 struct SimulationManager {
@@ -212,7 +212,7 @@ struct SimulationManager {
 
 	void writeMetaData() const {
 		string FileName(DirectoryString+"/NA_Series_"+FileNameString+".dat");
-		string MetaDataString("BOX_LENGTH = "+to_string(P.getBoxLength())+" | AA_INTERACTION_STRENGTH = "+to_string(AA_INTERACTION_STRENGTH)+" | AB_INTERACTION_STRENGTH = "+to_string(AB_INTERACTION_STRENGTH)+" | MAXIMUM_DISPLACEMENT = "+to_string(MAXIMUM_DISPLACEMENT)+" | DISPLACEMENT_PROBABILITY = "+to_string(DISPLACEMENT_PROBABILITY)+" | MinNA = "+to_string(MinNumberOfA)+" | MaxNA "+to_string(MaxNumberOfA)+'\n');
+		string MetaDataString("BOX_LENGTH = "+to_string(P.getBoxLength())+" | AA_INTERACTION_STRENGTH = "+to_string(AA_INTERACTION_STRENGTH)+" | AB_INTERACTION_STRENGTH = "+to_string(AB_INTERACTION_STRENGTH)+" | MAXIMUM_DISPLACEMENT = "+to_string(MAXIMUM_DISPLACEMENT)+" | DISPLACEMENT_PROBABILITY = "+to_string(DISPLACEMENT_PROBABILITY)+" | MinNA = "+to_string(MinNumberOfA)+" | MaxNA = "+to_string(MaxNumberOfA)+'\n');
 		ofstream FileStreamToWrite;
 		FileStreamToWrite.open(FileName);
 		FileStreamToWrite << MetaDataString;

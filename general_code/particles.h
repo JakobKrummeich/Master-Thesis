@@ -171,7 +171,8 @@ class Particles {
 				cerr << endl;
 		}
 
-		void updateBox(double Density){
+		void updateBox(double NewDensity){
+			Density = NewDensity;
 			BoxLength = sqrt(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES) / Density);
 			BoxLengthSquared = BoxLength * BoxLength;
 			InverseBoxLength = 1.0/BoxLength;
