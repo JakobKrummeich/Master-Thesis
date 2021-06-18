@@ -92,7 +92,7 @@ struct SimulationManager {
 		FileNameString = "N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_AvgDens="+to_string(P.getDensity())+"_MCRuns="+to_string(NumberOfMCSweeps)+"_epsAB="+to_string(AB_INTERACTION_STRENGTH)+"_"+to_string(RunNumber);
 		}
 		else {
-			FileNameString = "N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_Pressure="+to_string(Pressure)+"_MCRuns="+to_string(NumberOfMCSweeps)+"_epsAB="+to_string(AB_INTERACTION_STRENGTH)+"_"+to_string(RunNumber);
+			FileNameString = "N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_p="+to_string(Pressure)+"_MCRuns="+to_string(NumberOfMCSweeps)+"_epsAB="+to_string(AB_INTERACTION_STRENGTH)+"_"+to_string(RunNumber);
 		}
 	}
 
@@ -107,17 +107,17 @@ struct SimulationManager {
 	}
 
 	void runDisplacementStep() {
-			NumberOfTriedDisplacements++;
-			int RandomParticleID = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(TOTAL_NUMBER_OF_PARTICLES));
-			double Deltas [DIMENSION];
-			for (int i = 0; i < DIMENSION; i++){
-				Deltas[i] = RNG.drawRandomNumber(-MAXIMUM_DISPLACEMENT, MAXIMUM_DISPLACEMENT)*P.getInverseBoxLength();
-			}
-			double AcceptanceProbability = exp(-P.computeChangeInPotentialEnergyByMoving(RandomParticleID, Deltas)*Beta);
-			if (AcceptanceProbability >= 1.0 || (RNG.drawRandomNumber() < AcceptanceProbability)){
-				P.updatePosition(RandomParticleID, Deltas);
-				NumberOfAcceptedDisplacements++;
-			}
+		NumberOfTriedDisplacements++;
+		int RandomParticleID = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(TOTAL_NUMBER_OF_PARTICLES));
+		double Deltas [DIMENSION];
+		for (int i = 0; i < DIMENSION; i++){
+			Deltas[i] = RNG.drawRandomNumber(-MAXIMUM_DISPLACEMENT, MAXIMUM_DISPLACEMENT)*P.getInverseBoxLength();
+		}
+		double AcceptanceProbability = exp(-P.computeChangeInPotentialEnergyByMoving(RandomParticleID, Deltas)*Beta);
+		if (AcceptanceProbability >= 1.0 || (RNG.drawRandomNumber() < AcceptanceProbability)){
+			P.updatePosition(RandomParticleID, Deltas);
+			NumberOfAcceptedDisplacements++;
+		}
 	}
 
 	void runTypeChange() {
@@ -179,7 +179,7 @@ struct SimulationManager {
 		vector<double> PotEnergyBuffer;
 		#pragma omp critical(WRITE_TO_ERROR_STREAM)
 		{
-			cerr << "Run " << RunCount <<  ": T=" << Temperature << ". Simulation started." << endl << endl;
+			cerr << "Run " << RunCount <<  ": T=" << Temperature << " | Simulation started." << endl << endl;
 		}
 		for (int i = 0; i < NumberOfMCSweeps; i++){
 			for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
@@ -322,7 +322,7 @@ struct SimulationManager {
 		vector<double> PotEnergyBuffer;
 		#pragma omp critical(WRITE_TO_ERROR_STREAM)
 		{
-			cerr << "Run " << RunCount <<  ": p=" << Pressure << ". Simulation started." << endl << endl;
+			cerr << "Run " << RunCount <<  ": p = " << Pressure << " | Simulation started." << endl << endl;
 		}
 		for (int i = 0; i < NumberOfMCSweeps; i++){
 			for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
@@ -347,7 +347,7 @@ struct SimulationManager {
 				#pragma omp critical(WRITE_TO_ERROR_STREAM)
 				{
 					int Progress = NumberOfMCSweeps >= 100 ? (i / (NumberOfMCSweeps/100)) : i;
-					cerr << "Run " << RunCount << ": T = " << Temperature <<  ". Progress: " << Progress << "%| Time passed: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
+					cerr << "Run " << RunCount << ": p = " << Pressure <<  " | Progress: " << Progress << "%| Time passed: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
 				}
 				writePressureMCResults(DensityBuffer, PotEnergyBuffer);
 				DensityBuffer.clear();
@@ -358,7 +358,7 @@ struct SimulationManager {
 		writePressureMCResults(DensityBuffer, PotEnergyBuffer);
 		#pragma omp critical(WRITE_TO_ERROR_STREAM)
 		{
-			cerr << "Run " << RunCount << ": Simulation of T=" << Temperature << " finished. Simulation-metadata: " << endl;
+			cerr << "Run " << RunCount << ": Simulation of p =" << Pressure << " finished. Simulation-metadata: " << endl;
 			cerr << "Tried displacements: " << NumberOfTriedDisplacements << "| Accepted displacements: " << NumberOfAcceptedDisplacements << "| Ratio of accepted displacements: " << static_cast<double>(NumberOfAcceptedDisplacements)/static_cast<double>(NumberOfTriedDisplacements) << endl;
 			cerr << "Tried volume changes: " << NumberOfTriedVolumeChanges << "| Accepted volume changes: " << NumberOfAcceptedVolumeChanges << "| Ratio of accepted volume changes: " << static_cast<double>(NumberOfAcceptedVolumeChanges)/static_cast<double>(NumberOfTriedVolumeChanges) << endl;
 			cerr << "#VerletListBuilds: " << P.getNumberOfVerletListBuilds() << endl;

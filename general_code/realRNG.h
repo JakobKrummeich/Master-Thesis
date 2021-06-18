@@ -1,5 +1,6 @@
 #ifndef REAL_RNG_INCLUDED
 #define REAL_RNG_INCLUDED
+
 #include <random>
 
 using namespace std;
@@ -15,7 +16,7 @@ class realRNG{
 				seed_seq sd{rd(),rd()};
 				rng = mt19937(sd);
 		}
-		
+
 		double drawRandomNumber(){
 			return UnifRealDist(rng);
 		}

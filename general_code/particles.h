@@ -499,9 +499,7 @@ class Particles {
 		
 		void changeVolume(double VolumeChange) {
 			updateBoxParametersWithVolumeChange(VolumeChange);
-			if (VolumeChange < 0.0){
-				buildVerletList();
-			}
+			buildVerletList();
 		}
 };
 
