@@ -12,3 +12,5 @@ epsilon_scan_3132187: simulations for phase diagrams with average density 0.6 an
 
 finite_size_scaling_no_field: simulations with different Number of particles (500,1000,2000,4000,8000,16000) average density=0.6, epsAB=0.1, 300000 MCSweeps per run, 20 runs per temperature, temperature interval 0.02, temperature start 1.0, temperature end 0.52. per N and temperature 1000 configurations were saved.
 
+
+

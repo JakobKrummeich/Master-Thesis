@@ -29,8 +29,8 @@ class Particles {
 		double BoxLength;
 		double BoxLengthSquared;
 		double InverseBoxLength;
+		double Volume;
 		int NumberOfSubdivisions;
-
 
 		vector<int> CellListHead;
 		int CellListIndices [TOTAL_NUMBER_OF_PARTICLES];
@@ -61,18 +61,6 @@ class Particles {
 				}
 				CellListIndices[ParticleIndex] = CellListHead[CurrentCellIndex];
 				CellListHead[CurrentCellIndex] = ParticleIndex;
-			}
-		}
-
-		void printCellList() const {
-			for (int i = 0; i < CellListHead.size(); i++)	{
-				cerr << "Cell " << i << ": Head: " << CellListHead[i] << endl;
-				int CurrentParticleIndex(CellListHead[i]);
-				while (CurrentParticleIndex >= 0){
-					cerr << CurrentParticleIndex << ',';
-					CurrentParticleIndex = CellListIndices[CurrentParticleIndex];
-				}
-				cerr << endl;
 			}
 		}
 
@@ -160,20 +148,31 @@ class Particles {
 			NumberOfVerletListBuilds++;
 		}
 
-		void printVerletList() const{
+		void resetTraveledDistances() {
 			for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
-				cerr << VerletListHead[2*i] << "," << VerletListHead[2*i+1] << '|';
+				for (int j = 0; j < DIMENSION; j++){
+					ChangeInCoordinates[DIMENSION*i+j] = 0.0;
+				}
 			}
-			cerr << endl;
-			for (int i = 0; i < VerletIndicesOfNeighbors.size(); i++){
-				cerr << VerletIndicesOfNeighbors[i] << ',';
+			for (int i = 0; i < 2; i++){
+				MostTraveledDistancesSquared[i] = 0.0;
+				MostTraveledParticleIndices[i] = i;
 			}
-				cerr << endl;
 		}
 
-		void updateBox(double NewDensity){
+		void updateBoxParametersWithDensity(double NewDensity){
 			Density = NewDensity;
 			BoxLength = sqrt(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES) / Density);
+			Volume = BoxLength*BoxLength;
+			BoxLengthSquared = BoxLength * BoxLength;
+			InverseBoxLength = 1.0/BoxLength;
+			NumberOfSubdivisions = static_cast<int>(BoxLength/MAX_VERLET_DIST) > 3 ? static_cast<int>(BoxLength/MAX_VERLET_DIST) : 1;
+		}
+
+		void updateBoxParametersWithVolumeChange(double VolumeChange){
+			Volume += VolumeChange;
+			Density = static_cast<double>(TOTAL_NUMBER_OF_PARTICLES)/Volume;
+			BoxLength = sqrt(Volume);
 			BoxLengthSquared = BoxLength * BoxLength;
 			InverseBoxLength = 1.0/BoxLength;
 			NumberOfSubdivisions = static_cast<int>(BoxLength/MAX_VERLET_DIST) > 3 ? static_cast<int>(BoxLength/MAX_VERLET_DIST) : 1;
@@ -225,6 +224,10 @@ class Particles {
 			return Density;
 		}
 
+		double getVolume() const {
+			return Volume;
+		}
+
 		void resetCounters() {
 			NumberOfVerletListBuilds = 0.0;
 		}
@@ -242,7 +245,7 @@ class Particles {
 		}
 
 		void initialize(int InitialNumberOfAParticles, double InitialDensity){
-			updateBox(InitialDensity);
+			updateBoxParametersWithDensity(InitialDensity);
 			int InitialNumberOfBParticles = TOTAL_NUMBER_OF_PARTICLES - InitialNumberOfAParticles;
 			double FractionOfAParticles = static_cast<double>(InitialNumberOfAParticles)/static_cast<double>(TOTAL_NUMBER_OF_PARTICLES);
 			realRNG RNG;
@@ -323,6 +326,29 @@ class Particles {
 			buildVerletList();
 		}
 
+		void printCellList() const {
+			for (int i = 0; i < CellListHead.size(); i++)	{
+				cerr << "Cell " << i << ": Head: " << CellListHead[i] << endl;
+				int CurrentParticleIndex(CellListHead[i]);
+				while (CurrentParticleIndex >= 0){
+					cerr << CurrentParticleIndex << ',';
+					CurrentParticleIndex = CellListIndices[CurrentParticleIndex];
+				}
+				cerr << endl;
+			}
+		}
+
+		void printVerletList() const{
+			for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
+				cerr << VerletListHead[2*i] << "," << VerletListHead[2*i+1] << '|';
+			}
+			cerr << endl;
+			for (int i = 0; i < VerletIndicesOfNeighbors.size(); i++){
+				cerr << VerletIndicesOfNeighbors[i] << ',';
+			}
+				cerr << endl;
+		}
+
 		double computeChangeInPotentialEnergyByMoving(int ParticleIndex, const double* Delta) const {
 			double PotEnergyChange = 0.0;
 			double UpdatedCoordinates [DIMENSION];
@@ -367,6 +393,14 @@ class Particles {
 				}
 			}
 			return PotEnergy;
+		}
+
+		double computeChangeInPotentialEnergyByChangingVolume(double VolumeChange) {
+			double PotEnergyBefore = computePotentialEnergy();
+			updateBoxParametersWithVolumeChange(VolumeChange);
+			buildVerletList();
+			resetTraveledDistances();
+			return computePotentialEnergy() - PotEnergyBefore;
 		}
 
 		void updatePosition(int ParticleIndex, const double* Deltas){
@@ -446,15 +480,7 @@ class Particles {
 			}
 			if (TraveledDistanceIncreased && BoxLength*(sqrt(MostTraveledDistancesSquared[0])+sqrt(MostTraveledDistancesSquared[1])) > SKINDISTANCE){
 				buildVerletList();
-				for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
-					for (int j = 0; j < DIMENSION; j++){
-						ChangeInCoordinates[DIMENSION*i+j] = 0.0;
-					}
-				}
-				for (int i = 0; i < 2; i++){
-					MostTraveledDistancesSquared[i] = 0.0;
-					MostTraveledParticleIndices[i] = i;
-				}
+				resetTraveledDistances();
 			}
 		}
 
@@ -468,6 +494,13 @@ class Particles {
 				TypeAParticleIndices.push_back(TypeBParticleIndices[ParticleIndexInTypeArray]);
 				ParticleTypes[TypeBParticleIndices[ParticleIndexInTypeArray]] = ParticleType::A;
 				TypeBParticleIndices.erase(ParticleIndexInTypeArray);
+			}
+		}
+		
+		void changeVolume(double VolumeChange) {
+			updateBoxParametersWithVolumeChange(VolumeChange);
+			if (VolumeChange < 0.0){
+				buildVerletList();
 			}
 		}
 };

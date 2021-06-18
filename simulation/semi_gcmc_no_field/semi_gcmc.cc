@@ -12,7 +12,7 @@ int main(int argc, char* argv[]){
 	int NumberOfRuns = 2;
 	int RunNumberOffset = 0;
 	if (argc != 9){
-		cerr << "WARNING: " << argc-1 <<  " arguments were given, but exactly 8 arguments are needed: Average density, MaxTemperature, Temperature Stepsize, MinTemperature (not included), NumberOfMCSweeps, AB_INTERACTION_STRENGTH, NumberOfRuns. Running with default parameters: Average density = 0.6, MaxTemperature = 1.0, Temperature Stepsize = 0.1, MinTemperature = 0.85, NumberOfMCSweeps = 100, AB_INTERACTION_STRENGTH = 0.1, NumberOfRuns = 2, RunNumberOffSet = 0" << endl;
+		cerr << "WARNING: " << argc-1 <<  " arguments were given, but exactly 8 arguments are needed: Average density, MaxTemperature, Temperature Stepsize, MinTemperature (not included), NumberOfMCSweeps, AB_INTERACTION_STRENGTH, NumberOfRuns, RunNumberOffset. Running with default parameters: Average density = 0.6, MaxTemperature = 1.0, Temperature Stepsize = 0.1, MinTemperature = 0.85, NumberOfMCSweeps = 100, AB_INTERACTION_STRENGTH = 0.1, NumberOfRuns = 2, RunNumberOffset = 0" << endl;
 	}
 	else {
 		InitialDensity = atof(argv[1]);
@@ -25,6 +25,6 @@ int main(int argc, char* argv[]){
 		RunNumberOffset = atoi(argv[8]);
 	}
 
-	runSimulationForMultipleStartStates(MaxTemperature, MinTemperature, TemperatureStep, NumberOfRuns, NumberOfSweeps, RunNumberOffset, InitialDensity);
+	runSGCMCSimulationForMultipleStartStates(MaxTemperature, MinTemperature, TemperatureStep, NumberOfRuns, NumberOfSweeps, RunNumberOffset, InitialDensity);
 }
 

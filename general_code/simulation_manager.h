@@ -6,43 +6,53 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <cmath>
 #include "global_variables.h"
 #include "realRNG.h"
 #include "particles.h"
 
 using namespace std;
 
-const double MAXIMUM_DISPLACEMENT = 0.1;
+constexpr double MAXIMUM_DISPLACEMENT = 0.1;
+constexpr double DISPLACEMENT_PROBABILITY = 0.9;
 
-const double DISPLACEMENT_PROBABILITY = 0.9;
-const int NUMBER_OF_INITIAL_RANDOMIZATION_SWEEPS = 100;
+constexpr double MAXIMUM_VOLUME_CHANGE = 0.6;
+constexpr double VOLUME_CHANGE_PROBABILITY = 0.01;
 
-const int UPDATE_TIME_INTERVAL = 60;
-const int POT_ENERGY_UPDATE_INTERVAL = 200;
+constexpr int NUMBER_OF_INITIAL_RANDOMIZATION_SWEEPS = 100;
 
-const int NUMBER_OF_SAVED_STATES_PER_TEMPERATURE = 1;
+constexpr int UPDATE_TIME_INTERVAL = 60;
+constexpr int POT_ENERGY_UPDATE_INTERVAL = 200;
 
-const int NUMBER_OF_THREADS = 1;
+constexpr int NUMBER_OF_SAVED_STATES_PER_TEMPERATURE = 1;
 
+constexpr int NUMBER_OF_THREADS = 1;
+
+enum class MCModus{
+	SGCMC = 0,
+	PressureMC = 1
+};
 
 struct SimulationManager {
 	Particles P;
 	double Temperature;
 	double Beta;
+	double Pressure;
+
 	realRNG RNG;
 
 	int MinNumberOfA;
 	int MaxNumberOfA;
 	int NumberOfMCSweeps;
 
-	vector<int> NumberOfABuffer;
-	vector<double> PotEnergyBuffer;
-
 	double NumberOfTriedDisplacements;
 	double NumberOfAcceptedDisplacements;
 
 	double NumberOfTriedTypeChanges;
 	double NumberOfAcceptedTypeChanges;
+
+	double NumberOfTriedVolumeChanges;
+	double NumberOfAcceptedVolumeChanges;
 
 	string FileNameString;
 	string DirectoryString;
@@ -55,6 +65,8 @@ struct SimulationManager {
 		NumberOfAcceptedDisplacements(0.0),
 		NumberOfTriedTypeChanges(0.0),
 		NumberOfAcceptedTypeChanges(0.0),
+		NumberOfTriedVolumeChanges(0.0),
+		NumberOfAcceptedVolumeChanges(0.0),
 		DirectoryString("fresh_data/N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"/"){
 	}
 
@@ -70,18 +82,27 @@ struct SimulationManager {
 		Temperature = NewTemperature;
 		Beta = 1.0/Temperature;
 	}
+	
+	void setPressure(double NewPressure){
+		Pressure = NewPressure;
+	}
 
-	void setFileNameString(int RunNumber){
+	void setFileNameString(int RunNumber, MCModus M){
+		if (M == MCModus::SGCMC){
 		FileNameString = "N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_AvgDens="+to_string(P.getDensity())+"_MCRuns="+to_string(NumberOfMCSweeps)+"_epsAB="+to_string(AB_INTERACTION_STRENGTH)+"_"+to_string(RunNumber);
+		}
+		else {
+			FileNameString = "N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_Pressure="+to_string(Pressure)+"_MCRuns="+to_string(NumberOfMCSweeps)+"_epsAB="+to_string(AB_INTERACTION_STRENGTH)+"_"+to_string(RunNumber);
+		}
 	}
 
 	void resetCountersAndBuffers(){
-		NumberOfABuffer.clear();
-		PotEnergyBuffer.clear();
 		NumberOfTriedDisplacements = 0.0;
 		NumberOfAcceptedDisplacements = 0.0;
 		NumberOfTriedTypeChanges = 0.0;
 		NumberOfAcceptedTypeChanges = 0.0;
+		NumberOfTriedVolumeChanges = 0.0;
+		NumberOfAcceptedVolumeChanges = 0.0;
 		P.resetCounters();
 	}
 
@@ -133,15 +154,29 @@ struct SimulationManager {
 			}
 		}
 	}
+	
+	void runVolumeChange() {
+		NumberOfTriedVolumeChanges++;
+		double RandomVolumeChange = RNG.drawRandomNumber(-MAXIMUM_VOLUME_CHANGE,MAXIMUM_VOLUME_CHANGE);
+		double AcceptanceProbability = exp(-Beta*(P.computeChangeInPotentialEnergyByChangingVolume(RandomVolumeChange) + Pressure*RandomVolumeChange) + static_cast<double>(TOTAL_NUMBER_OF_PARTICLES) * log(1.0+RandomVolumeChange/P.getVolume())); // when computing the change in pot energy we already rebuild the verlet list and change the box parameters!
+		if (AcceptanceProbability >= 1.0 || (RNG.drawRandomNumber() < AcceptanceProbability)){
+			NumberOfAcceptedVolumeChanges++;
+		}
+		else {
+			P.changeVolume(-RandomVolumeChange); // if the move got rejected, we have to REVERT the change to the box parameters that were already done when computing the change in pot energy
+		}
+	}
 
-	void runSimulationForSingleTemperature(int RunCount, int NumberOfSavedStatesPerRun) {
+	void runSGCMCSimulationForSingleTemperature(int RunCount, int NumberOfSavedStatesPerRun) {
 		const auto StartTime = chrono::steady_clock::now();
 		int NextUpdateTime = UPDATE_TIME_INTERVAL;
 		int NextPotEnergyComputation = POT_ENERGY_UPDATE_INTERVAL;
 		int NextStateSave = NumberOfMCSweeps / 2;
 		int StateSaveInterval = (NumberOfMCSweeps / 2) / NumberOfSavedStatesPerRun;
 		int SavedStateCount = 0;
-		writeMetaData();
+		writeSGCMCMetaData();
+		vector<int> NumberOfABuffer;
+		vector<double> PotEnergyBuffer;
 		#pragma omp critical(WRITE_TO_ERROR_STREAM)
 		{
 			cerr << "Run " << RunCount <<  ": T=" << Temperature << ". Simulation started." << endl << endl;
@@ -171,15 +206,13 @@ struct SimulationManager {
 					int Progress = NumberOfMCSweeps >= 100 ? (i / (NumberOfMCSweeps/100)) : i;
 					cerr << "Run " << RunCount << ": T = " << Temperature <<  ". Progress: " << Progress << "%| Time passed: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
 				}
-				writeResults();
+				writeSGCMCResults(NumberOfABuffer, PotEnergyBuffer);
 				NumberOfABuffer.clear();
 				PotEnergyBuffer.clear();
 				NextUpdateTime += UPDATE_TIME_INTERVAL;
 			}
 		}
-		writeResults();
-		NumberOfABuffer.clear();
-		PotEnergyBuffer.clear();
+		writeSGCMCResults(NumberOfABuffer, PotEnergyBuffer);
 		#pragma omp critical(WRITE_TO_ERROR_STREAM)
 		{
 			cerr << "Run " << RunCount << ": Simulation of T=" << Temperature << " finished. Simulation-metadata: " << endl;
@@ -191,6 +224,7 @@ struct SimulationManager {
 	}
 
 	void randomizeInitialPosition(int RunCount){
+		double TemperatureBefore = Temperature;
 		setTemperature(AA_INTERACTION_STRENGTH*10.0);
 		for (int i = 0; i < NUMBER_OF_INITIAL_RANDOMIZATION_SWEEPS; i++){
 			for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
@@ -208,9 +242,10 @@ struct SimulationManager {
 			cerr << "Tried type changes: " << NumberOfTriedTypeChanges << "| Accepted type changes:" << NumberOfAcceptedTypeChanges << "| Ratio of accepted type changes: " << static_cast<double>(NumberOfAcceptedTypeChanges)/static_cast<double>(NumberOfTriedTypeChanges) << endl;
 			cerr << "#VerletListBuilds: " << P.getNumberOfVerletListBuilds() << endl << endl;
 		}
+		setTemperature(TemperatureBefore);
 	}
 
-	void writeMetaData() const {
+	void writeSGCMCMetaData() const {
 		string FileName(DirectoryString+"/NA_Series_"+FileNameString+".dat");
 		string MetaDataString("BOX_LENGTH = "+to_string(P.getBoxLength())+" | AA_INTERACTION_STRENGTH = "+to_string(AA_INTERACTION_STRENGTH)+" | AB_INTERACTION_STRENGTH = "+to_string(AB_INTERACTION_STRENGTH)+" | MAXIMUM_DISPLACEMENT = "+to_string(MAXIMUM_DISPLACEMENT)+" | DISPLACEMENT_PROBABILITY = "+to_string(DISPLACEMENT_PROBABILITY)+" | MinNA = "+to_string(MinNumberOfA)+" | MaxNA = "+to_string(MaxNumberOfA)+'\n');
 		ofstream FileStreamToWrite;
@@ -223,7 +258,7 @@ struct SimulationManager {
 		FileStreamToWrite.close();
 	}
 
-	void writeResults() const {
+	void writeSGCMCResults(const vector<int>& NumberOfABuffer, const vector<double>& PotEnergyBuffer) const {
 		string FileName(DirectoryString+"/NA_Series_"+FileNameString+".dat");
 		ofstream FileStreamToWrite;
 		FileStreamToWrite.open(FileName, ios_base::app);
@@ -245,9 +280,94 @@ struct SimulationManager {
 		FileStreamToWrite << P;
 		FileStreamToWrite.close();
 	}
+
+	void writePressureMCMetaData() const {
+		string FileName(DirectoryString+"/density_series_"+FileNameString+".dat");
+		string MetaDataString("AA_INTERACTION_STRENGTH = "+to_string(AA_INTERACTION_STRENGTH)+" | AB_INTERACTION_STRENGTH = "+to_string(AB_INTERACTION_STRENGTH)+" | MAXIMUM_DISPLACEMENT = "+to_string(MAXIMUM_DISPLACEMENT)+" | VOLUME_CHANGE_PROB = "+to_string(VOLUME_CHANGE_PROBABILITY)+" | MAX_VOLUME_CHANGE = "+to_string(MAXIMUM_VOLUME_CHANGE)+" | MinNA = "+to_string(MinNumberOfA)+" | MaxNA = "+to_string(MaxNumberOfA)+'\n');
+		ofstream FileStreamToWrite;
+		FileStreamToWrite.open(FileName);
+		FileStreamToWrite << MetaDataString;
+		FileStreamToWrite.close();
+		FileName = DirectoryString+"/PotEnergySeries_"+FileNameString+".dat";
+		FileStreamToWrite.open(FileName);
+		FileStreamToWrite << MetaDataString;
+		FileStreamToWrite.close();
+	}
+
+	void writePressureMCResults(const vector<double>& DensityBuffer, const vector<double>& PotEnergyBuffer) const {
+		string FileName(DirectoryString+"/density_series_"+FileNameString+".dat");
+		ofstream FileStreamToWrite;
+		FileStreamToWrite.open(FileName, ios_base::app);
+		for (int i = 0; i < DensityBuffer.size(); i++){
+			FileStreamToWrite << DensityBuffer[i] << '\n';
+		}
+		FileStreamToWrite.close();
+		FileName = DirectoryString+"/PotEnergySeries_"+FileNameString+".dat";
+		FileStreamToWrite.open(FileName, ios_base::app);
+		for (int i = 0; i < PotEnergyBuffer.size(); i++){
+			FileStreamToWrite << PotEnergyBuffer[i] << '\n';
+		}
+		FileStreamToWrite.close();
+	}
+	
+	void runPressureMCForSinglePressure(int RunCount, int NumberOfSavedStatesPerRun) {
+		const auto StartTime = chrono::steady_clock::now();
+		int NextUpdateTime = UPDATE_TIME_INTERVAL;
+		int NextPotEnergyComputation = POT_ENERGY_UPDATE_INTERVAL;
+		int NextStateSave = NumberOfMCSweeps / 2;
+		int StateSaveInterval = (NumberOfMCSweeps / 2) / NumberOfSavedStatesPerRun;
+		int SavedStateCount = 0;
+		writePressureMCMetaData();
+		vector<double> DensityBuffer;
+		vector<double> PotEnergyBuffer;
+		#pragma omp critical(WRITE_TO_ERROR_STREAM)
+		{
+			cerr << "Run " << RunCount <<  ": p=" << Pressure << ". Simulation started." << endl << endl;
+		}
+		for (int i = 0; i < NumberOfMCSweeps; i++){
+			for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
+				if (RNG.drawRandomNumber() <= VOLUME_CHANGE_PROBABILITY){
+					runVolumeChange();
+				}
+				else {
+					runDisplacementStep();
+				}
+			}
+			DensityBuffer.push_back(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES)/P.getVolume());
+			if (i == NextPotEnergyComputation){
+				PotEnergyBuffer.push_back(P.computePotentialEnergy());
+				NextPotEnergyComputation += POT_ENERGY_UPDATE_INTERVAL;
+			}
+			if (i == NextStateSave){
+				writeParticleStateToFile(DirectoryString+"State_"+FileNameString+"_"+to_string(SavedStateCount)+".dat");
+				NextStateSave += StateSaveInterval;
+				SavedStateCount++;
+			}
+			if (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() >= NextUpdateTime){
+				#pragma omp critical(WRITE_TO_ERROR_STREAM)
+				{
+					int Progress = NumberOfMCSweeps >= 100 ? (i / (NumberOfMCSweeps/100)) : i;
+					cerr << "Run " << RunCount << ": T = " << Temperature <<  ". Progress: " << Progress << "%| Time passed: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
+				}
+				writePressureMCResults(DensityBuffer, PotEnergyBuffer);
+				DensityBuffer.clear();
+				PotEnergyBuffer.clear();
+				NextUpdateTime += UPDATE_TIME_INTERVAL;
+			}
+		}
+		writePressureMCResults(DensityBuffer, PotEnergyBuffer);
+		#pragma omp critical(WRITE_TO_ERROR_STREAM)
+		{
+			cerr << "Run " << RunCount << ": Simulation of T=" << Temperature << " finished. Simulation-metadata: " << endl;
+			cerr << "Tried displacements: " << NumberOfTriedDisplacements << "| Accepted displacements: " << NumberOfAcceptedDisplacements << "| Ratio of accepted displacements: " << static_cast<double>(NumberOfAcceptedDisplacements)/static_cast<double>(NumberOfTriedDisplacements) << endl;
+			cerr << "Tried volume changes: " << NumberOfTriedVolumeChanges << "| Accepted volume changes: " << NumberOfAcceptedVolumeChanges << "| Ratio of accepted volume changes: " << static_cast<double>(NumberOfAcceptedVolumeChanges)/static_cast<double>(NumberOfTriedVolumeChanges) << endl;
+			cerr << "#VerletListBuilds: " << P.getNumberOfVerletListBuilds() << endl;
+			cerr << "Computation time: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s for " << NumberOfMCSweeps << " MCSweeps." <<  endl << endl;
+		}
+	}
 };
 
-void runSimulationForMultipleStartStates(double MaxTemperature, double MinTemperature, double TemperatureStep, int NumberOfRuns, int NumberOfMCSweeps, int RunNumberOffset, double InitialDensity) {
+void runSGCMCSimulationForMultipleStartStates(double MaxTemperature, double MinTemperature, double TemperatureStep, int NumberOfRuns, int NumberOfMCSweeps, int RunNumberOffset, double Density) {
 
 	const int NumberOfSavedStatesPerRun = NUMBER_OF_SAVED_STATES_PER_TEMPERATURE >= NumberOfRuns ?  NUMBER_OF_SAVED_STATES_PER_TEMPERATURE / NumberOfRuns : 1;
 
@@ -257,16 +377,40 @@ void runSimulationForMultipleStartStates(double MaxTemperature, double MinTemper
 
 		#pragma omp for
 		for (int RunCount = RunNumberOffset; RunCount < NumberOfRuns+RunNumberOffset; RunCount++){
-			S.initializeParticles(InitialDensity);
+			S.initializeParticles(Density);
 			S.randomizeInitialPosition(RunCount);
 			for (double CurrentTemperature = MaxTemperature; CurrentTemperature > MinTemperature; CurrentTemperature -= TemperatureStep){
 				S.setTemperature(CurrentTemperature);
-				S.setFileNameString(RunCount);
+				S.setFileNameString(RunCount, MCModus::SGCMC);
 				S.resetCountersAndBuffers();
-				S.runSimulationForSingleTemperature(RunCount, NumberOfSavedStatesPerRun);
+				S.runSGCMCSimulationForSingleTemperature(RunCount, NumberOfSavedStatesPerRun);
 			}
 		}
 	}
 }
+
+void runPressureMCForMultipleStartStates(double MaxPressure, double MinPressure, double PressureStep, int NumberOfRuns, int NumberOfMCSweeps, int RunNumberOffset, double InitialDensity, double Temperature) {
+
+	const int NumberOfSavedStatesPerRun = NUMBER_OF_SAVED_STATES_PER_TEMPERATURE >= NumberOfRuns ?  NUMBER_OF_SAVED_STATES_PER_TEMPERATURE / NumberOfRuns : 1;
+
+	#pragma omp parallel num_threads(NUMBER_OF_THREADS)
+	{
+		SimulationManager S(TOTAL_NUMBER_OF_PARTICLES, TOTAL_NUMBER_OF_PARTICLES, NumberOfMCSweeps);
+		S.setTemperature(Temperature);
+
+		#pragma omp for
+		for (int RunCount = RunNumberOffset; RunCount < NumberOfRuns+RunNumberOffset; RunCount++){
+			S.initializeParticles(InitialDensity);
+			S.randomizeInitialPosition(RunCount);
+			for (double CurrentPressure = MaxPressure; CurrentPressure > MinPressure; CurrentPressure -= PressureStep){
+				S.setPressure(CurrentPressure);
+				S.setFileNameString(RunCount, MCModus::PressureMC);
+				S.resetCountersAndBuffers();
+				S.runPressureMCForSinglePressure(RunCount, NumberOfSavedStatesPerRun);
+			}
+		}
+	}
+}
+
 
 #endif //SIMULATION_MANAGER_INCLUDED
