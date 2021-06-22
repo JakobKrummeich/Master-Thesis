@@ -8,6 +8,7 @@
 !*/
 
 /literature
+/data
 *.dat
 *-checkpoint.ipynb
 *.err
