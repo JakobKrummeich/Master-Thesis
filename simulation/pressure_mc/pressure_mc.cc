@@ -1,6 +1,9 @@
 #include <iostream>
 #include <stdlib.h>
+#include <string>
 #include "../../general_code/simulation_manager.h"
+
+using namespace std;
 
 int main(int argc, char* argv[]){
 	double InitialDensity = 0.6;
@@ -12,8 +15,9 @@ int main(int argc, char* argv[]){
 	int NumberOfRuns = 2;
 	int RunNumberOffset = 0;
 	double Temperature = 1.0;
-	if (argc != 10){
-		cerr << "WARNING: " << argc-1 <<  " arguments were given, but exactly 9 arguments are needed: Initial density, MaxPressure, Pressure Stepsize, MinPressure (not included), NumberOfMCSweeps, AB_INTERACTION_STRENGTH, NumberOfRuns, RunNumberOffset, Temperature. Running with default parameters: Initial density = 0.6, MaxPressure = 1.0, Pressure Stepsize = 0.1, MinPressure = 0.85, NumberOfMCSweeps = 100, AB_INTERACTION_STRENGTH = 0.1, NumberOfRuns = 2, RunNumberOffset = 0, Temperature = 1.0" << endl;
+	string Directory = ".";
+	if (argc != 11){
+		cerr << "WARNING: " << argc-1 <<  " arguments were given, but exactly 10 arguments are needed: Initial density, MaxPressure, Pressure Stepsize, MinPressure (not included), NumberOfMCSweeps, AB_INTERACTION_STRENGTH, NumberOfRuns, RunNumberOffset, Temperature, Directory for fresh data. Running with default parameters: Initial density = 0.6, MaxPressure = 1.0, Pressure Stepsize = 0.1, MinPressure = 0.85, NumberOfMCSweeps = 100, AB_INTERACTION_STRENGTH = 0.1, NumberOfRuns = 2, RunNumberOffset = 0, Temperature = 1.0, Directory = ." << endl;
 	}
 	else {
 		InitialDensity = atof(argv[1]);
@@ -25,8 +29,9 @@ int main(int argc, char* argv[]){
 		NumberOfRuns = atoi(argv[7]);
 		RunNumberOffset = atoi(argv[8]);
 		Temperature = atof(argv[9]);
+		Directory = argv[10];
 	}
 
-	runPressureMCForMultipleStartStates(MaxPressure, MinPressure, PressureStep, NumberOfRuns, NumberOfSweeps, RunNumberOffset, InitialDensity, Temperature);
+	runPressureMCForMultipleStartStates(MaxPressure, MinPressure, PressureStep, NumberOfRuns, NumberOfSweeps, RunNumberOffset, InitialDensity, Temperature, Directory);
 }
 

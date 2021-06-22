@@ -57,7 +57,7 @@ struct SimulationManager {
 	string FileNameString;
 	string DirectoryString;
 
-	SimulationManager(int MinNumberOfA, int MaxNumberOfA, int NumberOfMCSweeps):
+	SimulationManager(int MinNumberOfA, int MaxNumberOfA, int NumberOfMCSweeps, string DirectoryForFreshData):
 		MinNumberOfA(MinNumberOfA),
 		MaxNumberOfA(MaxNumberOfA),
 		NumberOfMCSweeps(NumberOfMCSweeps),
@@ -67,7 +67,7 @@ struct SimulationManager {
 		NumberOfAcceptedTypeChanges(0.0),
 		NumberOfTriedVolumeChanges(0.0),
 		NumberOfAcceptedVolumeChanges(0.0),
-		DirectoryString("fresh_data/N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"/"){
+		DirectoryString(DirectoryForFreshData){
 	}
 
 	void initializeParticles(double InitialDensity) {
@@ -196,7 +196,7 @@ struct SimulationManager {
 				NextPotEnergyComputation += POT_ENERGY_UPDATE_INTERVAL;
 			}
 			if (i == NextStateSave){
-				writeParticleStateToFile(DirectoryString+"State_"+FileNameString+"_"+to_string(SavedStateCount)+".dat");
+				writeParticleStateToFile(DirectoryString+"/State_"+FileNameString+"_"+to_string(SavedStateCount)+".dat");
 				NextStateSave += StateSaveInterval;
 				SavedStateCount++;
 			}
@@ -339,7 +339,7 @@ struct SimulationManager {
 				NextPotEnergyComputation += POT_ENERGY_UPDATE_INTERVAL;
 			}
 			if (i == NextStateSave){
-				writeParticleStateToFile(DirectoryString+"State_"+FileNameString+"_"+to_string(SavedStateCount)+".dat");
+				writeParticleStateToFile(DirectoryString+"/State_"+FileNameString+"_"+to_string(SavedStateCount)+".dat");
 				NextStateSave += StateSaveInterval;
 				SavedStateCount++;
 			}
@@ -367,13 +367,13 @@ struct SimulationManager {
 	}
 };
 
-void runSGCMCSimulationForMultipleStartStates(double MaxTemperature, double MinTemperature, double TemperatureStep, int NumberOfRuns, int NumberOfMCSweeps, int RunNumberOffset, double Density) {
+void runSGCMCSimulationForMultipleStartStates(double MaxTemperature, double MinTemperature, double TemperatureStep, int NumberOfRuns, int NumberOfMCSweeps, int RunNumberOffset, double Density, string DirectoryForFreshData) {
 
 	const int NumberOfSavedStatesPerRun = NUMBER_OF_SAVED_STATES_PER_TEMPERATURE >= NumberOfRuns ?  NUMBER_OF_SAVED_STATES_PER_TEMPERATURE / NumberOfRuns : 1;
 
 	#pragma omp parallel num_threads(NUMBER_OF_THREADS)
 	{
-		SimulationManager S(0, TOTAL_NUMBER_OF_PARTICLES, NumberOfMCSweeps);
+		SimulationManager S(0, TOTAL_NUMBER_OF_PARTICLES, NumberOfMCSweeps, DirectoryForFreshData);
 
 		#pragma omp for
 		for (int RunCount = RunNumberOffset; RunCount < NumberOfRuns+RunNumberOffset; RunCount++){
@@ -389,13 +389,13 @@ void runSGCMCSimulationForMultipleStartStates(double MaxTemperature, double MinT
 	}
 }
 
-void runPressureMCForMultipleStartStates(double MaxPressure, double MinPressure, double PressureStep, int NumberOfRuns, int NumberOfMCSweeps, int RunNumberOffset, double InitialDensity, double Temperature) {
+void runPressureMCForMultipleStartStates(double MaxPressure, double MinPressure, double PressureStep, int NumberOfRuns, int NumberOfMCSweeps, int RunNumberOffset, double InitialDensity, double Temperature, string DirectoryForFreshData) {
 
 	const int NumberOfSavedStatesPerRun = NUMBER_OF_SAVED_STATES_PER_TEMPERATURE >= NumberOfRuns ?  NUMBER_OF_SAVED_STATES_PER_TEMPERATURE / NumberOfRuns : 1;
 
 	#pragma omp parallel num_threads(NUMBER_OF_THREADS)
 	{
-		SimulationManager S(TOTAL_NUMBER_OF_PARTICLES, TOTAL_NUMBER_OF_PARTICLES, NumberOfMCSweeps);
+		SimulationManager S(TOTAL_NUMBER_OF_PARTICLES, TOTAL_NUMBER_OF_PARTICLES, NumberOfMCSweeps, DirectoryForFreshData);
 		S.setTemperature(Temperature);
 
 		#pragma omp for
