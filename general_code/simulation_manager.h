@@ -19,7 +19,8 @@ constexpr double DISPLACEMENT_PROBABILITY = 0.9;
 constexpr double MAXIMUM_VOLUME_CHANGE = 0.6;
 constexpr double VOLUME_CHANGE_PROBABILITY = 0.01;
 
-constexpr int NUMBER_OF_INITIAL_RANDOMIZATION_SWEEPS = 100;
+constexpr int NUMBER_OF_INITIAL_RANDOMIZATION_SWEEPS = 1000;
+constexpr int NUMBER_OF_INITIAL_THROW_AWAY_SWEEPS = 10000;
 
 constexpr int UPDATE_TIME_INTERVAL = 60;
 constexpr int POT_ENERGY_UPDATE_INTERVAL = 200;
@@ -181,6 +182,16 @@ struct SimulationManager {
 		{
 			cerr << "Run " << RunCount <<  ": T=" << Temperature << " | Simulation started." << endl << endl;
 		}
+		for (int i = 0; i < NUMBER_OF_INITIAL_THROW_AWAY_SWEEPS; i++){
+			for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
+				if (RNG.drawRandomNumber() <= DISPLACEMENT_PROBABILITY){
+					runDisplacementStep();
+				}
+				else {
+					runTypeChange();
+				}
+			}
+		}
 		for (int i = 0; i < NumberOfMCSweeps; i++){
 			for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
 				if (RNG.drawRandomNumber() <= DISPLACEMENT_PROBABILITY){
@@ -323,6 +334,16 @@ struct SimulationManager {
 		#pragma omp critical(WRITE_TO_ERROR_STREAM)
 		{
 			cerr << "Run " << RunCount <<  ": p = " << Pressure << " | Simulation started." << endl << endl;
+		}
+		for (int i = 0; i < NUMBER_OF_INITIAL_THROW_AWAY_SWEEPS; i++){
+			for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
+				if (RNG.drawRandomNumber() <= VOLUME_CHANGE_PROBABILITY){
+					runVolumeChange();
+				}
+				else {
+					runDisplacementStep();
+				}
+			}
 		}
 		for (int i = 0; i < NumberOfMCSweeps; i++){
 			for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
