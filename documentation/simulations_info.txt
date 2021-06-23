@@ -4,13 +4,19 @@ on c2 cluster at /home1/krummeich/simulation/semi_gcmc_no_field/sorted_data we s
 
 short description of simulations done:
 
-finer_density_scan_3132003: simulations for phase diagrams with N=1000 and epsAB=0.5 for different densities (might be distorted due to wrong most traveled particle distance tracking)
+semi_gcmc_no_field:
 
-epsilon_scan_3132046: simulations for phase diagrams with average density 0.6 and epsAB > 0.5 (might be distorted due to wrong most traveled particle distance tracking)
+	- finer_density_scan_3132003: simulations for phase diagrams with N=1000 and epsAB=0.5 for different densities (might be distorted due to wrong most traveled particle distance tracking)
 
-epsilon_scan_3132187: simulations for phase diagrams with average density 0.6 and epsAB < 0.5 (might be distorted due to wrong most traveled particle distance tracking)
+	- epsilon_scan_3132046: simulations for phase diagrams with average density 0.6 and epsAB > 0.5 (might be distorted due to wrong most traveled particle distance tracking)
 
-finite_size_scaling_no_field: simulations with different Number of particles (500,1000,2000,4000,8000,16000) average density=0.6, epsAB=0.1, 300000 MCSweeps per run, 20 runs per temperature, temperature interval 0.02, temperature start 1.0, temperature end 0.52. per N and temperature 1000 configurations were saved.
+	- epsilon_scan_3132187: simulations for phase diagrams with average density 0.6 and epsAB < 0.5 (might be distorted due to wrong most traveled particle distance tracking)
+
+	- finite_size_scaling_no_field: simulations with different Number of particles (500,1000,2000,4000,8000,16000) average density=0.6, epsAB=0.1, 300000 MCSweeps per run, 20 runs per temperature, temperature interval 0.02, temperature start 1.0, temperature end 0.52. per N and temperature 1000 configurations were saved.
 
 
+pressure_mc, N=1000, epsAB = 0.1:
+	- T=0.6_first_scan: scans at a fixed temperature, with pmax = 4.0 and and stepsize of deltap = 0.1. NumberOfSweeps per pressure = 20000, no initial throw away runs for equilibration, i.e. all data was taken. these runs were not done all at once, but there were starting states in between which might be the reason that there is a jump in the data at p=2 since we started a new run at this pressure
+
+	- multiple_Ts_second_scan: scans at multiple fixed temperatures with pmax = 4.0, pmin = 1.0, deltap = 0.05. NumberOfSweeps per pressure = 30000, 10000 initial throw away runs for equilibration. Tmax = 1.0, Tmin = 0.5, T stepsize = 0.025
 
