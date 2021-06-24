@@ -2,6 +2,7 @@
 
 sourcepath=$1
 targetpath=$2
+included_pattern=$3
 
 function make_directory_if_necessary() {
 	echo -n "${!1} "
@@ -14,7 +15,7 @@ function make_directory_if_necessary() {
 }
 
 
-for filename in $sourcepath/*.dat; do
+for filename in $sourcepath/*${included_pattern}*.dat; do
 
 		[[ ${filename} =~ _epsAB=([[:digit:]]*.[[:digit:]]*). ]] && epsAB=${BASH_REMATCH[1]}
 		currentpath=${targetpath}/epsAB=$epsAB
