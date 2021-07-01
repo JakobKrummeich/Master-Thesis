@@ -11,9 +11,7 @@ for file in ${files[@]}; do
 
 	[[ ${file} =~ epsAB=0\.100000_([[:digit:]]*) ]] && runnumber=${BASH_REMATCH[1]}
 
-	echo $runnumber
-
-	if (( runnumber > $lower_limit && runnumber <= $upper_limit )); then
+	if (( runnumber >= $lower_limit && runnumber < $upper_limit )); then
 		mv $file $targetpath
 	fi
 done

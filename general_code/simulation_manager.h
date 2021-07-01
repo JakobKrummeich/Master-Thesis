@@ -168,6 +168,19 @@ struct SimulationManager {
 		}
 	}
 
+	void equilibrate(int NumberOfEquilibrationSteps){
+		for (int i = 0; i < NumberOfEquilibrationSteps; i++){
+			for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
+				if (RNG.drawRandomNumber() <= DISPLACEMENT_PROBABILITY){
+					runDisplacementStep();
+				}
+				else {
+					runTypeChange();
+				}
+			}
+		}
+	}
+
 	void runSGCMCSimulationForSingleTemperature(int RunCount, int NumberOfSavedStatesPerRun) {
 		const auto StartTime = chrono::steady_clock::now();
 		int NextUpdateTime = UPDATE_TIME_INTERVAL;
@@ -182,16 +195,7 @@ struct SimulationManager {
 		{
 			cerr << "Run " << RunCount <<  ": T=" << Temperature << " | Simulation started." << endl << endl;
 		}
-		for (int i = 0; i < NUMBER_OF_INITIAL_THROW_AWAY_SWEEPS; i++){
-			for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
-				if (RNG.drawRandomNumber() <= DISPLACEMENT_PROBABILITY){
-					runDisplacementStep();
-				}
-				else {
-					runTypeChange();
-				}
-			}
-		}
+		equilibrate(NUMBER_OF_INITIAL_THROW_AWAY_SWEEPS);
 		for (int i = 0; i < NumberOfMCSweeps; i++){
 			for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
 				if (RNG.drawRandomNumber() <= DISPLACEMENT_PROBABILITY){
@@ -400,6 +404,8 @@ void runSGCMCSimulationForMultipleStartStates(double MaxTemperature, double MinT
 		for (int RunCount = RunNumberOffset; RunCount < NumberOfRuns+RunNumberOffset; RunCount++){
 			S.initializeParticles(Density);
 			S.randomizeInitialPosition(RunCount);
+			S.setTemperature(MaxTemperature);
+			S.equilibrate(1000000);
 			for (double CurrentTemperature = MaxTemperature; CurrentTemperature > MinTemperature; CurrentTemperature -= TemperatureStep){
 				S.setTemperature(CurrentTemperature);
 				S.setFileNameString(RunCount, MCModus::SGCMC);
