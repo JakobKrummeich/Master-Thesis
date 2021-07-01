@@ -9,6 +9,7 @@
 
 /literature
 /data
+/scripts/cluster_scripts
 *.dat
 *-checkpoint.ipynb
 *.err
