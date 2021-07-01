@@ -23,8 +23,8 @@ printf "T\tfirst_moment_xA\tBinder_cumulant\n" > ${phase_diagram_filename}
 for temperature_dir in ${sourcepath}/T=*; do
 
 	NA_files=(${temperature_dir}/NA*.dat)
-	
-	[[ ${temperature_dir} =~ T=([[:digit:]]*.[[:digit:]]*) ]] && temperature=${BASH_REMATCH[1]}
+
+	[[ ${temperature_dir} =~ /T=([[:digit:]]*.[[:digit:]]*) ]] && temperature=${BASH_REMATCH[1]}
 
 	echo 1>&2
 	echo "++++++++++++++++++++++++++++++++++++++++" 1>&2
