@@ -25,9 +25,9 @@ constexpr int NUMBER_OF_INITIAL_THROW_AWAY_SWEEPS = 100000;
 constexpr int UPDATE_TIME_INTERVAL = 60;
 constexpr int POT_ENERGY_UPDATE_INTERVAL = 200;
 
-constexpr int NUMBER_OF_SAVED_STATES_PER_TEMPERATURE = 200;
+constexpr int NUMBER_OF_SAVED_STATES_PER_TEMPERATURE = 1;
 
-constexpr int NUMBER_OF_THREADS = 20;
+constexpr int NUMBER_OF_THREADS = 1;
 
 enum class MCModus{
 	SGCMC = 0,
@@ -402,10 +402,15 @@ void runSGCMCSimulationForMultipleStartStates(double MaxTemperature, double MinT
 
 		#pragma omp for
 		for (int RunCount = RunNumberOffset; RunCount < NumberOfRuns+RunNumberOffset; RunCount++){
+			const auto StartTime = chrono::steady_clock::now();
 			S.initializeParticles(Density);
 			S.randomizeInitialPosition(RunCount);
 			S.setTemperature(MaxTemperature);
-			S.equilibrate(1000000);
+			S.equilibrate(10000);
+			#pragma omp critical(WRITE_TO_ERROR_STREAM)
+			{
+				cerr << "Run " << RunCount << ": Time for initialization and equilibration: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
+			}
 			for (double CurrentTemperature = MaxTemperature; CurrentTemperature > MinTemperature; CurrentTemperature -= TemperatureStep){
 				S.setTemperature(CurrentTemperature);
 				S.setFileNameString(RunCount, MCModus::SGCMC);

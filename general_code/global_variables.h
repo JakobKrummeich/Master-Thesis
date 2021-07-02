@@ -6,7 +6,7 @@
 using namespace std;
 
 constexpr int DIMENSION = 2;
-constexpr int TOTAL_NUMBER_OF_PARTICLES = 16000;
+constexpr int TOTAL_NUMBER_OF_PARTICLES = 8000;
 
 constexpr double CUTOFF = 2.5;
 constexpr double CUTOFF_SQUARED = CUTOFF * CUTOFF;
