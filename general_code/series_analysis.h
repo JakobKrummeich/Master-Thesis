@@ -10,13 +10,13 @@
 using namespace std;
 
 class SeriesAnalyzer{
-	
+
 	private:
-	
+
 		struct ValuePair {
 			double xValue;
 			double yValue;
-			
+
 			ValuePair(double xValue, double yValue):
 				xValue(xValue),
 				yValue(yValue){
@@ -25,7 +25,7 @@ class SeriesAnalyzer{
 
 		unsigned long TotalNumberOfParticles;
 		vector<ValuePair> NADistribution;
-		
+
 		vector<double> readInSeries(string FilePath){
 			vector<double> Series;
 
@@ -40,7 +40,7 @@ class SeriesAnalyzer{
 			}
 			return Series;
 		}
-		
+
 		void updateHistogramWithNewSeries(const vector<double>& NASeries, unsigned long EquilibrationIndex){
 			for (unsigned long i = EquilibrationIndex; i < NASeries.size(); i++){
 				NADistribution[static_cast<unsigned long>(NASeries[i])].yValue++;
@@ -67,7 +67,7 @@ class SeriesAnalyzer{
 			cerr << "No equilibriumindex found! Returning 0." << endl;
 			return 0;
 		}
-		
+
 		static double computeCentralMomentOfDistribution(const vector<ValuePair>& Distribution, double Mean, double Exponent){
 			double h = Distribution[1].xValue - Distribution[0].xValue;
 			double Moment = 0.5 * (pow(Distribution[0].xValue - Mean,Exponent) * Distribution[0].yValue + pow(Distribution.back().xValue - Mean, Exponent) * Distribution.back().yValue);
@@ -76,7 +76,7 @@ class SeriesAnalyzer{
 			}
 			return h*Moment;
 		}
-		
+
 		static double computeMomentOfDistribution(const vector<ValuePair>& Distribution, double Exponent) {
 			return computeCentralMomentOfDistribution(Distribution, 0.0, Exponent);
 		}
@@ -96,7 +96,7 @@ class SeriesAnalyzer{
 			normalizeDistribution(SubIntervalDistribution);
 			return computeMomentOfDistribution(SubIntervalDistribution, 1.0);
 		}
-		
+
 		static void writeDistributionToFile(string FileName, const vector<ValuePair>& Distribution) {
 			ofstream FileStreamToWriteTo;
 			FileStreamToWriteTo.open(FileName);
@@ -115,7 +115,7 @@ class SeriesAnalyzer{
 				NADistribution.emplace_back(static_cast<double>(i)/static_cast<double>(TotalNumberOfParticles), 0.0);
 			}
 		}
-		
+
 		void addNewSeries(string FileNameNASeries, string FileNamePotEnergySeries, unsigned long MinNumberOfEquilibrationSweeps){
 			vector<double> NewNASeries = readInSeries(FileNameNASeries);
 			vector<double> NewPotEnergySeries = readInSeries(FileNamePotEnergySeries);
@@ -126,11 +126,11 @@ class SeriesAnalyzer{
 			cerr << "EquilibriumIndex: " << EquilibriumIndex << endl;
 			updateHistogramWithNewSeries(NewNASeries, EquilibriumIndex);
 		}
-		
+
 		void normalizeNADistribution(){
 			normalizeDistribution(NADistribution);
 		}
-		
+
 		void writeNAProbabilityDistributionToFile(string FileName) const {
 			writeDistributionToFile(FileName, NADistribution);
 		}
