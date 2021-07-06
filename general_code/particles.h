@@ -8,7 +8,8 @@
 #include <stdlib.h>
 #include <algorithm>
 
-#include "global_variables.h"
+#include "global_constants.h"
+#include "simulation_config.h"
 #include "particle_type.h"
 #include "fvec.h"
 #include "realRNG.h"

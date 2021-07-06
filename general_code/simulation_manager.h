@@ -7,27 +7,12 @@
 #include <string>
 #include <vector>
 #include <cmath>
-#include "global_variables.h"
+#include "global_constants.h"
+#include "simulation_config.h"
 #include "realRNG.h"
 #include "particles.h"
 
 using namespace std;
-
-constexpr double MAXIMUM_DISPLACEMENT = 0.1;
-constexpr double DISPLACEMENT_PROBABILITY = 0.9;
-
-constexpr double MAXIMUM_VOLUME_CHANGE = 0.6;
-constexpr double VOLUME_CHANGE_PROBABILITY = 0.01;
-
-constexpr int NUMBER_OF_INITIAL_RANDOMIZATION_SWEEPS = 1000;
-constexpr int NUMBER_OF_INITIAL_THROW_AWAY_SWEEPS = 100000;
-
-constexpr int UPDATE_TIME_INTERVAL = 60;
-constexpr int POT_ENERGY_UPDATE_INTERVAL = 200;
-
-constexpr int NUMBER_OF_SAVED_STATES_PER_TEMPERATURE = 1;
-
-constexpr int NUMBER_OF_THREADS = 1;
 
 enum class MCModus{
 	SGCMC = 0,
