@@ -299,13 +299,23 @@ class Particles {
 			}
 		}
 
-		void readInParticleState(string FileNameToReadIn) {
+		void skipLines(ifstream& FileStreamToReadIn, int NumberOfLinesToSkip){
+			string s;
+			for (int i = 0; i < NumberOfLinesToSkip; i++){
+				getline(FileStreamToReadIn, s, '\n');
+			}
+		}
+
+		void readInParticleState(string FileNameToReadIn, int StateNumber, double Density) {
+			updateBoxParametersWithDensity(Density);
+			TypeAParticleIndices.clear();
+			TypeBParticleIndices.clear();
 			ifstream FileStreamToReadIn;
 			FileStreamToReadIn.open(FileNameToReadIn);
 
-			string CurrentString;
+			skipLines(FileStreamToReadIn, 2+StateNumber*(TOTAL_NUMBER_OF_PARTICLES+2));
 
-			getline(FileStreamToReadIn,CurrentString, '\n');
+			string CurrentString;
 
 			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
 				getline(FileStreamToReadIn, CurrentString, '\t');
@@ -497,7 +507,7 @@ class Particles {
 				TypeBParticleIndices.erase(ParticleIndexInTypeArray);
 			}
 		}
-		
+
 		void changeVolume(double VolumeChange) {
 			updateBoxParametersWithVolumeChange(VolumeChange);
 			buildVerletList();

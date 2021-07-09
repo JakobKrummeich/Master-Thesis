@@ -15,7 +15,7 @@ for temperature_dir in ${sourcepath}/T=*; do
 
 	for file in ${files[@]}; do
 		[[ ${file} =~ [[:digit:]]*.[[:digit:]]*_([[:digit:]]_[[:digit:]]).dat ]] && state_label=${BASH_REMATCH[1]}
-		echo "State label (first number is RunNumber, second number is number of saved state of that run): ${state_label}"  >> ${temperature_dir}/${condensed_filename}
+		echo "State label (first number is RunNumber, second number is number of saved state of that run): ${state_label}" >> ${temperature_dir}/${condensed_filename}
 		cat $file >> ${temperature_dir}/${condensed_filename}
 		rm $file
 	done
