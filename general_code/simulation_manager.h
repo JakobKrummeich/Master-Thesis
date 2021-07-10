@@ -200,7 +200,7 @@ struct SimulationManager {
 
 		equilibrate(NUMBER_OF_INITIAL_THROW_AWAY_SWEEPS);
 		int SweepCount = 0;
-		for (; 	chrono::duration_cast<chrono::minutes>(chrono::steady_clock::now()-StartTime).count() < MaxRuntimeInMinutes; SweepCount++){
+		for (; 	chrono::duration_cast<chrono::minutes>(chrono::steady_clock::now()-StartTime).count() < MaxRuntimeInMinutes && SweepCount < NUMBER_OF_SWEEPS; SweepCount++){
 			runSingleSGCMCSweep();
 			NumberOfABuffer.push_back(P.getNumberOfAParticles());
 			if (SweepCount == NextPotEnergyComputation){
