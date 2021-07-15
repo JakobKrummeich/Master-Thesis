@@ -16,7 +16,8 @@ using namespace std;
 
 enum class MCModus{
 	SGCMC = 0,
-	PressureMC = 1
+	PressureMC = 1,
+	CMC = 2
 };
 
 struct SimulationManager {
@@ -68,14 +69,14 @@ struct SimulationManager {
 		Temperature = NewTemperature;
 		Beta = 1.0/Temperature;
 	}
-	
+
 	void setPressure(double NewPressure){
 		Pressure = NewPressure;
 	}
 
 	void setFileNameString(int RunNumber, MCModus M){
-		if (M == MCModus::SGCMC){
-		FileNameString = "N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_AvgDens="+to_string(P.getDensity())+"_MCRuns="+to_string(NumberOfMCSweeps)+"_epsAB="+to_string(AB_INTERACTION_STRENGTH)+"_"+to_string(RunNumber);
+		if (M == MCModus::SGCMC || M == MCModus::CMC){
+			FileNameString = "N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_AvgDens="+to_string(P.getDensity())+"_MCRuns="+to_string(NumberOfMCSweeps)+"_epsAB="+to_string(AB_INTERACTION_STRENGTH)+"_"+to_string(RunNumber);
 		}
 		else {
 			FileNameString = "N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_p="+to_string(Pressure)+"_MCRuns="+to_string(NumberOfMCSweeps)+"_epsAB="+to_string(AB_INTERACTION_STRENGTH)+"_"+to_string(RunNumber);
@@ -140,7 +141,7 @@ struct SimulationManager {
 			}
 		}
 	}
-	
+
 	void runVolumeChange() {
 		NumberOfTriedVolumeChanges++;
 		double RandomVolumeChange = RNG.drawRandomNumber(-MAXIMUM_VOLUME_CHANGE,MAXIMUM_VOLUME_CHANGE);
@@ -156,6 +157,12 @@ struct SimulationManager {
 	void equilibrate(int NumberOfEquilibrationSteps){
 		for (int i = 0; i < NumberOfEquilibrationSteps; i++){
 			runSingleSGCMCSweep();
+		}
+	}
+
+	void runSingleCMCSweep(){
+		for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
+			runDisplacementStep();
 		}
 	}
 
@@ -223,6 +230,45 @@ struct SimulationManager {
 		writeSimulationMetaDataToErrorStream(RunCount, chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count(), SweepCount);
 	}
 
+	void runCMCSimulationForSingleTemperature(int RunCount, int MaxRuntimeInMinutes, int NumberOfSavedStatesPerRun){
+		const auto StartTime = chrono::steady_clock::now();
+		int NextUpdateTime = UPDATE_TIME_INTERVAL;
+		int NextPotEnergyComputation = POT_ENERGY_UPDATE_INTERVAL;
+		int NextStateSave = NumberOfMCSweeps / 2;
+		int StateSaveInterval = (NumberOfMCSweeps / 2) / NumberOfSavedStatesPerRun;
+		int SavedStateCount = 0;
+		writeCMCMetaData();
+		vector<double> PotEnergyBuffer;
+
+		writeSimulationStartInfo(RunCount);
+
+		equilibrate(NUMBER_OF_INITIAL_THROW_AWAY_SWEEPS);
+		int SweepCount = 0;
+		for (; 	chrono::duration_cast<chrono::minutes>(chrono::steady_clock::now()-StartTime).count() < MaxRuntimeInMinutes && SweepCount < NUMBER_OF_SWEEPS; SweepCount++){
+			runSingleCMCSweep();
+			if (SweepCount == NextPotEnergyComputation){
+				PotEnergyBuffer.push_back(P.computePotentialEnergy());
+				NextPotEnergyComputation += POT_ENERGY_UPDATE_INTERVAL;
+			}
+			if (SweepCount == NextStateSave){
+				writeParticleStateToFile(DirectoryString+"/State_"+FileNameString+"_"+to_string(SavedStateCount)+".dat");
+				NextStateSave += StateSaveInterval;
+				SavedStateCount++;
+			}
+			if (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() >= NextUpdateTime){
+				#pragma omp critical(WRITE_TO_ERROR_STREAM)
+				{
+						cerr << "Run " << RunCount << ": T = " << Temperature <<  ". SweepCount: " << SweepCount << "| Time passed: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
+				}
+				writeCMCResults(PotEnergyBuffer);
+				PotEnergyBuffer.clear();
+				NextUpdateTime += UPDATE_TIME_INTERVAL;
+			}
+		}
+		writeCMCResults(PotEnergyBuffer);
+		writeSimulationMetaDataToErrorStream(RunCount, chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count(), SweepCount);
+	}
+
 	void runSGCMCSimulationForSingleTemperature(int RunCount, int NumberOfSavedStatesPerRun) {
 		const auto StartTime = chrono::steady_clock::now();
 		int NextUpdateTime = UPDATE_TIME_INTERVAL;
@@ -287,16 +333,45 @@ struct SimulationManager {
 		setTemperature(TemperatureBefore);
 	}
 
-	void writeSGCMCMetaData() const {
-		string FileName(DirectoryString+"/NA_Series_"+FileNameString+".dat");
-		string MetaDataString("BOX_LENGTH = "+to_string(P.getBoxLength())+" | AA_INTERACTION_STRENGTH = "+to_string(AA_INTERACTION_STRENGTH)+" | AB_INTERACTION_STRENGTH = "+to_string(AB_INTERACTION_STRENGTH)+" | MAXIMUM_DISPLACEMENT = "+to_string(MAXIMUM_DISPLACEMENT)+" | DISPLACEMENT_PROBABILITY = "+to_string(DISPLACEMENT_PROBABILITY)+" | MinNA = "+to_string(MinNumberOfA)+" | MaxNA = "+to_string(MaxNumberOfA)+'\n');
+	string getMetaDataString(MCModus M) const {
+		if (M == MCModus::SGCMC){
+			return "BOX_LENGTH = "+to_string(P.getBoxLength())+" | AA_INTERACTION_STRENGTH = "+to_string(AA_INTERACTION_STRENGTH)+" | AB_INTERACTION_STRENGTH = "+to_string(AB_INTERACTION_STRENGTH)+" | MAXIMUM_DISPLACEMENT = "+to_string(MAXIMUM_DISPLACEMENT)+" | DISPLACEMENT_PROBABILITY = "+to_string(DISPLACEMENT_PROBABILITY)+" | MinNA = "+to_string(MinNumberOfA)+" | MaxNA = "+to_string(MaxNumberOfA)+'\n';
+		}
+		else if (M == MCModus::PressureMC) {
+			return "AA_INTERACTION_STRENGTH = "+to_string(AA_INTERACTION_STRENGTH)+" | AB_INTERACTION_STRENGTH = "+to_string(AB_INTERACTION_STRENGTH)+" | MAXIMUM_DISPLACEMENT = "+to_string(MAXIMUM_DISPLACEMENT)+" | VOLUME_CHANGE_PROB = "+to_string(VOLUME_CHANGE_PROBABILITY)+" | MAX_VOLUME_CHANGE = "+to_string(MAXIMUM_VOLUME_CHANGE)+" | MinNA = "+to_string(MinNumberOfA)+" | MaxNA = "+to_string(MaxNumberOfA)+'\n';
+		}
+		else {
+			return "BOX_LENGTH = "+to_string(P.getBoxLength())+" | AA_INTERACTION_STRENGTH = "+to_string(AA_INTERACTION_STRENGTH)+" | AB_INTERACTION_STRENGTH = "+to_string(AB_INTERACTION_STRENGTH)+" | MAXIMUM_DISPLACEMENT = "+to_string(MAXIMUM_DISPLACEMENT)+" | NA = "+to_string(MinNumberOfA)+'\n';
+		}
+	}
+
+	void writeCMCMetaData() const {
+		string FileName(DirectoryString+"/PotEnergySeries_"+FileNameString+".dat");
 		ofstream FileStreamToWrite;
 		FileStreamToWrite.open(FileName);
-		FileStreamToWrite << MetaDataString;
+		FileStreamToWrite << getMetaDataString(MCModus::CMC);
+		FileStreamToWrite.close();
+	}
+
+	void writeCMCResults(const vector<double>& PotEnergyBuffer) const {
+		string FileName(DirectoryString+"/PotEnergySeries_"+FileNameString+".dat");
+		ofstream FileStreamToWrite;
+		FileStreamToWrite.open(FileName, ios_base::app);
+		for (int i = 0; i < PotEnergyBuffer.size(); i++){
+			FileStreamToWrite << PotEnergyBuffer[i] << '\n';
+		}
+		FileStreamToWrite.close();
+	}
+
+	void writeSGCMCMetaData() const {
+		string FileName(DirectoryString+"/NA_Series_"+FileNameString+".dat");
+		ofstream FileStreamToWrite;
+		FileStreamToWrite.open(FileName);
+		FileStreamToWrite << getMetaDataString(MCModus::SGCMC);
 		FileStreamToWrite.close();
 		FileName = DirectoryString+"/PotEnergySeries_"+FileNameString+".dat";
 		FileStreamToWrite.open(FileName);
-		FileStreamToWrite << MetaDataString;
+		FileStreamToWrite << getMetaDataString(MCModus::SGCMC);
 		FileStreamToWrite.close();
 	}
 
@@ -325,14 +400,13 @@ struct SimulationManager {
 
 	void writePressureMCMetaData() const {
 		string FileName(DirectoryString+"/density_series_"+FileNameString+".dat");
-		string MetaDataString("AA_INTERACTION_STRENGTH = "+to_string(AA_INTERACTION_STRENGTH)+" | AB_INTERACTION_STRENGTH = "+to_string(AB_INTERACTION_STRENGTH)+" | MAXIMUM_DISPLACEMENT = "+to_string(MAXIMUM_DISPLACEMENT)+" | VOLUME_CHANGE_PROB = "+to_string(VOLUME_CHANGE_PROBABILITY)+" | MAX_VOLUME_CHANGE = "+to_string(MAXIMUM_VOLUME_CHANGE)+" | MinNA = "+to_string(MinNumberOfA)+" | MaxNA = "+to_string(MaxNumberOfA)+'\n');
 		ofstream FileStreamToWrite;
 		FileStreamToWrite.open(FileName);
-		FileStreamToWrite << MetaDataString;
+		FileStreamToWrite << getMetaDataString(MCModus::PressureMC);
 		FileStreamToWrite.close();
 		FileName = DirectoryString+"/PotEnergySeries_"+FileNameString+".dat";
 		FileStreamToWrite.open(FileName);
-		FileStreamToWrite << MetaDataString;
+		FileStreamToWrite << getMetaDataString(MCModus::PressureMC);
 		FileStreamToWrite.close();
 	}
 
@@ -351,7 +425,7 @@ struct SimulationManager {
 		}
 		FileStreamToWrite.close();
 	}
-	
+
 	void runPressureMCForSinglePressure(int RunCount, int NumberOfSavedStatesPerRun) {
 		const auto StartTime = chrono::steady_clock::now();
 		int NextUpdateTime = UPDATE_TIME_INTERVAL;
