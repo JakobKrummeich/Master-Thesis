@@ -20,6 +20,7 @@ int main(int argc, char* argv[]){
 			const auto StartTime = chrono::steady_clock::now();
 			S.initializeParticles(DENSITY);
 			S.randomizeInitialPosition(RunCount);
+			S.setTemperature(Temperature);
 			#pragma omp critical(WRITE_TO_ERROR_STREAM)
 			{
 				cerr << "Run " << RunCount << ": Time for initialization: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
