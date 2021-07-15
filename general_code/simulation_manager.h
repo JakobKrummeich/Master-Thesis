@@ -60,8 +60,8 @@ struct SimulationManager {
 		P.initialize(MinNumberOfA,InitialDensity);
 	}
 
-	void readInParticleState(string FileNameInitialState) {
-		P.readInParticleState(FileNameInitialState);
+	void readInParticleState(string FileNameInitialState, int StateCount, double Density) {
+		P.readInParticleState(FileNameInitialState, StateCount, Density);
 	}
 
 	void setTemperature(double NewTemperature){
@@ -155,15 +155,72 @@ struct SimulationManager {
 
 	void equilibrate(int NumberOfEquilibrationSteps){
 		for (int i = 0; i < NumberOfEquilibrationSteps; i++){
-			for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
-				if (RNG.drawRandomNumber() <= DISPLACEMENT_PROBABILITY){
-					runDisplacementStep();
-				}
-				else {
-					runTypeChange();
-				}
+			runSingleSGCMCSweep();
+		}
+	}
+
+	void runSingleSGCMCSweep(){
+		for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
+			if (RNG.drawRandomNumber() <= DISPLACEMENT_PROBABILITY){
+				runDisplacementStep();
+			}
+			else {
+				runTypeChange();
 			}
 		}
+	}
+
+	void writeSimulationMetaDataToErrorStream(int RunCount, int TimePassedInSeconds, int NumberOfMCSweeps){
+		#pragma omp critical(WRITE_TO_ERROR_STREAM)
+		{
+			cerr << "Run " << RunCount << ": Simulation of T=" << Temperature << " finished. Simulation-metadata: " << endl;
+			cerr << "Tried displacements: " << NumberOfTriedDisplacements << "| Accepted displacements: " << NumberOfAcceptedDisplacements << "| Ratio of accepted displacements: " << static_cast<double>(NumberOfAcceptedDisplacements)/static_cast<double>(NumberOfTriedDisplacements) << endl;
+			cerr << "Tried type changes: " << NumberOfTriedTypeChanges << "| Accepted type changes: " << NumberOfAcceptedTypeChanges << "| Ratio of accepted type changes: " << static_cast<double>(NumberOfAcceptedTypeChanges)/static_cast<double>(NumberOfTriedTypeChanges) << endl;
+			cerr << "#VerletListBuilds: " << P.getNumberOfVerletListBuilds() << endl;
+			cerr << "Computation time: " << TimePassedInSeconds << " s for " << NumberOfMCSweeps << " MCSweeps." <<  endl << endl;
+		}
+	}
+
+	void writeSimulationStartInfo(int RunCount){
+		#pragma omp critical(WRITE_TO_ERROR_STREAM)
+		{
+			cerr << "Run " << RunCount <<  ": T=" << Temperature << " | Simulation started." << endl << endl;
+		}
+	}
+
+	void runSGCMCSimulationForSingleTemperatureTimeControlled(int RunCount, int MaxRuntimeInMinutes){
+		const auto StartTime = chrono::steady_clock::now();
+		int NextUpdateTime = UPDATE_TIME_INTERVAL;
+		int NextPotEnergyComputation = POT_ENERGY_UPDATE_INTERVAL;
+		writeSGCMCMetaData();
+		vector<int> NumberOfABuffer;
+		vector<double> PotEnergyBuffer;
+
+		writeSimulationStartInfo(RunCount);
+
+		equilibrate(NUMBER_OF_INITIAL_THROW_AWAY_SWEEPS);
+		int SweepCount = 0;
+		for (; 	chrono::duration_cast<chrono::minutes>(chrono::steady_clock::now()-StartTime).count() < MaxRuntimeInMinutes && SweepCount < NUMBER_OF_SWEEPS; SweepCount++){
+			runSingleSGCMCSweep();
+			NumberOfABuffer.push_back(P.getNumberOfAParticles());
+			if (SweepCount == NextPotEnergyComputation){
+				PotEnergyBuffer.push_back(P.computePotentialEnergy());
+				NextPotEnergyComputation += POT_ENERGY_UPDATE_INTERVAL;
+			}
+			if (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() >= NextUpdateTime){
+				#pragma omp critical(WRITE_TO_ERROR_STREAM)
+				{
+						cerr << "Run " << RunCount << ": T = " << Temperature <<  ". SweepCount: " << SweepCount << "| Time passed: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
+				}
+				writeSGCMCResults(NumberOfABuffer, PotEnergyBuffer);
+				NumberOfABuffer.clear();
+				PotEnergyBuffer.clear();
+				NextUpdateTime += UPDATE_TIME_INTERVAL;
+			}
+		}
+		writeSGCMCResults(NumberOfABuffer, PotEnergyBuffer);
+		writeParticleStateToFile(DirectoryString+"/State_"+FileNameString+"_"+to_string(0)+".dat");
+		writeSimulationMetaDataToErrorStream(RunCount, chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count(), SweepCount);
 	}
 
 	void runSGCMCSimulationForSingleTemperature(int RunCount, int NumberOfSavedStatesPerRun) {
@@ -176,20 +233,12 @@ struct SimulationManager {
 		writeSGCMCMetaData();
 		vector<int> NumberOfABuffer;
 		vector<double> PotEnergyBuffer;
-		#pragma omp critical(WRITE_TO_ERROR_STREAM)
-		{
-			cerr << "Run " << RunCount <<  ": T=" << Temperature << " | Simulation started." << endl << endl;
-		}
+
+		writeSimulationStartInfo(RunCount);
+
 		equilibrate(NUMBER_OF_INITIAL_THROW_AWAY_SWEEPS);
 		for (int i = 0; i < NumberOfMCSweeps; i++){
-			for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
-				if (RNG.drawRandomNumber() <= DISPLACEMENT_PROBABILITY){
-					runDisplacementStep();
-				}
-				else {
-					runTypeChange();
-				}
-			}
+			runSingleSGCMCSweep();
 			NumberOfABuffer.push_back(P.getNumberOfAParticles());
 			if (i == NextPotEnergyComputation){
 				PotEnergyBuffer.push_back(P.computePotentialEnergy());
@@ -203,8 +252,8 @@ struct SimulationManager {
 			if (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() >= NextUpdateTime){
 				#pragma omp critical(WRITE_TO_ERROR_STREAM)
 				{
-					int Progress = NumberOfMCSweeps >= 100 ? (i / (NumberOfMCSweeps/100)) : i;
-					cerr << "Run " << RunCount << ": T = " << Temperature <<  ". Progress: " << Progress << "%| Time passed: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
+						int Progress = NumberOfMCSweeps >= 100 ? (i / (NumberOfMCSweeps/100)) : i;
+						cerr << "Run " << RunCount << ": T = " << Temperature <<  ". Progress: " << Progress << "%| Time passed: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
 				}
 				writeSGCMCResults(NumberOfABuffer, PotEnergyBuffer);
 				NumberOfABuffer.clear();
@@ -213,14 +262,7 @@ struct SimulationManager {
 			}
 		}
 		writeSGCMCResults(NumberOfABuffer, PotEnergyBuffer);
-		#pragma omp critical(WRITE_TO_ERROR_STREAM)
-		{
-			cerr << "Run " << RunCount << ": Simulation of T=" << Temperature << " finished. Simulation-metadata: " << endl;
-			cerr << "Tried displacements: " << NumberOfTriedDisplacements << "| Accepted displacements: " << NumberOfAcceptedDisplacements << "| Ratio of accepted displacements: " << static_cast<double>(NumberOfAcceptedDisplacements)/static_cast<double>(NumberOfTriedDisplacements) << endl;
-			cerr << "Tried type changes: " << NumberOfTriedTypeChanges << "| Accepted type changes: " << NumberOfAcceptedTypeChanges << "| Ratio of accepted type changes: " << static_cast<double>(NumberOfAcceptedTypeChanges)/static_cast<double>(NumberOfTriedTypeChanges) << endl;
-			cerr << "#VerletListBuilds: " << P.getNumberOfVerletListBuilds() << endl;
-			cerr << "Computation time: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s for " << NumberOfMCSweeps << " MCSweeps." <<  endl << endl;
-		}
+		writeSimulationMetaDataToErrorStream(RunCount, chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count(), NumberOfMCSweeps);
 	}
 
 	void randomizeInitialPosition(int RunCount){
@@ -391,7 +433,6 @@ void runSGCMCSimulationForMultipleStartStates(double MaxTemperature, double MinT
 			S.initializeParticles(Density);
 			S.randomizeInitialPosition(RunCount);
 			S.setTemperature(MaxTemperature);
-			S.equilibrate(10000);
 			#pragma omp critical(WRITE_TO_ERROR_STREAM)
 			{
 				cerr << "Run " << RunCount << ": Time for initialization and equilibration: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
