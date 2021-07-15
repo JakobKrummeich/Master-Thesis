@@ -41,8 +41,8 @@ class SeriesAnalyzer{
 			return Series;
 		}
 
-		void updateHistogramWithNewSeries(const vector<double>& NASeries, unsigned long EquilibrationIndex){
-			for (unsigned long i = EquilibrationIndex; i < NASeries.size(); i++){
+		void updateHistogramWithNewSeries(const vector<double>& NASeries){
+			for (unsigned long i = 0; i < NASeries.size(); i++){
 				NADistribution[static_cast<unsigned long>(NASeries[i])].yValue++;
 			}
 		}
@@ -118,13 +118,7 @@ class SeriesAnalyzer{
 
 		void addNewSeries(string FileNameNASeries, string FileNamePotEnergySeries, unsigned long MinNumberOfEquilibrationSweeps){
 			vector<double> NewNASeries = readInSeries(FileNameNASeries);
-			vector<double> NewPotEnergySeries = readInSeries(FileNamePotEnergySeries);
-			unsigned long IndexConversionFactor = ceil(static_cast<double>(NewNASeries.size())/(static_cast<double>(NewPotEnergySeries.size())));
-			unsigned long EquilibriumIndexNASeries = computeEquilibrationIndex(NewNASeries, MinNumberOfEquilibrationSweeps);
-			unsigned long EquilibriumIndexPotEnergySeries = computeEquilibrationIndex(NewPotEnergySeries, MinNumberOfEquilibrationSweeps/IndexConversionFactor);
-			unsigned long EquilibriumIndex = max(EquilibriumIndexNASeries, IndexConversionFactor*EquilibriumIndexPotEnergySeries);
-			cerr << "EquilibriumIndex: " << EquilibriumIndex << endl;
-			updateHistogramWithNewSeries(NewNASeries, EquilibriumIndex);
+			updateHistogramWithNewSeries(NewNASeries);
 		}
 
 		void normalizeNADistribution(){

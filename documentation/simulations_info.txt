@@ -12,17 +12,19 @@ semi_gcmc_no_field:
 
 	- epsilon_scan_3132187: simulations for phase diagrams with average density 0.6 and epsAB < 0.5 (might be distorted due to wrong most traveled particle distance tracking)
 
-++++++++++++++++++++++++++++++++++++++++++++
-++ finite_size_scaling_no_field_roh=0.60 +++
-++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++ finite_size_scaling_no_field_roh=0.60_deltaT=0.02 +++
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 	- average density = 0.60
 
 	- finite_size_scaling_no_field: simulations with different Number of particles (500,1000,2000,4000,8000,16000) average density=0.6, epsAB=0.1, 300000 MCSweeps per run, 20 runs per temperature, temperature interval 0.02, temperature start 1.0, temperature end 0.52. per N and temperature 1000 configurations were saved.
 
-	- additionally, there was a second run with the SAME density a smaller temperature interval of 0.62 to 0.58 with a stepsize of 0.002. Only 1 state per run and temperature was saved for this. the density stayed the same. RunNumberOffSet was set to 20. There were 100000 "throw-away/equilibration" sweeps after changing to a new temperature to improve the equilibration.
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++ finite_size_scaling_no_field_roh=0.60_deltaT=0.002 +++
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-	- the generated data of both of the runs mentioned above were moved to the same directory structure, so that there are some temperatures where we havetwice as much data as for the rest (where the finer temperature scan and the coarse scan simulated the same temperature). This means that the coarse scan 'pollutes' the data analysis of the finer scan where the temperatures overlap as the sampling of the coarse scan for system sizes of 16000 and 8000 was significantly worse than for the finer temperature scan.
+	- additionally, there was a second run with the SAME density a smaller temperature interval of 0.62 to 0.58 with a stepsize of 0.002. Only 1 state per run and temperature was saved for this. the density stayed the same. RunNumberOffSet was set to 20. There were 100000 "throw-away/equilibration" sweeps after changing to a new temperature to improve the equilibration.
 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ++ finite_size_scaling_no_field_roh=0.75_deltaT=0.02 ++++++++++++++++
