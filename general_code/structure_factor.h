@@ -13,7 +13,7 @@
 
 static const int DIMENSION = 2;
 
-static const int NUMBER_OF_THREADS = 2;
+static const int NUMBER_OF_THREADS = 1;
 
 class StructureFactorComputator{
 	private:

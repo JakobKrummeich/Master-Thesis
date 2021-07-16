@@ -10,7 +10,7 @@ settings="#!/bin/bash
 #SBATCH --workdir=/home1/krummeich/Master-Thesis/data_analysis/"
 
 
-for temperature_dir in "${sourcepath}/T=*"; do
+for temperature_dir in ${sourcepath}/T=*; do
 	[[ ${temperature_dir} =~ /T=([[:digit:]]*.[[:digit:]]*) ]] && temperature=${BASH_REMATCH[1]}
 	filename="T=${temperature}.sh"
 	echo "$settings" > $filename
@@ -24,6 +24,6 @@ for temperature_dir in "${sourcepath}/T=*"; do
 wait"
 
 	echo "$srun_command" >> $filename
-	#sbatch $filename
+	sbatch $filename
 done
 
