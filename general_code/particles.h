@@ -13,6 +13,7 @@
 #include "particle_type.h"
 #include "fvec.h"
 #include "realRNG.h"
+#include "utility_functions.h"
 
 using namespace std;
 
@@ -296,13 +297,6 @@ class Particles {
 					ParticleTypes[ParticlesInitialized] = ParticleType::B;
 					TypeBParticleIndices.push_back(ParticlesInitialized);
 				}
-			}
-		}
-
-		void skipLines(ifstream& FileStreamToReadIn, int NumberOfLinesToSkip){
-			string s;
-			for (int i = 0; i < NumberOfLinesToSkip; i++){
-				getline(FileStreamToReadIn, s, '\n');
 			}
 		}
 

@@ -2,12 +2,14 @@
 #define STRUCTURE_FACTOR_INCLUDED
 
 #include <vector>
-#include "realRNG.h"
 #include <fstream>
 #include <iomanip>
 #include <chrono>
 #include <iostream>
 #include <cmath>
+
+#include "realRNG.h"
+#include "utility_functions.h"
 
 static const int DIMENSION = 2;
 
@@ -141,18 +143,17 @@ class StructureFactorComputator{
 		}
 
 	public:
-		StructureFactorComputator(double kMax):
-			kMax(kMax){
+
+		StructureFactorComputator(double kMax, double BoxLength, int TotalNumberOfParticles):
+			kMax(kMax),
+			BoxLength(BoxLength),
+			TotalNumberOfParticles(TotalNumberOfParticles){
+				kMin = 2.0*M_PI/BoxLength;
+				findkValuesOnGrid();
+				Results = vector<RowEntry>(kCombinationMapping.size(), RowEntry());
 		}
 
-		void initialize(double _BoxLength){
-			BoxLength = _BoxLength;
-			kMin = 2.0*M_PI/BoxLength;
-			findkValuesOnGrid();
-			Results = vector<RowEntry>(kCombinationMapping.size(), RowEntry());
-		}
-
-		void readInParticleState(string FileNameToReadIn) {
+		void readInParticleState(string FileNameToReadIn, int StateNumber) {
 			ifstream FileStreamToReadIn;
 			FileStreamToReadIn.open(FileNameToReadIn);
 
@@ -161,13 +162,14 @@ class StructureFactorComputator{
 			APositions.clear();
 			BPositions.clear();
 
+			skipLines(FileStreamToReadIn, 1+StateNumber*(TotalNumberOfParticles+2));
+
 			getline(FileStreamToReadIn, CurrentString, ':');
 			getline(FileStreamToReadIn, CurrentString, '|');
 			NumberOfAParticles =  stoi(CurrentString);
 			getline(FileStreamToReadIn, CurrentString, ':');
 			getline(FileStreamToReadIn, CurrentString, '|');
 			NumberOfBParticles = stoi(CurrentString);
-			TotalNumberOfParticles = NumberOfAParticles + NumberOfBParticles;
 			getline(FileStreamToReadIn, CurrentString, '\n');
 
 			for (int ParticleIndex = 0; ParticleIndex < TotalNumberOfParticles; ParticleIndex++){
@@ -214,16 +216,16 @@ class StructureFactorComputator{
 								double cosSumB = computeCosSum(BPositions, kx, ky);
 								double sinSumB = computeSinSum(BPositions, kx, ky);
 
-								double SAA = cosSumA*cosSumA + sinSumA * sinSumA;
-								double SBB = cosSumB*cosSumB + sinSumB * sinSumB;
-								double SAB = cosSumA*cosSumB + sinSumA * sinSumB;
+								double SAA = cosSumA * cosSumA + sinSumA * sinSumA;
+								double SBB = cosSumB * cosSumB + sinSumB * sinSumB;
+								double SAB = cosSumA * cosSumB + sinSumA * sinSumB;
 
 								#pragma omp critical(UPDATE_RESULTS)
 								{
 									Results[i].SAA += SAA;
 									Results[i].SBB += SBB;
 									Results[i].SAB += SAB;
-									Results[i].Scc += xB*xB*SAA + xA*xA*SBB - 2.0 * xA * xB * SAB;
+									Results[i].Scc += xB * xB * SAA + xA * xA * SBB - 2.0 * xA * xB * SAB;
 									Results[i].NumberOfDataPoints++;
 								}
 							}
@@ -233,6 +235,13 @@ class StructureFactorComputator{
 				}
 			}
 			cerr << "Computation time for structure factors: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
+		}
+
+		void computeStructureFactors(string InputFileName, int NumberOfStates){
+			for (int StateIndex = 0; StateIndex < NumberOfStates; StateIndex++){
+				readInParticleState(InputFileName, StateIndex);
+				computeNewStructureFactorValues();
+			}
 		}
 
 		void writeResultsToFile(string FileName) {

@@ -1,4 +1,4 @@
-#include "../General_Code/structure_factor.h"
+#include "../general_code/structure_factor.h"
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -10,6 +10,7 @@ double extractBoxLength(string InputFileName){
 	ifstream InputFileStream;
 	string CurrentString;
 	InputFileStream.open(InputFileName);
+	getline(InputFileStream, CurrentString, '\n');
 	getline(InputFileStream, CurrentString, ':');
 	getline(InputFileStream, CurrentString, ':');
 	getline(InputFileStream, CurrentString, ':');
@@ -19,27 +20,27 @@ double extractBoxLength(string InputFileName){
 
 int main(int argc, char* argv[]){
 	double kMax;
-	if (argc >= 3){
-		kMax = atof(argv[2]);
+	int TotalNumberOfParticles;
+	int NumberOfStates;
+	string InputFileName;
+	string OutputFileName;
+	if (argc == 6){
+		InputFileName = argv[1];
+		OutputFileName = "StructureFactors_";
+		OutputFileName += argv[2];
+		OutputFileName += ".dat";
+		kMax = atof(argv[3]);
+		TotalNumberOfParticles = atoi(argv[4]);
+		NumberOfStates = atoi(argv[5]);
 	}
-	else if (argc < 3){
-		cerr << "StructureFactorComputation failed as we need a target FileName and kMax!" << endl;
+	else if (argc < 6){
+		cerr << "StructureFactorComputation failed as we need a target File, extracted FileInfo, kMax, TotalNumberOfParticles and NumberOfStates!" << endl;
 		return 0;
 	}
-	StructureFactorComputator SFComputator(kMax);
-	string InputFileName;
-	cin >> InputFileName;
-	string OutputFileName = "StructureFactors_";
-	OutputFileName += argv[1];
-	OutputFileName += ".dat";
 
-	SFComputator.initialize(extractBoxLength(InputFileName));
-	SFComputator.readInParticleState(InputFileName);
-	SFComputator.computeNewStructureFactorValues();
+	StructureFactorComputator SFComputator(kMax, extractBoxLength(InputFileName), TotalNumberOfParticles);
 
-	while (cin >> InputFileName){
-		SFComputator.readInParticleState(InputFileName);
-		SFComputator.computeNewStructureFactorValues();
-	}
+	SFComputator.computeStructureFactors(InputFileName, NumberOfStates);
+
 	SFComputator.writeResultsToFile(OutputFileName);
 }
