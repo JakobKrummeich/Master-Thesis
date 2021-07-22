@@ -68,15 +68,6 @@ class StructureFactorComputator{
 				Scc(0.0),
 				NumberOfDataPoints(0){
 			}
-
-			RowEntry& operator+=(const RowEntry& RHS){
-				this -> SAA += RHS.SAA;
-				this -> SBB += RHS.SBB;
-				this -> SAB += RHS.SAB;
-				this -> Scc += RHS.Scc;
-				this -> NumberOfDataPoints += RHS.NumberOfDataPoints;
-				return *this;
-			}
 		};
 
 		vector<kCombinationMappingEntry> kCombinationMapping;
