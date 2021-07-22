@@ -11,6 +11,8 @@
 #include "realRNG.h"
 #include "utility_functions.h"
 
+using namespace std;
+
 static const int DIMENSION = 2;
 
 static const int NUMBER_OF_THREADS = 1;
@@ -97,7 +99,7 @@ class StructureFactorComputator{
 		}
 
 		void findkValuesOnGrid(){
-			double kWidth = 0.04;
+			double kWidth = 0.01;
 			double CurrentkMag = kMin;
 			int NumberOfAttemptedAveragesPerk = 1000;
 			int MaxNumberOfCombinationsPerInterval = 100;
