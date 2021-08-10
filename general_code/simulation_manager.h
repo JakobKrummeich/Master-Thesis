@@ -234,8 +234,8 @@ struct SimulationManager {
 		const auto StartTime = chrono::steady_clock::now();
 		int NextUpdateTime = UPDATE_TIME_INTERVAL;
 		int NextPotEnergyComputation = POT_ENERGY_UPDATE_INTERVAL;
-		int NextStateSave = NumberOfMCSweeps / 2;
-		int StateSaveInterval = (NumberOfMCSweeps / 2) / NumberOfSavedStatesPerRun;
+		int NextStateSave = 0;
+		int StateSaveInterval = NumberOfMCSweeps / NumberOfSavedStatesPerRun;
 		int SavedStateCount = 0;
 		writeCMCMetaData();
 		vector<double> PotEnergyBuffer;
@@ -311,10 +311,10 @@ struct SimulationManager {
 		writeSimulationMetaDataToErrorStream(RunCount, chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count(), NumberOfMCSweeps);
 	}
 
-	void randomizeInitialPosition(int RunCount){
+	void randomizeInitialPosition(int RunCount, int NumberOfInitialRandomizationSweeps){
 		double TemperatureBefore = Temperature;
 		setTemperature(AA_INTERACTION_STRENGTH*10.0);
-		for (int i = 0; i < NUMBER_OF_INITIAL_RANDOMIZATION_SWEEPS; i++){
+		for (int i = 0; i < NumberOfInitialRandomizationSweeps; i++){
 			for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
 				if (RNG.drawRandomNumber() <= DISPLACEMENT_PROBABILITY){
 					runDisplacementStep();
@@ -505,7 +505,7 @@ void runSGCMCSimulationForMultipleStartStates(double MaxTemperature, double MinT
 		for (int RunCount = RunNumberOffset; RunCount < NumberOfRuns+RunNumberOffset; RunCount++){
 			const auto StartTime = chrono::steady_clock::now();
 			S.initializeParticles(Density);
-			S.randomizeInitialPosition(RunCount);
+			S.randomizeInitialPosition(RunCount, NUMBER_OF_INITIAL_THROW_AWAY_SWEEPS);
 			S.setTemperature(MaxTemperature);
 			#pragma omp critical(WRITE_TO_ERROR_STREAM)
 			{
@@ -533,7 +533,7 @@ void runPressureMCForMultipleStartStates(double MaxPressure, double MinPressure,
 		#pragma omp for
 		for (int RunCount = RunNumberOffset; RunCount < NumberOfRuns+RunNumberOffset; RunCount++){
 			S.initializeParticles(InitialDensity);
-			S.randomizeInitialPosition(RunCount);
+			S.randomizeInitialPosition(RunCount, NUMBER_OF_INITIAL_THROW_AWAY_SWEEPS);
 			for (double CurrentPressure = MaxPressure; CurrentPressure > MinPressure; CurrentPressure -= PressureStep){
 				S.setPressure(CurrentPressure);
 				S.setFileNameString(RunCount, MCModus::PressureMC);

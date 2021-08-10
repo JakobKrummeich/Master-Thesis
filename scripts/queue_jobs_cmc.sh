@@ -15,6 +15,16 @@ declare -a equilibrium_values=(
 	"0.740 0.152967"
 	"0.742 0.176043"
 	"0.744 0.185197"
+	"0.750 0.5"
+	"0.760 0.5"
+	"0.770 0.5"
+	"0.780 0.5"
+	"0.790 0.5"
+	"0.800 0.5"
+	"0.810 0.5"
+	"0.820 0.5"
+	"0.830 0.5"
+	"0.840 0.5"
 )
 
 
@@ -23,7 +33,7 @@ for equilibrium_value in "${equilibrium_values[@]}"; do
 	filename="T=${tuple[0]}.sh"
 	echo "$settings" > $filename
 	echo  -e  >> $filename
-	srun_command="srun --ntasks=1 --error=error_stream_output/T=${tuple[0]}_%J.err ./cmc ${tuple[0]} ${tuple[1]} &
+	srun_command="srun --ntasks=1 --error=error_stream_output/T=${tuple[0]}_%J.err ./cmc ${tuple[0]} ${tuple[1]} 0 &
 
 wait"
 	echo "$srun_command" >> $filename
