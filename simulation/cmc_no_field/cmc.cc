@@ -17,18 +17,18 @@ int main(int argc, char* argv[]){
 		SimulationManager S(NumberOfAParticles, NumberOfAParticles, NUMBER_OF_SWEEPS, OUTPUT_DIRECTORY);
 
 		#pragma omp for
-		for (int RunCount = RunNumberOffset; RunCount < NUMBER_OF_RUNS+RunNumberOffset; RunCount++){
+		for (int RunCount = 0; RunCount < NUMBER_OF_RUNS; RunCount++){
 			const auto StartTime = chrono::steady_clock::now();
 			S.initializeParticles(DENSITY);
-			S.randomizeInitialPosition(RunCount, NUMBER_OF_INITIAL_RANDOMIZATION_SWEEPS);
+			S.randomizeInitialPosition(RunCount+RunNumberOffset, NUMBER_OF_INITIAL_RANDOMIZATION_SWEEPS);
 			S.setTemperature(Temperature);
 			#pragma omp critical(WRITE_TO_ERROR_STREAM)
 			{
-				cerr << "Run " << RunCount << ": Time for initialization: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
+				cerr << "Run " << RunCount+RunNumberOffset << ": Time for initialization: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
 			}
-			S.setFileNameString(RunCount, MCModus::CMC);
+			S.setFileNameString(RunCount+RunNumberOffset, MCModus::CMC);
 			S.resetCountersAndBuffers();
-			S.runCMCSimulationForSingleTemperature(RunCount, MAX_RUNTIME_IN_MINUTES, NumberOfSavedStatesPerRun);
+			S.runCMCSimulationForSingleTemperature(RunCount+RunNumberOffset, MAX_RUNTIME_IN_MINUTES, NumberOfSavedStatesPerRun);
 		}
 	}
 }
