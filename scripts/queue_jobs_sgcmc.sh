@@ -21,7 +21,7 @@ for N in 16000; do
 
 wait"
 			echo "$srun_command" >> ${submit_filename}
-			#sbatch ${submit_filename}
+			sbatch ${submit_filename}
 		done
 	done
 done
