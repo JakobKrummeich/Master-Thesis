@@ -30,7 +30,6 @@ struct SimulationManager {
 
 	int MinNumberOfA;
 	int MaxNumberOfA;
-	int NumberOfMCSweeps;
 
 	double NumberOfTriedDisplacements;
 	double NumberOfAcceptedDisplacements;
@@ -44,10 +43,9 @@ struct SimulationManager {
 	string FileNameString;
 	string DirectoryString;
 
-	SimulationManager(int MinNumberOfA, int MaxNumberOfA, int NumberOfMCSweeps, string DirectoryForFreshData):
+	SimulationManager(int MinNumberOfA, int MaxNumberOfA, string DirectoryForFreshData):
 		MinNumberOfA(MinNumberOfA),
 		MaxNumberOfA(MaxNumberOfA),
-		NumberOfMCSweeps(NumberOfMCSweeps),
 		NumberOfTriedDisplacements(0.0),
 		NumberOfAcceptedDisplacements(0.0),
 		NumberOfTriedTypeChanges(0.0),
@@ -74,7 +72,7 @@ struct SimulationManager {
 		Pressure = NewPressure;
 	}
 
-	void setFileNameString(int RunNumber, MCModus M){
+	void setFileNameString(int RunNumber, MCModus M, int NumberOfMCSweeps){
 		if (M == MCModus::SGCMC || M == MCModus::CMC){
 			FileNameString = "N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_AvgDens="+to_string(P.getDensity())+"_MCRuns="+to_string(NumberOfMCSweeps)+"_epsAB="+to_string(AB_INTERACTION_STRENGTH)+"_"+to_string(RunNumber);
 		}
@@ -188,26 +186,34 @@ struct SimulationManager {
 		}
 	}
 
-	void writeSimulationStartInfo(int RunCount){
+	void writeSimulationStartInfoToErrorStream(int RunCount){
 		#pragma omp critical(WRITE_TO_ERROR_STREAM)
 		{
 			cerr << "Run " << RunCount <<  ": T=" << Temperature << " | Simulation started." << endl << endl;
 		}
 	}
 
-	void runSGCMCSimulationForSingleTemperatureTimeControlled(int RunCount, int MaxRuntimeInMinutes){
-		const auto StartTime = chrono::steady_clock::now();
+	void writeSimulationProgressToErrorStream(int RunCount, int MaxNumberOfSweeps, int SweepCount, double Temperature, int ElapsedTime){
+		#pragma omp critical(WRITE_TO_ERROR_STREAM)
+		{
+			int Progress = MaxNumberOfSweeps >= 100 ? (SweepCount / (MaxNumberOfSweeps/100)) : SweepCount;
+			cerr << "Run " << RunCount << ": T = " << Temperature <<  ". Progress: " << Progress << "%| SweepCount: " << SweepCount << "| Time passed: " << ElapsedTime << " s" << endl;
+		}
+	}
+
+	void runSGCMCSimulationForSingleTemperatureTimeControlled(int RunCount, int MaxRuntimeInMinutes, int MaxNumberOfSweeps){
+
+		writeSGCMCMetaData();
+		writeSimulationStartInfoToErrorStream(RunCount);
+
+		auto StartTime = chrono::steady_clock::now();
 		int NextUpdateTime = UPDATE_TIME_INTERVAL;
 		int NextPotEnergyComputation = POT_ENERGY_UPDATE_INTERVAL;
-		writeSGCMCMetaData();
 		vector<int> NumberOfABuffer;
 		vector<double> PotEnergyBuffer;
 
-		writeSimulationStartInfo(RunCount);
-
-		equilibrate(NUMBER_OF_INITIAL_THROW_AWAY_SWEEPS);
 		int SweepCount = 0;
-		for (; 	chrono::duration_cast<chrono::minutes>(chrono::steady_clock::now()-StartTime).count() < MaxRuntimeInMinutes && SweepCount < NUMBER_OF_SWEEPS; SweepCount++){
+		for (; 	chrono::duration_cast<chrono::minutes>(chrono::steady_clock::now()-StartTime).count() < MaxRuntimeInMinutes && SweepCount < MaxNumberOfSweeps; SweepCount++){
 			runSingleSGCMCSweep();
 			NumberOfABuffer.push_back(P.getNumberOfAParticles());
 			if (SweepCount == NextPotEnergyComputation){
@@ -215,10 +221,7 @@ struct SimulationManager {
 				NextPotEnergyComputation += POT_ENERGY_UPDATE_INTERVAL;
 			}
 			if (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() >= NextUpdateTime){
-				#pragma omp critical(WRITE_TO_ERROR_STREAM)
-				{
-						cerr << "Run " << RunCount << ": T = " << Temperature <<  ". SweepCount: " << SweepCount << "| Time passed: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
-				}
+				writeSimulationProgressToErrorStream(RunCount, MaxNumberOfSweeps, SweepCount, Temperature, chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count());
 				writeSGCMCResults(NumberOfABuffer, PotEnergyBuffer);
 				NumberOfABuffer.clear();
 				PotEnergyBuffer.clear();
@@ -230,21 +233,21 @@ struct SimulationManager {
 		writeSimulationMetaDataToErrorStream(RunCount, chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count(), SweepCount);
 	}
 
-	void runCMCSimulationForSingleTemperature(int RunCount, int MaxRuntimeInMinutes, int NumberOfSavedStatesPerRun){
-		const auto StartTime = chrono::steady_clock::now();
+	void runCMCSimulationForSingleTemperature(int RunCount, int MaxRuntimeInMinutes, int NumberOfSavedStatesPerRun, int MaxNumberOfSweeps){
+
+		writeCMCMetaData();
+		writeSimulationStartInfoToErrorStream(RunCount);
+
+		auto StartTime = chrono::steady_clock::now();
 		int NextUpdateTime = UPDATE_TIME_INTERVAL;
 		int NextPotEnergyComputation = POT_ENERGY_UPDATE_INTERVAL;
 		int NextStateSave = 0;
-		int StateSaveInterval = NumberOfMCSweeps / NumberOfSavedStatesPerRun;
+		int StateSaveInterval = MaxNumberOfSweeps / NumberOfSavedStatesPerRun;
 		int SavedStateCount = 0;
-		writeCMCMetaData();
 		vector<double> PotEnergyBuffer;
 
-		writeSimulationStartInfo(RunCount);
-
-		equilibrate(NUMBER_OF_INITIAL_THROW_AWAY_SWEEPS);
 		int SweepCount = 0;
-		for (; 	chrono::duration_cast<chrono::minutes>(chrono::steady_clock::now()-StartTime).count() < MaxRuntimeInMinutes && SweepCount < NUMBER_OF_SWEEPS; SweepCount++){
+		for (; chrono::duration_cast<chrono::minutes>(chrono::steady_clock::now()-StartTime).count() < MaxRuntimeInMinutes && SweepCount < MaxNumberOfSweeps; SweepCount++){
 			runSingleCMCSweep();
 			if (SweepCount == NextPotEnergyComputation){
 				PotEnergyBuffer.push_back(P.computePotentialEnergy());
@@ -256,10 +259,7 @@ struct SimulationManager {
 				SavedStateCount++;
 			}
 			if (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() >= NextUpdateTime){
-				#pragma omp critical(WRITE_TO_ERROR_STREAM)
-				{
-						cerr << "Run " << RunCount << ": T = " << Temperature <<  ". SweepCount: " << SweepCount << "| Time passed: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
-				}
+				writeSimulationProgressToErrorStream(RunCount, MaxNumberOfSweeps, SweepCount, Temperature, chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count());
 				writeCMCResults(PotEnergyBuffer);
 				PotEnergyBuffer.clear();
 				NextUpdateTime += UPDATE_TIME_INTERVAL;
@@ -267,48 +267,6 @@ struct SimulationManager {
 		}
 		writeCMCResults(PotEnergyBuffer);
 		writeSimulationMetaDataToErrorStream(RunCount, chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count(), SweepCount);
-	}
-
-	void runSGCMCSimulationForSingleTemperature(int RunCount, int NumberOfSavedStatesPerRun) {
-		const auto StartTime = chrono::steady_clock::now();
-		int NextUpdateTime = UPDATE_TIME_INTERVAL;
-		int NextPotEnergyComputation = POT_ENERGY_UPDATE_INTERVAL;
-		int NextStateSave = NumberOfMCSweeps / 2;
-		int StateSaveInterval = (NumberOfMCSweeps / 2) / NumberOfSavedStatesPerRun;
-		int SavedStateCount = 0;
-		writeSGCMCMetaData();
-		vector<int> NumberOfABuffer;
-		vector<double> PotEnergyBuffer;
-
-		writeSimulationStartInfo(RunCount);
-
-		equilibrate(NUMBER_OF_INITIAL_THROW_AWAY_SWEEPS);
-		for (int i = 0; i < NumberOfMCSweeps; i++){
-			runSingleSGCMCSweep();
-			NumberOfABuffer.push_back(P.getNumberOfAParticles());
-			if (i == NextPotEnergyComputation){
-				PotEnergyBuffer.push_back(P.computePotentialEnergy());
-				NextPotEnergyComputation += POT_ENERGY_UPDATE_INTERVAL;
-			}
-			if (i == NextStateSave){
-				writeParticleStateToFile(DirectoryString+"/State_"+FileNameString+"_"+to_string(SavedStateCount)+".dat");
-				NextStateSave += StateSaveInterval;
-				SavedStateCount++;
-			}
-			if (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() >= NextUpdateTime){
-				#pragma omp critical(WRITE_TO_ERROR_STREAM)
-				{
-						int Progress = NumberOfMCSweeps >= 100 ? (i / (NumberOfMCSweeps/100)) : i;
-						cerr << "Run " << RunCount << ": T = " << Temperature <<  ". Progress: " << Progress << "%| Time passed: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
-				}
-				writeSGCMCResults(NumberOfABuffer, PotEnergyBuffer);
-				NumberOfABuffer.clear();
-				PotEnergyBuffer.clear();
-				NextUpdateTime += UPDATE_TIME_INTERVAL;
-			}
-		}
-		writeSGCMCResults(NumberOfABuffer, PotEnergyBuffer);
-		writeSimulationMetaDataToErrorStream(RunCount, chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count(), NumberOfMCSweeps);
 	}
 
 	void randomizeInitialPosition(int RunCount, int NumberOfInitialRandomizationSweeps){
@@ -426,12 +384,12 @@ struct SimulationManager {
 		FileStreamToWrite.close();
 	}
 
-	void runPressureMCForSinglePressure(int RunCount, int NumberOfSavedStatesPerRun) {
+	void runPressureMCForSinglePressure(int RunCount, int NumberOfSavedStatesPerRun, int NumberOfEquilibrationSweeps, int NumberOfMCSweeps) {
 		const auto StartTime = chrono::steady_clock::now();
 		int NextUpdateTime = UPDATE_TIME_INTERVAL;
 		int NextPotEnergyComputation = POT_ENERGY_UPDATE_INTERVAL;
-		int NextStateSave = NumberOfMCSweeps / 2;
-		int StateSaveInterval = (NumberOfMCSweeps / 2) / NumberOfSavedStatesPerRun;
+		int NextStateSave = NumberOfMCSweeps;
+		int StateSaveInterval = NumberOfMCSweeps / NumberOfSavedStatesPerRun;
 		int SavedStateCount = 0;
 		writePressureMCMetaData();
 		vector<double> DensityBuffer;
@@ -440,7 +398,7 @@ struct SimulationManager {
 		{
 			cerr << "Run " << RunCount <<  ": p = " << Pressure << " | Simulation started." << endl << endl;
 		}
-		for (int i = 0; i < NUMBER_OF_INITIAL_THROW_AWAY_SWEEPS; i++){
+		for (int i = 0; i < NumberOfEquilibrationSweeps; i++){
 			for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
 				if (RNG.drawRandomNumber() <= VOLUME_CHANGE_PROBABILITY){
 					runVolumeChange();
@@ -493,52 +451,24 @@ struct SimulationManager {
 	}
 };
 
-void runSGCMCSimulationForMultipleStartStates(double MaxTemperature, double MinTemperature, double TemperatureStep, int NumberOfRuns, int NumberOfMCSweeps, int RunNumberOffset, double Density, string DirectoryForFreshData) {
+void runPressureMCForMultipleStartStates(double MaxPressure, double MinPressure, double PressureStep, int NumberOfRuns, int RunNumberOffset, double InitialDensity, double Temperature, string DirectoryForFreshData, int NumberOfInitialRandomizationSweeps, int NumberOfEquilibrationSweeps, int NumberOfMCSweeps) {
 
 	const int NumberOfSavedStatesPerRun = NUMBER_OF_SAVED_STATES_PER_TEMPERATURE >= NumberOfRuns ?  NUMBER_OF_SAVED_STATES_PER_TEMPERATURE / NumberOfRuns : 1;
 
 	#pragma omp parallel num_threads(NUMBER_OF_THREADS)
 	{
-		SimulationManager S(0, TOTAL_NUMBER_OF_PARTICLES, NumberOfMCSweeps, DirectoryForFreshData);
-
-		#pragma omp for
-		for (int RunCount = RunNumberOffset; RunCount < NumberOfRuns+RunNumberOffset; RunCount++){
-			const auto StartTime = chrono::steady_clock::now();
-			S.initializeParticles(Density);
-			S.randomizeInitialPosition(RunCount, NUMBER_OF_INITIAL_THROW_AWAY_SWEEPS);
-			S.setTemperature(MaxTemperature);
-			#pragma omp critical(WRITE_TO_ERROR_STREAM)
-			{
-				cerr << "Run " << RunCount << ": Time for initialization and equilibration: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
-			}
-			for (double CurrentTemperature = MaxTemperature; CurrentTemperature > MinTemperature; CurrentTemperature -= TemperatureStep){
-				S.setTemperature(CurrentTemperature);
-				S.setFileNameString(RunCount, MCModus::SGCMC);
-				S.resetCountersAndBuffers();
-				S.runSGCMCSimulationForSingleTemperature(RunCount, NumberOfSavedStatesPerRun);
-			}
-		}
-	}
-}
-
-void runPressureMCForMultipleStartStates(double MaxPressure, double MinPressure, double PressureStep, int NumberOfRuns, int NumberOfMCSweeps, int RunNumberOffset, double InitialDensity, double Temperature, string DirectoryForFreshData) {
-
-	const int NumberOfSavedStatesPerRun = NUMBER_OF_SAVED_STATES_PER_TEMPERATURE >= NumberOfRuns ?  NUMBER_OF_SAVED_STATES_PER_TEMPERATURE / NumberOfRuns : 1;
-
-	#pragma omp parallel num_threads(NUMBER_OF_THREADS)
-	{
-		SimulationManager S(TOTAL_NUMBER_OF_PARTICLES, TOTAL_NUMBER_OF_PARTICLES, NumberOfMCSweeps, DirectoryForFreshData);
+		SimulationManager S(TOTAL_NUMBER_OF_PARTICLES, TOTAL_NUMBER_OF_PARTICLES, DirectoryForFreshData);
 		S.setTemperature(Temperature);
 
 		#pragma omp for
 		for (int RunCount = RunNumberOffset; RunCount < NumberOfRuns+RunNumberOffset; RunCount++){
 			S.initializeParticles(InitialDensity);
-			S.randomizeInitialPosition(RunCount, NUMBER_OF_INITIAL_THROW_AWAY_SWEEPS);
+			S.randomizeInitialPosition(RunCount, NumberOfInitialRandomizationSweeps);
 			for (double CurrentPressure = MaxPressure; CurrentPressure > MinPressure; CurrentPressure -= PressureStep){
 				S.setPressure(CurrentPressure);
-				S.setFileNameString(RunCount, MCModus::PressureMC);
+				S.setFileNameString(RunCount, MCModus::PressureMC, NumberOfMCSweeps);
 				S.resetCountersAndBuffers();
-				S.runPressureMCForSinglePressure(RunCount, NumberOfSavedStatesPerRun);
+				S.runPressureMCForSinglePressure(RunCount, NumberOfSavedStatesPerRun, NumberOfEquilibrationSweeps, NumberOfMCSweeps);
 			}
 		}
 	}
