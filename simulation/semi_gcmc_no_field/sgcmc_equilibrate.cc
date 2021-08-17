@@ -33,7 +33,7 @@ int main(int argc, char* argv[]){
 			{
 				cerr << "Run " << RunCount+RunNumberOffset << ": Time for " << NumberOfEquilibrationSweeps << " equilibration sweeps: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
 			}
-			S.writeParticleStateToFile(OUTPUT_DIRECTORY+"/State_"+"N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_AvgDens="+to_string(DENSITY)+"_MCEquilibrationSweeps="+to_string(NumberOfEquilibrationSweeps)+"_epsAB="+to_string(AB_INTERACTION_STRENGTH)+"_"+to_string(RunCount)+"_"+to_string(0)+".dat");
+			S.writeParticleStateToFile(OUTPUT_DIRECTORY+"/State_"+"N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_AvgDens="+to_string(DENSITY)+"_EquilibrationTime="+to_string(MAX_RUNTIME_IN_MINUTES)+"_epsAB="+to_string(AB_INTERACTION_STRENGTH)+"_"+to_string(RunCount)+"_"+to_string(0)+".dat");
 			S.writeSimulationMetaDataToErrorStream(RunCount, chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count(), NumberOfEquilibrationSweeps);
 		}
 	}
