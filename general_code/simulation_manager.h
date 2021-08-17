@@ -152,10 +152,18 @@ struct SimulationManager {
 		}
 	}
 
-	void equilibrate(int NumberOfEquilibrationSteps, int MaxRuntimeInMinutes, chrono::time_point<chrono::steady_clock> StartTime){
-		 for (int i = 0; i < NumberOfEquilibrationSteps && chrono::duration_cast<chrono::minutes>(chrono::steady_clock::now()-StartTime).count() < MaxRuntimeInMinutes; i++){
+	void equilibrateFixedSweeps(int NumberOfEquilibrationSteps){
+		for (int i = 0; i < NumberOfEquilibrationSteps; i++){
 			runSingleSGCMCSweep();
 		}
+	}
+
+	int equilibrateFixedTime(int MaxRuntimeInMinutes, chrono::time_point<chrono::steady_clock> StartTime){
+		int SweepCount = 0;
+		for (; chrono::duration_cast<chrono::minutes>(chrono::steady_clock::now()-StartTime).count() < MaxRuntimeInMinutes; SweepCount++){
+			runSingleSGCMCSweep();
+		}
+		return SweepCount;
 	}
 
 	void runSingleCMCSweep(){
@@ -175,14 +183,14 @@ struct SimulationManager {
 		}
 	}
 
-	void writeSimulationMetaDataToErrorStream(int RunCount, int TimePassedInSeconds, int NumberOfMCSweeps){
+	void writeSimulationMetaDataToErrorStream(int RunCount, int TimePassedInSeconds, int NumberOfSweeps){
 		#pragma omp critical(WRITE_TO_ERROR_STREAM)
 		{
 			cerr << "Run " << RunCount << ": Simulation of T=" << Temperature << " finished. Simulation-metadata: " << endl;
 			cerr << "Tried displacements: " << NumberOfTriedDisplacements << "| Accepted displacements: " << NumberOfAcceptedDisplacements << "| Ratio of accepted displacements: " << static_cast<double>(NumberOfAcceptedDisplacements)/static_cast<double>(NumberOfTriedDisplacements) << endl;
-			cerr << "Tried type changes: " << NumberOfTriedTypeChanges << "| Accepted type changes: " << NumberOfAcceptedTypeChanges << "| Ratio of accepted type changes: " << static_cast<double>(NumberOfAcceptedTypeChanges)/static_cast<double>(NumberOfTriedTypeChanges) << endl;
+			cerr << "Tried type changes : " << NumberOfTriedTypeChanges   << "| Accepted type changes:  " << NumberOfAcceptedTypeChanges   << "| Ratio of accepted type changes:  " << static_cast<double>(NumberOfAcceptedTypeChanges)/static_cast<double>(NumberOfTriedTypeChanges) << endl;
 			cerr << "#VerletListBuilds: " << P.getNumberOfVerletListBuilds() << endl;
-			cerr << "Total computation time: " << TimePassedInSeconds << " s" << endl << endl;
+			cerr << "Computation time: " << TimePassedInSeconds << " s for " << NumberOfSweeps << " sweeps" << endl << endl;
 		}
 	}
 
@@ -202,6 +210,8 @@ struct SimulationManager {
 	}
 
 	void runSGCMCSimulationForSingleTemperatureTimeControlled(int RunCount, int MaxRuntimeInMinutes, chrono::time_point<chrono::steady_clock> StartTime, int MaxNumberOfSweeps){
+
+		auto StartOfDataTaking = chrono::steady_clock::now();
 
 		writeSGCMCMetaData();
 		writeSimulationStartInfoToErrorStream(RunCount);
@@ -229,10 +239,12 @@ struct SimulationManager {
 		}
 		writeSGCMCResults(NumberOfABuffer, PotEnergyBuffer);
 		writeParticleStateToFile(DirectoryString+"/State_"+FileNameString+"_"+to_string(0)+".dat");
-		writeSimulationMetaDataToErrorStream(RunCount, chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count(), SweepCount);
+		writeSimulationMetaDataToErrorStream(RunCount, chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartOfDataTaking).count(), SweepCount);
 	}
 
 	void runCMCSimulationForSingleTemperature(int RunCount, int MaxRuntimeInMinutes, chrono::time_point<chrono::steady_clock> StartTime, int MaxNumberOfSweeps, int NumberOfSavedStatesPerRun){
+
+		auto StartOfDataTaking = chrono::steady_clock::now();
 
 		writeCMCMetaData();
 		writeSimulationStartInfoToErrorStream(RunCount);
@@ -264,7 +276,7 @@ struct SimulationManager {
 			}
 		}
 		writeCMCResults(PotEnergyBuffer);
-		writeSimulationMetaDataToErrorStream(RunCount, chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count(), SweepCount);
+		writeSimulationMetaDataToErrorStream(RunCount, chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartOfDataTaking).count(), SweepCount);
 	}
 
 	void randomizeInitialPosition(int RunCount, int NumberOfInitialRandomizationSweeps){
