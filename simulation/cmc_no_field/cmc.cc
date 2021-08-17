@@ -27,14 +27,14 @@ int main(int argc, char* argv[]){
 			S.initializeParticles(DENSITY);
 			S.randomizeInitialPosition(RunCount+RunNumberOffset, NumberOfInitialRandomizationSweeps);
 			S.setTemperature(Temperature);
-			S.equilibrate(NumberOfEquilibrationSweeps);
+			S.equilibrate(NumberOfEquilibrationSweeps, MAX_RUNTIME_IN_MINUTES, StartTime);
 			#pragma omp critical(WRITE_TO_ERROR_STREAM)
 			{
 				cerr << "Run " << RunCount+RunNumberOffset << ": Time for " << NumberOfInitialRandomizationSweeps << " randomization sweeps and " << NumberOfEquilibrationSweeps << " equilibration sweeps: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
 			}
 			S.setFileNameString(RunCount+RunNumberOffset, MCModus::CMC, MaxNumberOfSweeps);
 			S.resetCountersAndBuffers();
-			S.runCMCSimulationForSingleTemperature(RunCount+RunNumberOffset, MAX_RUNTIME_IN_MINUTES, NumberOfSavedStatesPerRun, MaxNumberOfSweeps);
+			S.runCMCSimulationForSingleTemperature(RunCount+RunNumberOffset, MAX_RUNTIME_IN_MINUTES, StartTime, MaxNumberOfSweeps, NumberOfSavedStatesPerRun);
 		}
 	}
 }

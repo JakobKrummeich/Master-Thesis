@@ -23,14 +23,14 @@ int main(int argc, char* argv[]){
 			const auto StartTime = chrono::steady_clock::now();
 			S.readInParticleState(InitialStateFile, RunCount*StatesToSkipPerRun, DENSITY);
 			S.setTemperature(Temperature);
-			S.equilibrate(NumberOfEquilibrationSweeps);
+			S.equilibrate(NumberOfEquilibrationSweeps, MAX_RUNTIME_IN_MINUTES, StartTime);
 			#pragma omp critical(WRITE_TO_ERROR_STREAM)
 			{
 				cerr << "Run " << RunCount+RunNumberOffset << ": Time for " << NumberOfEquilibrationSweeps << " equilibration sweeps: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
 			}
 			S.setFileNameString(RunCount+RunNumberOffset, MCModus::SGCMC, MaxNumberOfSweeps);
 			S.resetCountersAndBuffers();
-			S.runSGCMCSimulationForSingleTemperatureTimeControlled(RunCount+RunNumberOffset, MAX_RUNTIME_IN_MINUTES, MaxNumberOfSweeps);
+			S.runSGCMCSimulationForSingleTemperatureTimeControlled(RunCount+RunNumberOffset, MAX_RUNTIME_IN_MINUTES, StartTime, MaxNumberOfSweeps);
 		}
 	}
 }

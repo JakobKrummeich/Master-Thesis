@@ -152,8 +152,8 @@ struct SimulationManager {
 		}
 	}
 
-	void equilibrate(int NumberOfEquilibrationSteps){
-		for (int i = 0; i < NumberOfEquilibrationSteps; i++){
+	void equilibrate(int NumberOfEquilibrationSteps, int MaxRuntimeInMinutes, chrono::time_point<chrono::steady_clock> StartTime){
+		 for (int i = 0; i < NumberOfEquilibrationSteps && chrono::duration_cast<chrono::minutes>(chrono::steady_clock::now()-StartTime).count() < MaxRuntimeInMinutes; i++){
 			runSingleSGCMCSweep();
 		}
 	}
@@ -182,7 +182,7 @@ struct SimulationManager {
 			cerr << "Tried displacements: " << NumberOfTriedDisplacements << "| Accepted displacements: " << NumberOfAcceptedDisplacements << "| Ratio of accepted displacements: " << static_cast<double>(NumberOfAcceptedDisplacements)/static_cast<double>(NumberOfTriedDisplacements) << endl;
 			cerr << "Tried type changes: " << NumberOfTriedTypeChanges << "| Accepted type changes: " << NumberOfAcceptedTypeChanges << "| Ratio of accepted type changes: " << static_cast<double>(NumberOfAcceptedTypeChanges)/static_cast<double>(NumberOfTriedTypeChanges) << endl;
 			cerr << "#VerletListBuilds: " << P.getNumberOfVerletListBuilds() << endl;
-			cerr << "Computation time: " << TimePassedInSeconds << " s for " << NumberOfMCSweeps << " MCSweeps." <<  endl << endl;
+			cerr << "Total computation time: " << TimePassedInSeconds << " s" << endl << endl;
 		}
 	}
 
@@ -201,12 +201,11 @@ struct SimulationManager {
 		}
 	}
 
-	void runSGCMCSimulationForSingleTemperatureTimeControlled(int RunCount, int MaxRuntimeInMinutes, int MaxNumberOfSweeps){
+	void runSGCMCSimulationForSingleTemperatureTimeControlled(int RunCount, int MaxRuntimeInMinutes, chrono::time_point<chrono::steady_clock> StartTime, int MaxNumberOfSweeps){
 
 		writeSGCMCMetaData();
 		writeSimulationStartInfoToErrorStream(RunCount);
 
-		auto StartTime = chrono::steady_clock::now();
 		int NextUpdateTime = UPDATE_TIME_INTERVAL;
 		int NextPotEnergyComputation = POT_ENERGY_UPDATE_INTERVAL;
 		vector<int> NumberOfABuffer;
@@ -233,12 +232,11 @@ struct SimulationManager {
 		writeSimulationMetaDataToErrorStream(RunCount, chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count(), SweepCount);
 	}
 
-	void runCMCSimulationForSingleTemperature(int RunCount, int MaxRuntimeInMinutes, int NumberOfSavedStatesPerRun, int MaxNumberOfSweeps){
+	void runCMCSimulationForSingleTemperature(int RunCount, int MaxRuntimeInMinutes, chrono::time_point<chrono::steady_clock> StartTime, int MaxNumberOfSweeps, int NumberOfSavedStatesPerRun){
 
 		writeCMCMetaData();
 		writeSimulationStartInfoToErrorStream(RunCount);
 
-		auto StartTime = chrono::steady_clock::now();
 		int NextUpdateTime = UPDATE_TIME_INTERVAL;
 		int NextPotEnergyComputation = POT_ENERGY_UPDATE_INTERVAL;
 		int NextStateSave = 0;
