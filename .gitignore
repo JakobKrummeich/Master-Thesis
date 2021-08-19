@@ -7,7 +7,6 @@
 # Unignore all dirs
 !*/
 
-/literature
 /data
 /scripts/cluster_scripts
 /general_code/simulation_config.h
