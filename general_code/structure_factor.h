@@ -166,7 +166,6 @@ class StructureFactorComputator{
 			getline(FileStreamToReadIn, CurrentString, '\n');
 
 			for (int ParticleIndex = 0; ParticleIndex < TotalNumberOfParticles; ParticleIndex++){
-				getline(FileStreamToReadIn, CurrentString, '\t');
 				double CurrentPosition [DIMENSION];
 				for (int j = 0; j < DIMENSION; j++){
 					getline(FileStreamToReadIn, CurrentString, '\t');
@@ -201,7 +200,7 @@ class StructureFactorComputator{
 						int nx = kCombinationMapping[i].Combinations[j].nx;
 						int ny = kCombinationMapping[i].Combinations[j].ny;
 						for (int k = 0; k < (abs(nx) == abs(ny) ? 1 : 2); k++){
-							for (int Sign = 1; Sign >= ((nx == 0 || ny == 0)? 1: -1); Sign -= 2){
+							for (int Sign = 1; Sign >= ((nx == 0 || ny == 0) ? 1 : -1); Sign -= 2){
 								double kx = Sign * nx * 2.0*M_PI/BoxLength;
 								double ky = ny * 2.0*M_PI/BoxLength;
 								double cosSumA = computeCosSum(APositions, kx, ky);

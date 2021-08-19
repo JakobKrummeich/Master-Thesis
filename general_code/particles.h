@@ -312,7 +312,6 @@ class Particles {
 			string CurrentString;
 
 			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
-				getline(FileStreamToReadIn, CurrentString, '\t');
 				for (int j = 0; j < DIMENSION; j++){
 					getline(FileStreamToReadIn, CurrentString, '\t');
 					Positions[DIMENSION*ParticleIndex+j] = stod(CurrentString);
@@ -509,9 +508,8 @@ class Particles {
 };
 
 ostream& operator<<(ostream& OStream, const Particles& State){
-	OStream << "#ID\tX       Y       Type | #AParticles:  " << State.getNumberOfAParticles() << "| #BParticles: " << State.getNumberOfBParticles() << "| BoxLength: " << State.getBoxLength() << endl;
+	OStream << "X       Y       Type | #AParticles:  " << State.getNumberOfAParticles() << "| #BParticles: " << State.getNumberOfBParticles() << "| BoxLength: " << State.getBoxLength() << endl;
 	for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
-		OStream << i << "\t";
 		OStream << fixed << setprecision(6) << State.getPosition(i,0) << "\t" << State.getPosition(i,1) << "\t" << State.getParticleType(i) <<  endl;
 	}
 	return OStream;
