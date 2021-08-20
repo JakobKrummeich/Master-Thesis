@@ -17,14 +17,15 @@ for number_of_particles_dir in ${sourcepath}/N=*; do
 
 		new_filepath="${temperature_dir}/${filename}_cut.dat"
 
-		echo "${filepath}"
-		echo "${new_filepath}"
+		if grep -q '#ID' "${filepath}"; then
 
-		cut -f2- "${filepath}" > "${new_filepath}"
+			cut -f2- "${filepath}" > "${new_filepath}"
+			rm "${filepath}"
+			mv "${new_filepath}" "${filepath}"
 
-		rm "${filepath}"
-
-		mv "${new_filepath}" "${filepath}"
+		else
+			echo "File has no ID# column anymore! Not doing anything therefore."
+		fi
 
 	done
 
