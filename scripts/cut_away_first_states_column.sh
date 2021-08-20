@@ -24,7 +24,7 @@ for number_of_particles_dir in ${sourcepath}/N=*; do
 			mv "${new_filepath}" "${filepath}"
 
 		else
-			echo "File has no ID# column anymore! Not doing anything therefore."
+			echo "File has no #ID column anymore! Not doing anything therefore."
 		fi
 
 	done
