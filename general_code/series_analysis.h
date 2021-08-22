@@ -70,8 +70,8 @@ class SeriesAnalyzer{
 
 		static double computeCentralMomentOfDistribution(const vector<ValuePair>& Distribution, double Mean, double Exponent){
 			double h = Distribution[1].xValue - Distribution[0].xValue;
-			double Moment = 0.5 * (pow(Distribution[0].xValue - Mean,Exponent) * Distribution[0].yValue + pow(Distribution.back().xValue - Mean, Exponent) * Distribution.back().yValue);
-			for (unsigned long i = 1; i < Distribution.size(); i++){
+			double Moment = 0.5 * (pow(Distribution[0].xValue - Mean, Exponent) * Distribution[0].yValue + pow(Distribution.back().xValue - Mean, Exponent) * Distribution.back().yValue);
+			for (unsigned long i = 1; i < Distribution.size() - 1; i++){
 				Moment += pow(Distribution[i].xValue - Mean, Exponent)*Distribution[i].yValue;
 			}
 			return h*Moment;
@@ -111,7 +111,7 @@ class SeriesAnalyzer{
 
 		SeriesAnalyzer(unsigned long TotalNumberOfParticles):
 			TotalNumberOfParticles(TotalNumberOfParticles){
-			for (unsigned long i = 0; i < TotalNumberOfParticles + 1; i++){
+			for (unsigned long i = 0; i <= TotalNumberOfParticles; i++){
 				NADistribution.emplace_back(static_cast<double>(i)/static_cast<double>(TotalNumberOfParticles), 0.0);
 			}
 		}
@@ -135,11 +135,13 @@ class SeriesAnalyzer{
 				LeftDistribution.push_back(NADistribution[i]);
 			}
 			double LeftHalfIntegral = computeMomentOfDistribution(LeftDistribution, 0.0);
+
 			vector<ValuePair> RightDistribution;
 			for (unsigned long i = TotalNumberOfParticles/2; i < NADistribution.size(); i++){
 				RightDistribution.push_back(NADistribution[i]);
 			}
 			double RightHalfIntegral = computeMomentOfDistribution(RightDistribution, 0.0);
+
 			if (LeftHalfIntegral > RightHalfIntegral){
 				normalizeDistribution(LeftDistribution);
 				return computeMomentOfDistribution(LeftDistribution, 1.0);
@@ -154,11 +156,13 @@ class SeriesAnalyzer{
 				LeftDistribution.push_back(NADistribution[i]);
 			}
 			double LeftHalfIntegral = computeMomentOfDistribution(LeftDistribution, 0.0);
+
 			vector<ValuePair> RightDistribution;
 			for (unsigned long i = TotalNumberOfParticles/2; i < NADistribution.size(); i++){
 				RightDistribution.push_back(NADistribution[i]);
 			}
 			double RightHalfIntegral = computeMomentOfDistribution(RightDistribution, 0.0);
+
 			vector<ValuePair> SymmetrizedDistribution(NADistribution);
 			if (LeftHalfIntegral > RightHalfIntegral){
 				for (unsigned long i = 0; i < SymmetrizedDistribution.size()/2; i++){
@@ -171,6 +175,7 @@ class SeriesAnalyzer{
 				}
 			}
 			normalizeDistribution(SymmetrizedDistribution);
+
 			double SecondCentralMoment = computeCentralMomentOfDistribution(SymmetrizedDistribution, 0.5, 2.0);
 			double FourthCentralMoment = computeCentralMomentOfDistribution(SymmetrizedDistribution, 0.5, 4.0);
 			return (1.0 - FourthCentralMoment/(SecondCentralMoment*SecondCentralMoment*3.0));
