@@ -22,6 +22,7 @@ int main(int argc, char* argv[]){
 			S.resetCountersAndBuffers();
 			S.readInParticleState(InitialStateFile, RunCount*StatesToSkipPerRun, DENSITY);
 			S.setTemperature(Temperature);
+
 			#pragma omp critical(WRITE_TO_ERROR_STREAM)
 			{
 				cerr << "Run " << RunCount+RunNumberOffset << ": equilibration starting." << endl;
@@ -33,6 +34,7 @@ int main(int argc, char* argv[]){
 			{
 				cerr << "Run " << RunCount+RunNumberOffset << ": Time for " << NumberOfEquilibrationSweeps << " equilibration sweeps: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
 			}
+
 			S.writeParticleStateToFile(OUTPUT_DIRECTORY+"/State_"+"N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_AvgDens="+to_string(DENSITY)+"_EquilibrationTime="+to_string(MAX_RUNTIME_IN_MINUTES)+"_epsAB="+to_string(AB_INTERACTION_STRENGTH)+"_"+to_string(RunCount+RunNumberOffset)+"_"+to_string(0)+".dat");
 
 			S.writeSimulationMetaDataToErrorStream(RunCount+RunNumberOffset, chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count(), NumberOfEquilibrationSweeps);
