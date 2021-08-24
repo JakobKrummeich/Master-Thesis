@@ -28,9 +28,7 @@ int main(int argc, char* argv[]){
 		Analyzer.addNewSeries(InputFileNameNASeries, InputFileNamePotEnergySeries, MinNumberOfEquilibrationSweeps);
 	}
 	Analyzer.normalizeNADistribution();
-	Analyzer.writeNAProbabilityDistributionToFile(OutputFileName);
-	double FirstMoment = Analyzer.computeFirstMomentOfHalfDistribution();
-	double BinderCumulant = Analyzer.computeBinderCumulant();
-	cout << FirstMoment << '\t' << BinderCumulant;
+	double Variance = Analyzer.computeStructureFactor();
+	cout << Variance;
 }
 
