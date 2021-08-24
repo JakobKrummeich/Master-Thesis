@@ -7,6 +7,7 @@
 #include <chrono>
 #include <iostream>
 #include <cmath>
+#include <algorithm>
 
 #include "realRNG.h"
 #include "utility_functions.h"
@@ -19,8 +20,6 @@ static const int NUMBER_OF_THREADS = 2;
 
 class StructureFactorComputator{
 	private:
-		double kMin;
-		const double kMax;
 
 		realRNG RNG;
 
@@ -46,6 +45,15 @@ class StructureFactorComputator{
 
 			bool operator==(const Combination& RHS) const {
 				return ((nx == RHS.nx && ny == RHS.ny) || (nx == RHS.ny && ny == RHS.nx));
+			}
+		};
+
+		struct SquaredCombinationMappingEntry{
+			long MagnitudeSquared;
+			Combination AssociatedCombination;
+
+			static bool isSmaller(const SquaredCombinationMappingEntry& LHS, const SquaredCombinationMappingEntry& RHS){
+				return (LHS.MagnitudeSquared < RHS.MagnitudeSquared);
 			}
 		};
 
@@ -89,9 +97,37 @@ class StructureFactorComputator{
 			return Sum;
 		}
 
-		void findkValuesOnGrid(){
+		void findkValuesOnGrid(double kAll, double kMax){
+
+			vector<SquaredCombinationMappingEntry> SquareCombinationMapping;
+			int Maxn = ceil(BoxLength*kAll*0.5/(M_PI));
+			for (int nx = 1; nx <= Maxn; nx++){
+				for (int ny = 0; ny <= nx; ny++){
+					long Magnitude = nx*nx+ny*ny;
+					if (Magnitude < Maxn*Maxn){
+						SquareCombinationMapping.push_back(SquaredCombinationMappingEntry{Magnitude,Combination{nx,ny}});
+					}
+					else {
+						break;
+					}
+				}
+			}
+			sort(SquareCombinationMapping.begin(), SquareCombinationMapping.end(), SquaredCombinationMappingEntry::isSmaller);
+
+			for (int i = 0; i < SquareCombinationMapping.size(); i++){
+				kCombinationMappingEntry NewMapping{};
+				NewMapping.kMagnitude = 2.0*M_PI/(BoxLength)*sqrt(static_cast<double>(SquareCombinationMapping[i].MagnitudeSquared));
+				NewMapping.Combinations.push_back(SquareCombinationMapping[i].AssociatedCombination);
+				while (i+1 < SquareCombinationMapping.size() && SquareCombinationMapping[i].MagnitudeSquared == SquareCombinationMapping[i+1].MagnitudeSquared){
+					NewMapping.Combinations.push_back(SquareCombinationMapping[i+1].AssociatedCombination);
+					i++;
+				}
+				kCombinationMapping.push_back(NewMapping);
+			}
+
 			double kWidth = 0.01;
-			double CurrentkMag = kMin;
+			double kAllChosen = 2.0*M_PI/(BoxLength)*static_cast<double>(Maxn);
+			double CurrentkMag = kAllChosen;
 			int NumberOfAttemptedAveragesPerk = 1000;
 			int MaxNumberOfCombinationsPerInterval = 20;
 			vector<Combination> CombinationsFound;
@@ -106,7 +142,7 @@ class StructureFactorComputator{
 					int nx = round(BoxLength*RandomkMagnitude*cos(RandomAngle)/(2.0*M_PI));
 					int ny = round(BoxLength*RandomkMagnitude*sin(RandomAngle)/(2.0*M_PI));
 					double GridkMagnitude = 2.0*M_PI/BoxLength*sqrt(static_cast<double>(nx*nx+ny*ny));
-					if (GridkMagnitude <= (CurrentkMag + kWidth) && GridkMagnitude >= (CurrentkMag - kWidth) && GridkMagnitude >= kMin){
+					if (GridkMagnitude <= (CurrentkMag + kWidth) && GridkMagnitude >= (CurrentkMag - kWidth) && GridkMagnitude >= kAllChosen){
 						bool sameCombinationAlreadyFoundBefore = false;
 						Combination NewCombination(nx,ny);
 						for (int j = 0; j < CombinationsFound.size() && !sameCombinationAlreadyFoundBefore; j++){
@@ -133,16 +169,30 @@ class StructureFactorComputator{
 				}
 				CurrentkMag += 2.0*kWidth;
 			}
+
+			for (int i = 0; i < kCombinationMapping.size(); i++){
+				cerr << kCombinationMapping[i].kMagnitude << ": ";
+				for (int j = 0; j < kCombinationMapping[i].Combinations.size(); j++){
+					cerr << "(" << kCombinationMapping[i].Combinations[j].nx << "," << kCombinationMapping[i].Combinations[j].ny << "),";
+				}
+				cerr << endl;
+			}
 		}
 
 	public:
 
-		StructureFactorComputator(double kMax, double BoxLength, int TotalNumberOfParticles):
-			kMax(kMax),
+		StructureFactorComputator(double kAll, double kMax, double BoxLength, int TotalNumberOfParticles):
 			BoxLength(BoxLength),
 			TotalNumberOfParticles(TotalNumberOfParticles){
-				kMin = 2.0*M_PI/BoxLength;
-				findkValuesOnGrid();
+				if (kAll <= 2.0*M_PI/BoxLength){
+					cerr << "We need to have kAll >= 2.0*PI/L!" << endl;
+					exit;
+				}
+				else if (kMax < kAll){
+					cerr << "We need to have kAll <= kMax!" << endl;
+					exit;
+				}
+				findkValuesOnGrid(kAll,kMax);
 				Results = vector<RowEntry>(kCombinationMapping.size(), RowEntry());
 		}
 

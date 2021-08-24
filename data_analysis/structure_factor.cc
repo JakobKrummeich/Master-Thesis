@@ -19,26 +19,29 @@ double extractBoxLength(string InputFileName){
 }
 
 int main(int argc, char* argv[]){
+	string InputFileName;
+	string OutputFileName;
+	double kAll;
 	double kMax;
 	int TotalNumberOfParticles;
 	int NumberOfStates;
-	string InputFileName;
-	string OutputFileName;
-	if (argc == 6){
+
+	if (argc == 7){
 		InputFileName = argv[1];
 		OutputFileName = "StructureFactors_";
 		OutputFileName += argv[2];
 		OutputFileName += ".dat";
-		kMax = atof(argv[3]);
-		TotalNumberOfParticles = atoi(argv[4]);
-		NumberOfStates = atoi(argv[5]);
+		kAll = atof(argv[3]);
+		kMax = atof(argv[4]);
+		TotalNumberOfParticles = atoi(argv[5]);
+		NumberOfStates = atoi(argv[6]);
 	}
-	else if (argc < 6){
-		cerr << "StructureFactorComputation failed as we need a target File, extracted FileInfo, kMax, TotalNumberOfParticles and NumberOfStates!" << endl;
+	else if (argc < 7){
+		cerr << "StructureFactorComputation failed as we need a target File, extracted FileInfo, kAll, kMax, TotalNumberOfParticles and NumberOfStates!" << endl;
 		return 0;
 	}
 
-	StructureFactorComputator SFComputator(kMax, extractBoxLength(InputFileName), TotalNumberOfParticles);
+	StructureFactorComputator SFComputator(kAll, kMax, extractBoxLength(InputFileName), TotalNumberOfParticles);
 
 	SFComputator.computeStructureFactors(InputFileName, NumberOfStates);
 
