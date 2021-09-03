@@ -11,7 +11,7 @@ int main(int argc, char* argv[]){
 	string InitialStateFile = argv[2];
 	int StatesToSkipPerRun = atoi(argv[3]);
 	int RunNumberOffset = atoi(argv[4]);
-	int RunNumberOffsetReadIn = atoi(argv[5])
+	int RunNumberOffsetReadIn = atoi(argv[5]);
 	int NumberOfEquilibrationSweeps = atoi(argv[6]);
 	int MaxNumberOfSweeps = atoi(argv[7]);
 
