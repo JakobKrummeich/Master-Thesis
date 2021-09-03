@@ -11,7 +11,7 @@ states_to_skip_per_run="1"
 number_of_equilibration_sweeps="0"
 max_number_of_sweeps="20000000"
 
-for N in {500,1000,2000,4000,8000,16000}; do
+for N in {16000,8000,4000,2000,1000,500}; do
 	for temperature in {0.746800,0.746900,0.747000,0.747100,0.747200}; do
 		for run_offset in {0,20,40,60}; do
 			submit_filename="N=${N}_T=${temperature}_${run_offset}.sh"
