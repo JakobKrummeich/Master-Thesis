@@ -9,7 +9,7 @@ settings="#!/bin/bash
 
 states_to_skip_per_run="1"
 
-for N in {500,1000,2000,4000,8000,16000}; do
+for N in 16000; do
 	for temperature in {0.7468,0.7469,0.7470,0.7471,0.7472}; do
 		for run_offset in {0,20,40,60}; do
 			submit_filename="equilibration_N=${N}_T=${temperature}_${run_offset}.sh"
@@ -19,7 +19,7 @@ for N in {500,1000,2000,4000,8000,16000}; do
 
 wait"
 			echo "$srun_command" >> ${submit_filename}
-			sbatch ${submit_filename}
+			#sbatch ${submit_filename}
 		done
 	done
 done

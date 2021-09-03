@@ -508,9 +508,9 @@ class Particles {
 };
 
 ostream& operator<<(ostream& OStream, const Particles& State){
-	OStream << "X       Y       Type | #AParticles:  " << State.getNumberOfAParticles() << "| #BParticles: " << State.getNumberOfBParticles() << "| BoxLength: " << State.getBoxLength() << endl;
+	OStream << "X       Y       Type | #AParticles:  " << fixed << setprecision(numeric_limits<long double>::digits10+1) << State.getNumberOfAParticles() << "| #BParticles: " << State.getNumberOfBParticles() << "| BoxLength: " << State.getBoxLength() << endl;
 	for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
-		OStream << fixed << setprecision(6) << State.getPosition(i,0) << "\t" << State.getPosition(i,1) << "\t" << State.getParticleType(i) <<  endl;
+		OStream << State.getPosition(i,0) << "\t" << State.getPosition(i,1) << "\t" << State.getParticleType(i) <<  endl;
 	}
 	return OStream;
 }

@@ -11,8 +11,9 @@ int main(int argc, char* argv[]){
 	string InitialStateFile = argv[2];
 	int StatesToSkipPerRun = atoi(argv[3]);
 	int RunNumberOffset = atoi(argv[4]);
-	int NumberOfEquilibrationSweeps = atoi(argv[5]);
-	int MaxNumberOfSweeps = atoi(argv[6]);
+	int RunNumberOffsetReadIn = atoi(argv[5]);
+	int NumberOfEquilibrationSweeps = atoi(argv[6]);
+	int MaxNumberOfSweeps = atoi(argv[7]);
 
 	#pragma omp parallel num_threads(NUMBER_OF_THREADS)
 	{
@@ -21,7 +22,7 @@ int main(int argc, char* argv[]){
 		#pragma omp for
 		for (int RunCount = 0; RunCount < NUMBER_OF_RUNS; RunCount++){
 			const auto StartTime = chrono::steady_clock::now();
-			S.readInParticleState(InitialStateFile, RunCount*StatesToSkipPerRun, DENSITY);
+			S.readInParticleState(InitialStateFile, RunCount*StatesToSkipPerRun+RunNumberOffsetReadIn, DENSITY);
 			S.setTemperature(Temperature);
 
 			#pragma omp critical(WRITE_TO_ERROR_STREAM)

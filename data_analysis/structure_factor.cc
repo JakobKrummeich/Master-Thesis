@@ -2,7 +2,7 @@
 #include <fstream>
 #include <string>
 #include <stdlib.h>
-#include "../general_code/structure_factor_alternative.h"
+#include "../general_code/structure_factor.h"
 
 using namespace std;
 
@@ -21,8 +21,8 @@ double extractBoxLength(string InputFileName){
 int main(int argc, char* argv[]){
 	string InputFileName;
 	string OutputFileName;
+	double kAll;
 	double kMax;
-	double kWidth;
 	int TotalNumberOfParticles;
 	int NumberOfStates;
 
@@ -31,17 +31,17 @@ int main(int argc, char* argv[]){
 		OutputFileName = "StructureFactors_";
 		OutputFileName += argv[2];
 		OutputFileName += ".dat";
-		kMax = atof(argv[3]);
-		kWidth = atof(argv[4]);
+		kAll = atof(argv[3]);
+		kMax = atof(argv[4]);
 		TotalNumberOfParticles = atoi(argv[5]);
 		NumberOfStates = atoi(argv[6]);
 	}
 	else if (argc < 7){
-		cerr << "Structure factor computation failed as we need a target File, extracted FileInfo, kMax, kWidth, TotalNumberOfParticles and NumberOfStates!" << endl;
+		cerr << "StructureFactorComputation failed as we need a target File, extracted FileInfo, kAll, kMax, TotalNumberOfParticles and NumberOfStates!" << endl;
 		return 0;
 	}
 
-	StructureFactorComputator SFComputator(kMax, kWidth, extractBoxLength(InputFileName), TotalNumberOfParticles);
+	StructureFactorComputator SFComputator(kAll, kMax, extractBoxLength(InputFileName), TotalNumberOfParticles);
 
 	SFComputator.computeStructureFactors(InputFileName, NumberOfStates);
 

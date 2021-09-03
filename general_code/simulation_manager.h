@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 #include <cmath>
+#include <sstream>
+
 #include "global_constants.h"
 #include "simulation_config.h"
 #include "realRNG.h"
@@ -251,8 +253,8 @@ struct SimulationManager {
 
 		int NextUpdateTime = UPDATE_TIME_INTERVAL;
 		int NextPotEnergyComputation = POT_ENERGY_UPDATE_INTERVAL;
-		int NextStateSave = 0;
 		int StateSaveInterval = MaxNumberOfSweeps / NumberOfSavedStatesPerRun;
+		int NextStateSave = StateSaveInterval;
 		int SavedStateCount = 0;
 		vector<double> PotEnergyBuffer;
 
@@ -274,6 +276,9 @@ struct SimulationManager {
 				PotEnergyBuffer.clear();
 				NextUpdateTime += UPDATE_TIME_INTERVAL;
 			}
+		}
+		if (SavedStateCount < NumberOfSavedStatesPerRun){
+			writeParticleStateToFile(DirectoryString+"/State_"+FileNameString+"_"+to_string(SavedStateCount)+".dat");
 		}
 		writeCMCResults(PotEnergyBuffer);
 		writeSimulationMetaDataToErrorStream(RunCount, chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartOfDataTaking).count(), SweepCount);
@@ -302,14 +307,19 @@ struct SimulationManager {
 	}
 
 	string getMetaDataString(MCModus M) const {
+		ostringstream OutputStream;
+		OutputStream.precision(numeric_limits<long double>::digits10+1);
 		if (M == MCModus::SGCMC){
-			return "BOX_LENGTH = "+to_string(P.getBoxLength())+" | AA_INTERACTION_STRENGTH = "+to_string(AA_INTERACTION_STRENGTH)+" | AB_INTERACTION_STRENGTH = "+to_string(AB_INTERACTION_STRENGTH)+" | MAXIMUM_DISPLACEMENT = "+to_string(MAXIMUM_DISPLACEMENT)+" | DISPLACEMENT_PROBABILITY = "+to_string(DISPLACEMENT_PROBABILITY)+" | MinNA = "+to_string(MinNumberOfA)+" | MaxNA = "+to_string(MaxNumberOfA)+'\n';
+			OutputStream << fixed << "BOX_LENGTH = " << P.getBoxLength() << " | AA_INTERACTION_STRENGTH = " << AA_INTERACTION_STRENGTH << " | AB_INTERACTION_STRENGTH = " << AB_INTERACTION_STRENGTH << " | MAXIMUM_DISPLACEMENT = " << MAXIMUM_DISPLACEMENT << " | DISPLACEMENT_PROBABILITY = " << DISPLACEMENT_PROBABILITY << " | MinNA = " << MinNumberOfA << " | MaxNA = " << MaxNumberOfA << endl;
+			return OutputStream.str();
 		}
 		else if (M == MCModus::PressureMC) {
-			return "AA_INTERACTION_STRENGTH = "+to_string(AA_INTERACTION_STRENGTH)+" | AB_INTERACTION_STRENGTH = "+to_string(AB_INTERACTION_STRENGTH)+" | MAXIMUM_DISPLACEMENT = "+to_string(MAXIMUM_DISPLACEMENT)+" | VOLUME_CHANGE_PROB = "+to_string(VOLUME_CHANGE_PROBABILITY)+" | MAX_VOLUME_CHANGE = "+to_string(MAXIMUM_VOLUME_CHANGE)+" | MinNA = "+to_string(MinNumberOfA)+" | MaxNA = "+to_string(MaxNumberOfA)+'\n';
+			OutputStream << fixed << "AA_INTERACTION_STRENGTH = " << AA_INTERACTION_STRENGTH << " | AB_INTERACTION_STRENGTH = " << AB_INTERACTION_STRENGTH << " | MAXIMUM_DISPLACEMENT = " << MAXIMUM_DISPLACEMENT << " | VOLUME_CHANGE_PROB = " << VOLUME_CHANGE_PROBABILITY << " | MAX_VOLUME_CHANGE = " << MAXIMUM_VOLUME_CHANGE << " | MinNA = " << MinNumberOfA << " | MaxNA = " << MaxNumberOfA << '\n';
+			return OutputStream.str();
 		}
 		else {
-			return "BOX_LENGTH = "+to_string(P.getBoxLength())+" | AA_INTERACTION_STRENGTH = "+to_string(AA_INTERACTION_STRENGTH)+" | AB_INTERACTION_STRENGTH = "+to_string(AB_INTERACTION_STRENGTH)+" | MAXIMUM_DISPLACEMENT = "+to_string(MAXIMUM_DISPLACEMENT)+" | NA = "+to_string(MinNumberOfA)+'\n';
+			OutputStream << fixed << "BOX_LENGTH = " << P.getBoxLength() << " | AA_INTERACTION_STRENGTH = " << AA_INTERACTION_STRENGTH << " | AB_INTERACTION_STRENGTH = " << AB_INTERACTION_STRENGTH << " | MAXIMUM_DISPLACEMENT = " << MAXIMUM_DISPLACEMENT << " | NA = " << MinNumberOfA << '\n';
+			return OutputStream.str();
 		}
 	}
 
