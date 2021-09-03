@@ -6,18 +6,20 @@
 using namespace std;
 
 int main(int argc, char* argv[]){
-	if (argc < 5){
-		cerr << "SeriesAnalyzer failed as we need a NADistribution-FileName, TotalNumberOfParticles, Output-directory and MinNumberOfEquilibrationSweeps!" << endl;
+	if (argc < 6){
+		cerr << "SeriesAnalyzer failed as we need a NADistribution-FileName, TotalNumberOfParticles, Output-directory, MinNumberOfEquilibrationSweeps and T<Tc!" << endl;
 		return 0;
 	}
-	SeriesAnalyzer Analyzer(TotalNumberOfParticles);
 
+	string OutputFileName = argv[3];
 	OutputFileName += "NAProbDist_";
 	OutputFileName += argv[1];
 	OutputFileName += ".dat";
 	int TotalNumberOfParticles = atoi(argv[2]);
-	string OutputFileName = argv[3];
 	int MinNumberOfEquilibrationSweeps = stoi(argv[4]);
+	bool RestrictToHalfDistribution = stoi(argv[5]); // below Tc we need to compute the concentration fluctuation only for [0,0.5] or [0.5,1]
+
+	SeriesAnalyzer Analyzer(TotalNumberOfParticles);
 
 	string InputFileNameNASeries;
 	string InputFileNamePotEnergySeries;
@@ -28,7 +30,8 @@ int main(int argc, char* argv[]){
 		Analyzer.addNewSeries(InputFileNameNASeries, InputFileNamePotEnergySeries, MinNumberOfEquilibrationSweeps);
 	}
 	Analyzer.normalizeNADistribution();
-	double Variance = Analyzer.computeStructureFactor();
+	Analyzer.writeNAProbabilityDistributionToFile(OutputFileName);
+	double Variance = Analyzer.computeStructureFactor(RestrictToHalfDistribution);
 	cout << Variance;
 }
 

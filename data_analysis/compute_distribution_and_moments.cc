@@ -10,14 +10,15 @@ int main(int argc, char* argv[]){
 		cerr << "SeriesAnalyzer failed as we need a NADistribution-FileName, TotalNumberOfParticles, Output-directory and MinNumberOfEquilibrationSweeps!" << endl;
 		return 0;
 	}
-	SeriesAnalyzer Analyzer(TotalNumberOfParticles);
 
+	string OutputFileName = argv[3];
 	OutputFileName += "NAProbDist_";
 	OutputFileName += argv[1];
 	OutputFileName += ".dat";
 	int TotalNumberOfParticles = atoi(argv[2]);
-	string OutputFileName = argv[3];
 	int MinNumberOfEquilibrationSweeps = stoi(argv[4]);
+
+	SeriesAnalyzer Analyzer(TotalNumberOfParticles);
 
 	string InputFileNameNASeries;
 	string InputFileNamePotEnergySeries;
