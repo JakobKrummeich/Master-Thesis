@@ -253,8 +253,8 @@ struct SimulationManager {
 
 		int NextUpdateTime = UPDATE_TIME_INTERVAL;
 		int NextPotEnergyComputation = POT_ENERGY_UPDATE_INTERVAL;
-		int NextStateSave = 0;
 		int StateSaveInterval = MaxNumberOfSweeps / NumberOfSavedStatesPerRun;
+		int NextStateSave = StateSaveInterval;
 		int SavedStateCount = 0;
 		vector<double> PotEnergyBuffer;
 
@@ -276,6 +276,9 @@ struct SimulationManager {
 				PotEnergyBuffer.clear();
 				NextUpdateTime += UPDATE_TIME_INTERVAL;
 			}
+		}
+		if (SavedStateCount < NumberOfSavedStatesPerRun){
+			writeParticleStateToFile(DirectoryString+"/State_"+FileNameString+"_"+to_string(SavedStateCount)+".dat");
 		}
 		writeCMCResults(PotEnergyBuffer);
 		writeSimulationMetaDataToErrorStream(RunCount, chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartOfDataTaking).count(), SweepCount);
