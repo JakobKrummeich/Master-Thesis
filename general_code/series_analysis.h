@@ -114,7 +114,7 @@ class SeriesAnalyzer{
 			}
 		}
 
-		void addNewSeries(string FileNameNASeries, string FileNamePotEnergySeries, unsigned long MinNumberOfEquilibrationSweeps){
+		void addNewSeries(string FileNameNASeries, unsigned long MinNumberOfEquilibrationSweeps){
 			vector<double> NewNASeries = readInSeries(FileNameNASeries);
 			updateHistogramWithNewSeries(NewNASeries, MinNumberOfEquilibrationSweeps);
 		}

@@ -21,12 +21,9 @@ int main(int argc, char* argv[]){
 	SeriesAnalyzer Analyzer(TotalNumberOfParticles);
 
 	string InputFileNameNASeries;
-	string InputFileNamePotEnergySeries;
 	while (cin >> InputFileNameNASeries){
 		cerr << "NewNASeriesFile: " << InputFileNameNASeries << endl;
-		cin >> InputFileNamePotEnergySeries;
-		cerr << "NewPotSeriesFile: " << InputFileNamePotEnergySeries << endl;
-		Analyzer.addNewSeries(InputFileNameNASeries, InputFileNamePotEnergySeries, MinNumberOfEquilibrationSweeps);
+		Analyzer.addNewSeries(InputFileNameNASeries, MinNumberOfEquilibrationSweeps);
 	}
 	Analyzer.normalizeNADistribution();
 	Analyzer.writeNAProbabilityDistributionToFile(OutputFileName);
