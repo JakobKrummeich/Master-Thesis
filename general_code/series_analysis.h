@@ -26,8 +26,8 @@ class SeriesAnalyzer{
 		unsigned long TotalNumberOfParticles;
 		vector<ValuePair> NADistribution;
 
-		vector<double> readInSeries(string FilePath){
-			vector<double> Series;
+		vector<unsigned long> readInSeries(string FilePath){
+			vector<unsigned long> Series;
 
 			ifstream FileStreamToReadIn;
 			FileStreamToReadIn.open(FilePath);
@@ -36,14 +36,14 @@ class SeriesAnalyzer{
 			getline(FileStreamToReadIn, CurrentString);
 
 			while (getline(FileStreamToReadIn, CurrentString)){
-				Series.push_back(stod(CurrentString));
+				Series.push_back(stoul(CurrentString));
 			}
 			return Series;
 		}
 
-		void updateHistogramWithNewSeries(const vector<double>& NASeries, unsigned long MinNumberOfSweeps ){
+		void updateHistogramWithNewSeries(const vector<unsigned long>& NASeries, unsigned long MinNumberOfSweeps ){
 			for (unsigned long i = MinNumberOfSweeps; i < NASeries.size(); i++){
-				NADistribution[static_cast<unsigned long>(NASeries[i])].yValue++;
+				NADistribution[NASeries[i]].yValue++;
 			}
 		}
 
@@ -115,7 +115,7 @@ class SeriesAnalyzer{
 		}
 
 		void addNewSeries(string FileNameNASeries, unsigned long MinNumberOfEquilibrationSweeps){
-			vector<double> NewNASeries = readInSeries(FileNameNASeries);
+			vector<unsigned long> NewNASeries = readInSeries(FileNameNASeries);
 			updateHistogramWithNewSeries(NewNASeries, MinNumberOfEquilibrationSweeps);
 		}
 
