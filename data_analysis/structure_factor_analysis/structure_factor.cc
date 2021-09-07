@@ -2,7 +2,7 @@
 #include <fstream>
 #include <string>
 #include <stdlib.h>
-#include "../general_code/structure_factor.h"
+#include "../../general_code/structure_factor.h"
 
 using namespace std;
 

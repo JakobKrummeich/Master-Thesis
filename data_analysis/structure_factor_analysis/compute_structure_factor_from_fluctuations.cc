@@ -1,7 +1,7 @@
 #include <iostream>
 #include <stdlib.h>
 
-#include "../general_code/series_analysis.h"
+#include "../../general_code/series_analysis.h"
 
 using namespace std;
 
