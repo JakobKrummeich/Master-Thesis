@@ -56,7 +56,7 @@ class SeriesAnalyzer{
 			return h*Integral;
 		}
 
-		static double computeFirstMomentOfDistribution(const vector<ValuePair>& Distribution) {
+		static double computeFirstMoment(const vector<ValuePair>& Distribution) {
 			vector<ValuePair> FirstMomentDistribution(Distribution);
 			for (unsigned long i = 0; i < Distribution.size(); i++){
 				FirstMomentDistribution[i].yValue = Distribution[i].yValue * Distribution[i].xValue;
@@ -100,28 +100,13 @@ class SeriesAnalyzer{
 		}
 
 		static vector<ValuePair> symmetrizeDistribution(const vector<ValuePair>& Distribution) {
-			vector<ValuePair> LeftDistribution;
-			for (unsigned long i = 0; i <= (Distribution.size()-1)/2; i++){
-				LeftDistribution.push_back(Distribution[i]);
-			}
-			double LeftHalfIntegral = computeIntegral(LeftDistribution);
-
-			vector<ValuePair> RightDistribution;
-			for (unsigned long i = Distribution.size()/2; i < Distribution.size(); i++){
-				RightDistribution.push_back(Distribution[i]);
-			}
-			double RightHalfIntegral = computeIntegral(RightDistribution);
-
 			vector<ValuePair> SymmetrizedDistribution(Distribution);
-			if (LeftHalfIntegral > RightHalfIntegral){
-				for (unsigned long i = 0; i < SymmetrizedDistribution.size()/2; i++){
-					SymmetrizedDistribution[SymmetrizedDistribution.size()-1-i].yValue = SymmetrizedDistribution[i].yValue;
-				}
+			for (unsigned long i = 0; i < SymmetrizedDistribution.size()/2; i++){
+				SymmetrizedDistribution[i].yValue += SymmetrizedDistribution[SymmetrizedDistribution.size()-1-i].yValue;
+				SymmetrizedDistribution[SymmetrizedDistribution.size()-1-i].yValue = SymmetrizedDistribution[i].yValue;
 			}
-			else {
-				for (unsigned long i = 0; i < SymmetrizedDistribution.size()/2; i++){
-					SymmetrizedDistribution[i].yValue = SymmetrizedDistribution[SymmetrizedDistribution.size()-1-i].yValue;
-				}
+			if (SymmetrizedDistribution.size() % 2 != 0){
+				SymmetrizedDistribution[SymmetrizedDistribution.size()/2].yValue *= 2.0;
 			}
 			normalizeDistribution(SymmetrizedDistribution);
 			return SymmetrizedDistribution;
@@ -150,24 +135,18 @@ class SeriesAnalyzer{
 		}
 
 		double computeFirstMomentOfHalfDistribution() const {
-			vector<ValuePair> LeftDistribution;
-			for (unsigned long i = 0; i <= TotalNumberOfParticles/2; i++){
-				LeftDistribution.push_back(NADistribution[i]);
-			}
-			double LeftHalfIntegral = computeIntegral(LeftDistribution);
 
-			vector<ValuePair> RightDistribution;
-			for (unsigned long i = (TotalNumberOfParticles-1)/2+1; i < NADistribution.size(); i++){
-				RightDistribution.push_back(NADistribution[i]);
-			}
-			double RightHalfIntegral = computeIntegral(RightDistribution);
+			vector<ValuePair> SymmetrizedDistribution = symmetrizeDistribution(NADistribution);
+			vector<ValuePair> HalfDistribution;
 
-			if (LeftHalfIntegral > RightHalfIntegral){
-				normalizeDistribution(LeftDistribution);
-				return computeFirstMomentOfDistribution(LeftDistribution);
+			for (int i = 0; i < SymmetrizedDistribution.size()/2; i++){
+				HalfDistribution.push_back(SymmetrizedDistribution[i]);
 			}
-			normalizeDistribution(RightDistribution);
-			return (1.0 - computeFirstMomentOfDistribution(RightDistribution));
+			if (SymmetrizedDistribution.size() % 2 != 0){
+				HalfDistribution.push_back(SymmetrizedDistribution[SymmetrizedDistribution.size()/2]);
+			}
+			normalizeDistribution(HalfDistribution);
+			return computeFirstMoment(HalfDistribution);
 		}
 
 		double computeBinderCumulant() const {
@@ -190,7 +169,7 @@ class SeriesAnalyzer{
 				HalfDistribution.push_back(SymmetrizedDistribution[i]);
 			}
 			normalizeDistribution(HalfDistribution);
-			double Mean = computeFirstMomentOfDistribution(HalfDistribution);
+			double Mean = computeFirstMoment(HalfDistribution);
 			return static_cast<double>(TotalNumberOfParticles)*(computeSecondCentralMoment(SymmetrizedDistribution, Mean));
 		}
 };
