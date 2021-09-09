@@ -165,12 +165,15 @@ class SeriesAnalyzer{
 			}
 
 			vector<ValuePair> HalfDistribution;
-			for (unsigned long i = 0; i <= (SymmetrizedDistribution.size()-1)/2; i++){
+			for (int i = 0; i < SymmetrizedDistribution.size()/2; i++){
 				HalfDistribution.push_back(SymmetrizedDistribution[i]);
+			}
+			if (SymmetrizedDistribution.size() % 2 != 0){
+				HalfDistribution.push_back(SymmetrizedDistribution[SymmetrizedDistribution.size()/2]);
 			}
 			normalizeDistribution(HalfDistribution);
 			double Mean = computeFirstMoment(HalfDistribution);
-			return static_cast<double>(TotalNumberOfParticles)*(computeSecondCentralMoment(SymmetrizedDistribution, Mean));
+			return static_cast<double>(TotalNumberOfParticles)*(computeSecondCentralMoment(HalfDistribution, Mean));
 		}
 };
 
