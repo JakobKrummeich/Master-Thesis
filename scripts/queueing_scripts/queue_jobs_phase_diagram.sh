@@ -1,6 +1,6 @@
 settings="#!/bin/bash
 #SBATCH --ntasks=1
-#SBATCH --partition=phi
+#SBATCH --partition=oip
 #SBATCH --nodes=1-1
 #SBATCH --output=/dev/null
 #SBATCH --cpus-per-task=1
@@ -17,5 +17,5 @@ for N in {16000,8000,4000,2000,1000,500}; do
 wait"
 
 	echo "${srun_command}" >> ${submit_filename}
-	#sbatch ${submit_filename}
+	sbatch ${submit_filename}
 done
