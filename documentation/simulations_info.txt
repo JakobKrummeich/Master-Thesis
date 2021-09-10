@@ -160,6 +160,14 @@ cmc_no_field: no particle type swaps, fixed xA, T and V, fluctuating positions a
 	- repetition of "structure_factors_avgdens=0.75_0" with much more equilibration sweeps: 2*10⁶ compared to 6*10⁵
 	- after equilibration 2*10⁶ sweeps were done and 200 states per (T,xA) pair were saved
 
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++ structure_factors_avgdens=0.75_long_runs_1structure_factors_avgdens=0.75_long_runs_1 +++++++
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+	- temperatures with T > Tc, i.e. 0.75,0.76,0.78,...,0.84 were simulated with an initial randomization phase consisting of 10⁵ sweeps and using a simulation duration of 47.5 h
+	- 20 indepent runs were done per temperature and only the final states were saved
+
+
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 

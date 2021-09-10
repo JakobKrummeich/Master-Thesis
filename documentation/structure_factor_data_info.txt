@@ -1,0 +1,28 @@
+DOCUMENTATION OF STRUCTURE FACTOR DATA
+
+in 'data_analysis/structure_factor_analysis/analyzed_data' we collect the computated structure factor data
+
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++++ StructureFactors_0 +++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+	- computed structure factors belonging to cmc_simulations from states of 'structure_factors_avgdens=0.75_1'
+
+
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++++ StructureFactors_AdHoc +++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+	- various structure factor results, for example dropping the grid symmetry in choosing k-vectors ('alternative')
+
+
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++++ StructureFactors_1 +++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+	- computed structure factors belonging to cmc_simulations from states of 'structure_factors_avgdens=0.75_long_runs_1'
+	- where the temperatures with T > Tc were simulated and the runtime was at a maximum that the cluster allowed
+	- only the final 20 states per temperature were saved
+	- this was done since the data in 'StructureFactors_0' was not satisfactory and it was tried to improve upon that
+	
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
