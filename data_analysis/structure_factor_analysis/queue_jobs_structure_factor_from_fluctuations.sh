@@ -10,10 +10,10 @@ settings="#!/bin/bash
 #SBATCH --workdir=/home1/krummeich/Master-Thesis/data_analysis/structure_factor_analysis/"
 
 
-submit_filename="compute_structure_factors_from_fluctuations.sh"
+submit_filename="structure_factors_from_fluctuations.sh"
 echo "$settings" > ${submit_filename}
 
-srun_command="srun --ntasks=1 --error=error_stream_output/structure_factors_from_fluctuations_%J.err ./compute_structure_factors_from_fluctuations.sh ../../data/semi_gcmc_no_field/sorted_data/roh\=0.75_missing_temperatures_for_structure_factor_comparison/N\=16000/ 0 0 &
+srun_command="srun --ntasks=1 --error=error_stream_output/structure_factors_from_fluctuations_%J.err ./compute_structure_factors_from_fluctuations.sh ${sourcepath} 0 0 &
 
 wait"
 
