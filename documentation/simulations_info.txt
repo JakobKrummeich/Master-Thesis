@@ -58,6 +58,42 @@ semi_gcmc_no_field:
 	- since we only had 20 starting states each state is taken as a starting state 4 times
 	- due to a bug in the code the final states were not saved unfortunately
 
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++ finite_size_scaling_roh=0.75_equilibrated_states +++++++++++++++++++
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+	- runs at a single temperature per core with a maximum runtime of 47.5 h according to the cluster running length
+	- chosen temperatures were 0.7468, 0.7469, 0.7470, 0.7471, 0.7472 i.e. a temperature spacing of 0.0001, chosen to be close to Tc
+	- final states of T=0.75 of "finite_size_scaling_roh=0.75_long_runs" were read in as initial states
+	- 4 nodes with 20 cores each were run per temperature, meaning there are in total 80 runs per temperature and system size
+	- since we only had 20 starting states each state is taken as a starting state 4 times
+	- final states were saved (80 per temperature)
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++ finite_size_scaling_roh=0.75_long_runs_2 +++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+	- final states of "finite_size_scaling_roh=0.75_equilibrated_states" were read in as initial states
+	- chosen temperatures were 0.7468, 0.7469, 0.7470, 0.7471, 0.7472 i.e. a temperature spacing of 0.0001, chosen to be close to Tc
+	- simulation was run if either 2*10⁷ sweeps were done or 47.5 h have passed, resulting in 2*10⁷ sweeps for all system sizes except N=16000
+	- for N=16000 we had roughly 1.1*10⁷ sweeps
+	- again 80 cores were used in total per temperature (run on 4 nodes with 20 cores each)
+	- only final states were saved
+	- no equilibration sweeps were done, instead data-taking started right away
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++ finite_size_scaling_roh=0.75_long_runs_3 +++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+	- basically continuation of "finite_size_scaling_roh=0.75_long_runs_2" with the intention to combine both data-sets and to improve the accuracy of Tcrit
+	- final states of "finite_size_scaling_roh=0.75_long_runs_2" were read in as initial states
+	- chosen temperatures were 0.7468, 0.7469, 0.7470, 0.7471, 0.7472 i.e. a temperature spacing of 0.0001, chosen to be close to Tc
+	- simulation was run if either 2*10⁷ sweeps were done or 47.5 h have passed, resulting in 2*10⁷ sweeps for all system sizes except N=16000
+	- for N=16000 we had roughly 1.1*10⁷ sweeps
+	- again 80 cores were used in total per temperature (run on 4 nodes with 20 cores each)
+	- only final states were saved
+	- no equilibration sweeps were done, instead data-taking started right away
+
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ++ roh=0.75_missing_temperatures_for_structure_factor_comparison +++
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
