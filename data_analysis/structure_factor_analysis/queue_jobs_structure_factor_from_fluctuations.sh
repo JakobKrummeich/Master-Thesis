@@ -10,12 +10,16 @@ settings="#!/bin/bash
 #SBATCH --workdir=/home1/krummeich/Master-Thesis/data_analysis/structure_factor_analysis/"
 
 
-submit_filename="structure_factors_from_fluctuations.sh"
-echo "$settings" > ${submit_filename}
+for N in {16000,8000,4000,2000,1000,500}; do
 
-srun_command="srun --ntasks=1 --error=error_stream_output/structure_factors_from_fluctuations_%J.err ./compute_structure_factors_from_fluctuations.sh ${sourcepath} 0 0 &
+	submit_filename="structure_factors_from_fluctuations_N=${N}.sh"
+	echo "$settings" > ${submit_filename}
 
-wait"
+	srun_command="srun --ntasks=1 --error=error_stream_output/structure_factors_from_fluctuations_%J.err ./compute_structure_factors_from_fluctuations.sh ${sourcepath}/N=${N} 0 0.7469 &
 
-echo "${srun_command}" >> ${submit_filename}
-sbatch ${submit_filename}
+	wait"
+
+	echo "${srun_command}" >> ${submit_filename}
+	#sbatch ${submit_filename}
+
+done

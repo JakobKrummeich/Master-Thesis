@@ -2,7 +2,7 @@
 
 sourcepath=$1
 min_number_of_equilibration=$2
-restrict_to_half_dist=$3
+Tcrit=$3
 
 function make_directory_if_necessary() {
 	echo -n "${!1} "
@@ -19,13 +19,15 @@ target_filepath="${sourcepath}/analyzed_data/"
 make_directory_if_necessary target_filepath
 phase_diagram_filename="${target_filepath}structure_factor_from_fluctuations_${number_of_particles_string}.dat"
 
-printf "T\tScc(0)\n" > ${phase_diagram_filename}
+printf "T\tN(<x_A²>-<x_A>²)\n" > ${phase_diagram_filename}
 
 for temperature_dir in ${sourcepath}/T=*; do
 
 	NA_files=(${temperature_dir}/NA*.dat)
 
 	[[ ${temperature_dir} =~ /T=([[:digit:]]*.[[:digit:]]*) ]] && temperature=${BASH_REMATCH[1]}
+
+	if  (( $(echo "$temperature>$Tcrit" | bc -l) )) ; then restrict_to_half_dist="0"; else restrict_to_half_dist="1"; fi
 
 	echo 1>&2
 	echo "++++++++++++++++++++++++++++++++++++++++" 1>&2
