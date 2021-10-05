@@ -28,6 +28,8 @@ struct SimulationManager {
 	double Beta;
 	double Pressure;
 
+	double ShearRate;
+
 	realRNG RNG;
 
 	int MinNumberOfA;
@@ -54,7 +56,8 @@ struct SimulationManager {
 		NumberOfAcceptedTypeChanges(0.0),
 		NumberOfTriedVolumeChanges(0.0),
 		NumberOfAcceptedVolumeChanges(0.0),
-		DirectoryString(DirectoryForFreshData){
+		DirectoryString(DirectoryForFreshData),
+		ShearRate(0.0){
 	}
 
 	void initializeParticles(double InitialDensity) {
@@ -72,6 +75,10 @@ struct SimulationManager {
 
 	void setPressure(double NewPressure){
 		Pressure = NewPressure;
+	}
+
+	void setShearRate(double NewShearRate){
+		ShearRate = NewShearRate;
 	}
 
 	void setFileNameString(int RunNumber, MCModus M, int NumberOfMCSweeps){
@@ -101,6 +108,63 @@ struct SimulationManager {
 			Deltas[i] = RNG.drawRandomNumber(-MAXIMUM_DISPLACEMENT, MAXIMUM_DISPLACEMENT)*P.getInverseBoxLength();
 		}
 		double AcceptanceProbability = exp(-P.computeChangeInPotentialEnergyByMoving(RandomParticleID, Deltas)*Beta);
+		if (AcceptanceProbability >= 1.0 || (RNG.drawRandomNumber() < AcceptanceProbability)){
+			P.updatePosition(RandomParticleID, Deltas);
+			NumberOfAcceptedDisplacements++;
+		}
+	}
+
+	void runDisplacementStepWithShear() {
+		NumberOfTriedDisplacements++;
+		int RandomParticleID = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(TOTAL_NUMBER_OF_PARTICLES));
+		double Deltas [DIMENSION];
+		double OldCoordinates [DIMENSION];
+		double UpdatedCoordinates [DIMENSION];
+		for (int i = 0; i < DIMENSION; i++){
+			Deltas[i] = RNG.drawRandomNumber(-MAXIMUM_DISPLACEMENT, MAXIMUM_DISPLACEMENT)*P.getInverseBoxLength();
+			OldCoordinates[i] = P.getPosition(RandomParticleID,i);
+			UpdatedCoordinates[i] = OldCoordinates[i] + Deltas[i];
+		}
+		double Work = 0.0;
+		if (OldCoordinates[1] <= 0.5 && UpdatedCoordinates[1] <= 0.5){
+			Work = ShearRate * Deltas[0] * 0.5 * (OldCoordinates[1] + UpdatedCoordinates[1]);
+		}
+		else if (OldCoordinates[1] >= 0.5 && UpdatedCoordinates[1] >= 0.5){
+			Work = ShearRate * Deltas[0] * (1.0 - 0.5 * (OldCoordinates[1] + UpdatedCoordinates[1]));
+		}
+		else if (OldCoordinates[1] <= 0.5 && UpdatedCoordinates[1] >= 0.5){
+			if (Deltas[1] == 0.0){
+				Work = ShearRate * Deltas[0] * 0.5;
+			}
+			else {
+				double x_i = (Deltas[0]/Deltas[1])*(0.5 - OldCoordinates[1]) + OldCoordinates[0];
+				Work = ShearRate * (x_i - OldCoordinates[0]) * 0.5 * (0.5 + OldCoordinates[1]);
+				Work += ShearRate * (UpdatedCoordinates[0] - x_i) * (1.0 - 0.5 * (0.5 + UpdatedCoordinates[1]));
+			}
+		}
+		else if (OldCoordinates[1] >= 0.5 && UpdatedCoordinates[1] <= 0.5){
+			if (Deltas[1] == 0.0){
+				Work = ShearRate * Deltas[0] * 0.5;
+			}
+			else {
+				double x_i = (Deltas[0]/Deltas[1])*(0.5 - OldCoordinates[1]) + OldCoordinates[0];
+				Work = ShearRate * (x_i - OldCoordinates[0]) * (1.0 - 0.5 * (0.5 + OldCoordinates[1]));
+				Work += ShearRate * (UpdatedCoordinates[0] - x_i) * 0.5 * (0.5 + UpdatedCoordinates[1]);
+			}
+		}
+		else if (UpdatedCoordinates[1] < 0.0){
+			UpdatedCoordinates[1] += 1.0;
+			double x_i = OldCoordinates[0] - Deltas[0] / Deltas[1] * OldCoordinates[1];
+			Work = ShearRate * (x_i - OldCoordinates[0]) * 0.5 * OldCoordinates[1];
+			Work += ShearRate * (UpdatedCoordinates[0] - x_i) * (1.0 - 0.5 * (UpdatedCoordinates[1] + 1.0));
+		}
+		else if (UpdatedCoordinates[1] > 1.0){
+			UpdatedCoordinates[1] -= 1.0;
+			double x_i = OldCoordinates[0] + Deltas[0] / Deltas[1] * (1.0 - OldCoordinates[1]);
+			Work = ShearRate * (x_i - OldCoordinates[0]) * (1.0 - 0.5 * (OldCoordinates[1] + 1.0));
+			Work += ShearRate * (UpdatedCoordinates[0] - x_i) * 0.5 * UpdatedCoordinates[1];
+		}
+		double AcceptanceProbability = exp(-(P.computeChangeInPotentialEnergyByMoving(RandomParticleID, Deltas) - Work)*Beta);
 		if (AcceptanceProbability >= 1.0 || (RNG.drawRandomNumber() < AcceptanceProbability)){
 			P.updatePosition(RandomParticleID, Deltas);
 			NumberOfAcceptedDisplacements++;
@@ -185,6 +249,17 @@ struct SimulationManager {
 		}
 	}
 
+	void runSingleSGCMCSweepWithShear(){
+		for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
+			if (RNG.drawRandomNumber() <= DISPLACEMENT_PROBABILITY){
+				runDisplacementStepWithShear();
+			}
+			else {
+				runTypeChange();
+			}
+		}
+	}
+
 	void writeSimulationMetaDataToErrorStream(int RunCount, int TimePassedInSeconds, int NumberOfSweeps){
 		#pragma omp critical(WRITE_TO_ERROR_STREAM)
 		{
@@ -212,6 +287,39 @@ struct SimulationManager {
 	}
 
 	void runSGCMCSimulationForSingleTemperatureTimeControlled(int RunCount, int MaxRuntimeInMinutes, chrono::time_point<chrono::steady_clock> StartTime, int MaxNumberOfSweeps){
+
+		auto StartOfDataTaking = chrono::steady_clock::now();
+
+		writeSGCMCMetaData();
+		writeSimulationStartInfoToErrorStream(RunCount);
+
+		int NextUpdateTime = UPDATE_TIME_INTERVAL;
+		int NextPotEnergyComputation = POT_ENERGY_UPDATE_INTERVAL;
+		vector<int> NumberOfABuffer;
+		vector<double> PotEnergyBuffer;
+
+		int SweepCount = 0;
+		for (; 	chrono::duration_cast<chrono::minutes>(chrono::steady_clock::now()-StartTime).count() < MaxRuntimeInMinutes && SweepCount < MaxNumberOfSweeps; SweepCount++){
+			runSingleSGCMCSweep();
+			NumberOfABuffer.push_back(P.getNumberOfAParticles());
+			if (SweepCount == NextPotEnergyComputation){
+				PotEnergyBuffer.push_back(P.computePotentialEnergy());
+				NextPotEnergyComputation += POT_ENERGY_UPDATE_INTERVAL;
+			}
+			if (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() >= NextUpdateTime){
+				writeSimulationProgressToErrorStream(RunCount, MaxNumberOfSweeps, SweepCount, Temperature, chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count());
+				writeSGCMCResults(NumberOfABuffer, PotEnergyBuffer);
+				NumberOfABuffer.clear();
+				PotEnergyBuffer.clear();
+				NextUpdateTime += UPDATE_TIME_INTERVAL;
+			}
+		}
+		writeSGCMCResults(NumberOfABuffer, PotEnergyBuffer);
+		writeParticleStateToFile(DirectoryString+"/State_"+FileNameString+"_"+to_string(0)+".dat");
+		writeSimulationMetaDataToErrorStream(RunCount, chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartOfDataTaking).count(), SweepCount);
+	}
+
+	void runSGCMCSimulationForSingleTemperatureWithShear(int RunCount, int MaxRuntimeInMinutes, chrono::time_point<chrono::steady_clock> StartTime, int MaxNumberOfSweeps){
 
 		auto StartOfDataTaking = chrono::steady_clock::now();
 
