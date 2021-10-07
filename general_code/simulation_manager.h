@@ -118,53 +118,17 @@ struct SimulationManager {
 		NumberOfTriedDisplacements++;
 		int RandomParticleID = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(TOTAL_NUMBER_OF_PARTICLES));
 		double Deltas [DIMENSION];
-		double OldCoordinates [DIMENSION];
-		double UpdatedCoordinates [DIMENSION];
 		for (int i = 0; i < DIMENSION; i++){
 			Deltas[i] = RNG.drawRandomNumber(-MAXIMUM_DISPLACEMENT, MAXIMUM_DISPLACEMENT)*P.getInverseBoxLength();
-			OldCoordinates[i] = P.getPosition(RandomParticleID,i);
-			UpdatedCoordinates[i] = OldCoordinates[i] + Deltas[i];
 		}
-		double Work = 0.0;
-		if (OldCoordinates[1] <= 0.5 && UpdatedCoordinates[1] <= 0.5){
-			Work = ShearRate * Deltas[0] * 0.5 * (OldCoordinates[1] + UpdatedCoordinates[1]);
+		double UpdatedyCoordinate = P.getPosition(RandomParticleID,1)+Deltas[1];
+		if (UpdatedyCoordinate > 1.0){
+			Deltas[0] -= ShearRate;
 		}
-		else if (OldCoordinates[1] >= 0.5 && UpdatedCoordinates[1] >= 0.5){
-			Work = ShearRate * Deltas[0] * (1.0 - 0.5 * (OldCoordinates[1] + UpdatedCoordinates[1]));
+		else if (UpdatedyCoordinates < 0.0){
+			Deltas[0] += ShearRate;
 		}
-		else if (OldCoordinates[1] <= 0.5 && UpdatedCoordinates[1] >= 0.5){
-			if (Deltas[1] == 0.0){
-				Work = ShearRate * Deltas[0] * 0.5;
-			}
-			else {
-				double x_i = (Deltas[0]/Deltas[1])*(0.5 - OldCoordinates[1]) + OldCoordinates[0];
-				Work = ShearRate * (x_i - OldCoordinates[0]) * 0.5 * (0.5 + OldCoordinates[1]);
-				Work += ShearRate * (UpdatedCoordinates[0] - x_i) * (1.0 - 0.5 * (0.5 + UpdatedCoordinates[1]));
-			}
-		}
-		else if (OldCoordinates[1] >= 0.5 && UpdatedCoordinates[1] <= 0.5){
-			if (Deltas[1] == 0.0){
-				Work = ShearRate * Deltas[0] * 0.5;
-			}
-			else {
-				double x_i = (Deltas[0]/Deltas[1])*(0.5 - OldCoordinates[1]) + OldCoordinates[0];
-				Work = ShearRate * (x_i - OldCoordinates[0]) * (1.0 - 0.5 * (0.5 + OldCoordinates[1]));
-				Work += ShearRate * (UpdatedCoordinates[0] - x_i) * 0.5 * (0.5 + UpdatedCoordinates[1]);
-			}
-		}
-		else if (UpdatedCoordinates[1] < 0.0){
-			UpdatedCoordinates[1] += 1.0;
-			double x_i = OldCoordinates[0] - Deltas[0] / Deltas[1] * OldCoordinates[1];
-			Work = ShearRate * (x_i - OldCoordinates[0]) * 0.5 * OldCoordinates[1];
-			Work += ShearRate * (UpdatedCoordinates[0] - x_i) * (1.0 - 0.5 * (UpdatedCoordinates[1] + 1.0));
-		}
-		else if (UpdatedCoordinates[1] > 1.0){
-			UpdatedCoordinates[1] -= 1.0;
-			double x_i = OldCoordinates[0] + Deltas[0] / Deltas[1] * (1.0 - OldCoordinates[1]);
-			Work = ShearRate * (x_i - OldCoordinates[0]) * (1.0 - 0.5 * (OldCoordinates[1] + 1.0));
-			Work += ShearRate * (UpdatedCoordinates[0] - x_i) * 0.5 * UpdatedCoordinates[1];
-		}
-		double AcceptanceProbability = exp(-(P.computeChangeInPotentialEnergyByMoving(RandomParticleID, Deltas) - Work)*Beta);
+		double AcceptanceProbability = exp(-P.computeChangeInPotentialEnergyByMoving(RandomParticleID, Deltas)*Beta);
 		if (AcceptanceProbability >= 1.0 || (RNG.drawRandomNumber() < AcceptanceProbability)){
 			P.updatePosition(RandomParticleID, Deltas);
 			NumberOfAcceptedDisplacements++;
@@ -418,7 +382,7 @@ struct SimulationManager {
 		ostringstream OutputStream;
 		OutputStream.precision(numeric_limits<long double>::digits10+1);
 		if (M == MCModus::SGCMC){
-			OutputStream << fixed << "BOX_LENGTH = " << P.getBoxLength() << " | AA_INTERACTION_STRENGTH = " << AA_INTERACTION_STRENGTH << " | AB_INTERACTION_STRENGTH = " << AB_INTERACTION_STRENGTH << " | MAXIMUM_DISPLACEMENT = " << MAXIMUM_DISPLACEMENT << " | DISPLACEMENT_PROBABILITY = " << DISPLACEMENT_PROBABILITY << " | MinNA = " << MinNumberOfA << " | MaxNA = " << MaxNumberOfA << endl;
+			OutputStream << fixed << "BOX_LENGTH = " << P.getBoxLength() << " | AA_INTERACTION_STRENGTH = " << AA_INTERACTION_STRENGTH << " | AB_INTERACTION_STRENGTH = " << AB_INTERACTION_STRENGTH << " | MAXIMUM_DISPLACEMENT = " << MAXIMUM_DISPLACEMENT << " | DISPLACEMENT_PROBABILITY = " << DISPLACEMENT_PROBABILITY << " | MinNA = " << MinNumberOfA << " | MaxNA = " << MaxNumberOfA << " | ShearRate = " << ShearRate << endl;
 			return OutputStream.str();
 		}
 		else if (M == MCModus::PressureMC) {
@@ -426,7 +390,7 @@ struct SimulationManager {
 			return OutputStream.str();
 		}
 		else {
-			OutputStream << fixed << "BOX_LENGTH = " << P.getBoxLength() << " | AA_INTERACTION_STRENGTH = " << AA_INTERACTION_STRENGTH << " | AB_INTERACTION_STRENGTH = " << AB_INTERACTION_STRENGTH << " | MAXIMUM_DISPLACEMENT = " << MAXIMUM_DISPLACEMENT << " | NA = " << MinNumberOfA << '\n';
+			OutputStream << fixed << "BOX_LENGTH = " << P.getBoxLength() << " | AA_INTERACTION_STRENGTH = " << AA_INTERACTION_STRENGTH << " | AB_INTERACTION_STRENGTH = " << AB_INTERACTION_STRENGTH << " | MAXIMUM_DISPLACEMENT = " << MAXIMUM_DISPLACEMENT << " | NA = " << MinNumberOfA << " | ShearRate = " << ShearRate << '\n';
 			return OutputStream.str();
 		}
 	}
