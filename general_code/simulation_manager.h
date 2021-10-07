@@ -114,7 +114,7 @@ struct SimulationManager {
 		}
 	}
 
-	void runDisplacementStepWithShear() {
+	void runDisplacementStepWithShear(const double* ChangeInCoordinates) {
 		NumberOfTriedDisplacements++;
 		int RandomParticleID = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(TOTAL_NUMBER_OF_PARTICLES));
 		double Deltas [DIMENSION];
@@ -125,12 +125,14 @@ struct SimulationManager {
 		if (UpdatedyCoordinate > 1.0){
 			Deltas[0] -= ShearRate;
 		}
-		else if (UpdatedyCoordinates < 0.0){
+		else if (UpdatedyCoordinate < 0.0){
 			Deltas[0] += ShearRate;
 		}
 		double AcceptanceProbability = exp(-P.computeChangeInPotentialEnergyByMoving(RandomParticleID, Deltas)*Beta);
 		if (AcceptanceProbability >= 1.0 || (RNG.drawRandomNumber() < AcceptanceProbability)){
 			P.updatePosition(RandomParticleID, Deltas);
+			*(ChangeInCoordinates + DIMENSION*RandomParticleID) += Deltas[0];
+			*(ChangeInCoordinates + DIMENSION*RandomParticleID+1) += Deltas[1];
 			NumberOfAcceptedDisplacements++;
 		}
 	}
@@ -213,10 +215,10 @@ struct SimulationManager {
 		}
 	}
 
-	void runSingleSGCMCSweepWithShear(){
+	void runSingleSGCMCSweepWithShear(const double* ChangeInCoordinates){
 		for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
 			if (RNG.drawRandomNumber() <= DISPLACEMENT_PROBABILITY){
-				runDisplacementStepWithShear();
+				runDisplacementStepWithShear(ChangeInCoordinates);
 			}
 			else {
 				runTypeChange();
@@ -283,7 +285,7 @@ struct SimulationManager {
 		writeSimulationMetaDataToErrorStream(RunCount, chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartOfDataTaking).count(), SweepCount);
 	}
 
-	void runSGCMCSimulationForSingleTemperatureWithShear(int RunCount, int MaxRuntimeInMinutes, chrono::time_point<chrono::steady_clock> StartTime, int MaxNumberOfSweeps){
+	void runSGCMCSimulationForSingleTemperatureWithShear(int RunCount, int MaxRuntimeInMinutes, chrono::time_point<chrono::steady_clock> StartTime, int MaxNumberOfSweeps, int NumberOfyValues){
 
 		auto StartOfDataTaking = chrono::steady_clock::now();
 
@@ -294,24 +296,29 @@ struct SimulationManager {
 		int NextPotEnergyComputation = POT_ENERGY_UPDATE_INTERVAL;
 		vector<int> NumberOfABuffer;
 		vector<double> PotEnergyBuffer;
+		vector<double> AverageTraveledDistances;
+
+		double ChangeInCoordinates [DIMENSION*TOTAL_NUMBER_OF_PARTICLES]{};
 
 		int SweepCount = 0;
 		for (; 	chrono::duration_cast<chrono::minutes>(chrono::steady_clock::now()-StartTime).count() < MaxRuntimeInMinutes && SweepCount < MaxNumberOfSweeps; SweepCount++){
-			runSingleSGCMCSweep();
+			runSingleSGCMCSweepWithShear(ChangeInCoordinates);
 			NumberOfABuffer.push_back(P.getNumberOfAParticles());
+
 			if (SweepCount == NextPotEnergyComputation){
 				PotEnergyBuffer.push_back(P.computePotentialEnergy());
 				NextPotEnergyComputation += POT_ENERGY_UPDATE_INTERVAL;
 			}
 			if (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() >= NextUpdateTime){
 				writeSimulationProgressToErrorStream(RunCount, MaxNumberOfSweeps, SweepCount, Temperature, chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count());
-				writeSGCMCResults(NumberOfABuffer, PotEnergyBuffer);
+				writeSGCMCResultsWithShear(NumberOfABuffer, PotEnergyBuffer, AveragedTraveledDistances, NumberOfyValues);
 				NumberOfABuffer.clear();
 				PotEnergyBuffer.clear();
+				AverageTraveledDistances.clear();
 				NextUpdateTime += UPDATE_TIME_INTERVAL;
 			}
 		}
-		writeSGCMCResults(NumberOfABuffer, PotEnergyBuffer);
+		writeSGCMCResultsWithShear(NumberOfABuffer, PotEnergyBuffer, AveragedTraveledDistances, NumberOfyValues);
 		writeParticleStateToFile(DirectoryString+"/State_"+FileNameString+"_"+to_string(0)+".dat");
 		writeSimulationMetaDataToErrorStream(RunCount, chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartOfDataTaking).count(), SweepCount);
 	}
@@ -437,6 +444,35 @@ struct SimulationManager {
 		FileStreamToWrite.open(FileName, ios_base::app);
 		for (int i = 0; i < PotEnergyBuffer.size(); i++){
 			FileStreamToWrite << PotEnergyBuffer[i] << '\n';
+		}
+		FileStreamToWrite.close();
+	}
+
+	void writeSGCMCResultsWithShear(const vector<int>& NumberOfABuffer, const vector<double>& PotEnergyBuffer, const vector<double>& AverageTraveledDistances, const int NumberOfyValues) const {
+		string FileName(DirectoryString+"/NA_Series_"+FileNameString+".dat");
+		ofstream FileStreamToWrite;
+		FileStreamToWrite.open(FileName, ios_base::app);
+		for (int i = 0; i < NumberOfABuffer.size(); i++){
+			FileStreamToWrite << NumberOfABuffer[i] << '\n';
+		}
+		FileStreamToWrite.close();
+
+		FileName = DirectoryString+"/PotEnergySeries_"+FileNameString+".dat";
+		FileStreamToWrite.open(FileName, ios_base::app);
+		for (int i = 0; i < PotEnergyBuffer.size(); i++){
+			FileStreamToWrite << PotEnergyBuffer[i] << '\n';
+		}
+		FileStreamToWrite.close();
+
+		FileName = DirectoryString+"/AvgTraveledDistances_"+FileNameString+".dat";
+		FileStreamToWrite.open(FileName, ios_base::app);
+
+		const int NumberOfRows = AverageTraveledDistances.size()/NumberOfyValues;
+		for (int i = 0; i < NumberOfRows; i++){
+			for (int j = 0; j < NumberOfyValues-1; j++){
+				FileStreamToWrite << AverageTraveledDistances[NumberOfyValues*i+j] << '\t';
+			}
+			FileStreamToWrite << AverageTraveledDistances[NumberOfyValues*i+NumberOfyValues-1] << '\n';
 		}
 		FileStreamToWrite.close();
 	}
