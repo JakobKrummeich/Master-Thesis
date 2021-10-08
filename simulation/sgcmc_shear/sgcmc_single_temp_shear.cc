@@ -12,33 +12,24 @@ int main(int argc, char* argv[]){
 	int StatesToSkipPerRun = atoi(argv[3]);
 	int RunNumberOffset = atoi(argv[4]);
 	int RunNumberOffsetReadIn = atoi(argv[5]);
-	int NumberOfEquilibrationSweeps = atoi(argv[6]);
-	int MaxNumberOfSweeps = atoi(argv[7]);
+	int MaxNumberOfSweeps = atoi(argv[6]);
+	double ShearRate = atof(argv[7]);
+	int NumberOfyValues = atoi(argv[8]);
 
 	#pragma omp parallel num_threads(NUMBER_OF_THREADS)
 	{
 		SimulationManager S(0, TOTAL_NUMBER_OF_PARTICLES, OUTPUT_DIRECTORY);
+		S.setShearRate(ShearRate);
+		S.setTemperature(Temperature);
 
 		#pragma omp for
 		for (int RunCount = 0; RunCount < NUMBER_OF_RUNS; RunCount++){
 			const auto StartTime = chrono::steady_clock::now();
 			S.readInParticleState(InitialStateFile, RunCount*StatesToSkipPerRun+RunNumberOffsetReadIn, DENSITY);
-			S.setTemperature(Temperature);
 
-			#pragma omp critical(WRITE_TO_ERROR_STREAM)
-			{
-				cerr << "Run " << RunCount+RunNumberOffset << ": equilibration starting." << endl;
-			}
-
-			S.equilibrateFixedSweeps(NumberOfEquilibrationSweeps);
-
-			#pragma omp critical(WRITE_TO_ERROR_STREAM)
-			{
-				cerr << "Run " << RunCount+RunNumberOffset << ": Time for " << NumberOfEquilibrationSweeps << " equilibration sweeps: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
-			}
 			S.setFileNameString(RunCount+RunNumberOffset, MCModus::SGCMC, MaxNumberOfSweeps);
 			S.resetCountersAndBuffers();
-			S.runSGCMCSimulationForSingleTemperatureWithShear(RunCount+RunNumberOffset, MAX_RUNTIME_IN_MINUTES, StartTime, MaxNumberOfSweeps);
+			S.runSGCMCSimulationForSingleTemperatureWithShear(RunCount+RunNumberOffset, MAX_RUNTIME_IN_MINUTES, StartTime, MaxNumberOfSweeps, NumberOfyValues);
 		}
 	}
 }

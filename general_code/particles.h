@@ -361,7 +361,7 @@ class Particles {
 				if (UpdatedCoordinates[i] < 0.0){
 					UpdatedCoordinates[i] += 1.0;
 				}
-				else if (UpdatedCoordinates[i] > 1.0){
+				else if (UpdatedCoordinates[i] >= 1.0){
 					UpdatedCoordinates[i] -= 1.0;
 				}
 			}
@@ -414,7 +414,7 @@ class Particles {
 				if (Positions[DIMENSION * ParticleIndex + k] < 0.0){
 					Positions[DIMENSION * ParticleIndex + k] += 1.0;
 				}
-				else if (Positions[DIMENSION * ParticleIndex + k] > 1.0){
+				else if (Positions[DIMENSION * ParticleIndex + k] >= 1.0){
 					Positions[DIMENSION * ParticleIndex + k] -= 1.0;
 				}
 				ChangeInCoordinates[DIMENSION * ParticleIndex + k] += Deltas[k];
