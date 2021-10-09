@@ -306,11 +306,22 @@ struct SimulationManager {
 		}
 	}
 
+	void writeTraveledDistances(const double* ChangeInCoordinates) const {
+		ofstream FileStreamToWrite;
+		string FileName = DirectoryString+"/TraveledDistancesvsInity_"+FileNameString+".dat";
+		FileStreamToWrite.open(FileName, ios_base::app);
+		for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
+			FileStreamToWrite << ChangeInCoordinates[DIMENSION*i] << '\t';
+		}
+		FileStreamToWrite << '\n';
+		FileStreamToWrite.close();
+	}
+
 	void runSGCMCSimulationForSingleTemperatureWithShear(int RunCount, int MaxRuntimeInMinutes, chrono::time_point<chrono::steady_clock> StartTime, int MaxNumberOfSweeps, const int NumberOfyValues){
 
 		auto StartOfDataTaking = chrono::steady_clock::now();
 
-		writeSGCMCMetaDataWithShear(NumberOfyValues);
+		writeSGCMCMetaDataWithShear(NumberOfyValues,P);
 		writeSimulationStartInfoToErrorStream(RunCount);
 
 		int NextUpdateTime = UPDATE_TIME_INTERVAL;
@@ -346,6 +357,9 @@ struct SimulationManager {
 
 		PotEnergyBuffer.push_back(P.computePotentialEnergy());
 		updateAverageTraveledDistances(P, ChangeInCoordinates, AverageTraveledDistances, NumberOfyValues);
+
+		writeTraveledDistances(ChangeInCoordinates);
+
 		writeSGCMCResultsWithShear(NumberOfABuffer, PotEnergyBuffer, AverageTraveledDistances, NumberOfyValues);
 		writeParticleStateToFile(DirectoryString+"/State_"+FileNameString+"_"+to_string(0)+".dat");
 		cerr << "Tried shear moves: " << AttemptedShearMoves << " | AcceptedShearMoves: " << AcceptedShearMoves << " | Ratio: " << AcceptedShearMoves/AttemptedShearMoves << endl;
@@ -461,7 +475,7 @@ struct SimulationManager {
 		FileStreamToWrite.close();
 	}
 
-	void writeSGCMCMetaDataWithShear(int NumberOfyValues) const {
+	void writeSGCMCMetaDataWithShear(int NumberOfyValues, const Particles& P) const {
 		string FileName(DirectoryString+"/NA_Series_"+FileNameString+".dat");
 		ofstream FileStreamToWrite;
 		FileStreamToWrite.open(FileName);
@@ -474,9 +488,8 @@ struct SimulationManager {
 		FileStreamToWrite.close();
 
 		FileName = DirectoryString+"/AvgTraveledDistances_"+FileNameString+".dat";
-		FileStreamToWrite.open(FileName, ios_base::app);
+		FileStreamToWrite.open(FileName);
 		FileStreamToWrite << getMetaDataString(MCModus::SGCMC);
-		FileStreamToWrite << "avg y : ";
 		double yDelta = 1.0/static_cast<double>(NumberOfyValues);
 		double Currenty = yDelta*0.5;
 		for (int i = 0; i < NumberOfyValues-1; i++){
@@ -484,6 +497,15 @@ struct SimulationManager {
 			Currenty += yDelta;
 		}
 		FileStreamToWrite << Currenty << '\n';
+		FileStreamToWrite.close();
+
+		FileName = DirectoryString+"/TraveledDistancesvsInity_"+FileNameString+".dat";
+		FileStreamToWrite.open(FileName);
+		FileStreamToWrite << getMetaDataString(MCModus::SGCMC);
+		for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
+			FileStreamToWrite << P.getPosition(i,1) << '\t';
+		}
+		FileStreamToWrite << '\n';
 		FileStreamToWrite.close();
 	}
 
