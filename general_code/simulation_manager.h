@@ -121,27 +121,15 @@ struct SimulationManager {
 		for (int i = 0; i < DIMENSION; i++){
 			Deltas[i] = RNG.drawRandomNumber(-MAXIMUM_DISPLACEMENT, MAXIMUM_DISPLACEMENT)*P.getInverseBoxLength();
 		}
-		double UpdatedyCoordinate = P.getPosition(RandomParticleID,1)+Deltas[1];
-		bool ShearAttempted = false;
-		if (UpdatedyCoordinate > 1.0){
-			Deltas[0] -= ShearRate*P.getInverseBoxLength();
-			AttemptedShearMoves++;
-			ShearAttempted = true;
-		}
-		else if (UpdatedyCoordinate < 0.0){
-			Deltas[0] += ShearRate*P.getInverseBoxLength();
-			AttemptedShearMoves++;
-			ShearAttempted = true;
-		}
+		double yCoordinate = P.getPosition(RandomParticleID,1);
+		Deltas[0] += ShearRate*2.0*P.getInverseBoxLength()*(yCoordinate-0.5);
+
 		double AcceptanceProbability = exp(-P.computeChangeInPotentialEnergyByMoving(RandomParticleID, Deltas)*Beta);
 		if (AcceptanceProbability >= 1.0 || (RNG.drawRandomNumber() < AcceptanceProbability)){
 			P.updatePosition(RandomParticleID, Deltas);
 			*(ChangeInCoordinates + DIMENSION*RandomParticleID) += Deltas[0];
 			*(ChangeInCoordinates + DIMENSION*RandomParticleID+1) += Deltas[1];
 			NumberOfAcceptedDisplacements++;
-			if (ShearAttempted){
-				AcceptedShearMoves++;
-			}
 		}
 	}
 
