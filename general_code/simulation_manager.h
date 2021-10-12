@@ -281,12 +281,14 @@ struct SimulationManager {
 		writeSimulationMetaDataToErrorStream(RunCount, chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartOfDataTaking).count(), SweepCount);
 	}
 
-	void updateAverageTraveledDistances(const Particles& P, const double* ChangeInCoordinates, vector<double>& AverageTraveledDistances, const int NumberOfyValues) const {
+	void updateAverageTraveledDistances(const Particles& P, double* ChangeInCoordinates, vector<double>& AverageTraveledDistances, const int NumberOfyValues) const {
 		vector<double> NewEntries(NumberOfyValues,0.0);
 		vector<int> NumberOfValues(NumberOfyValues,0);
 		for (int ParticleID = 0; ParticleID < TOTAL_NUMBER_OF_PARTICLES; ParticleID++){
 			int Index = static_cast<int>(P.getPosition(ParticleID,1)*static_cast<double>(NumberOfyValues));
 			NewEntries[Index] += ChangeInCoordinates[DIMENSION*ParticleID];
+			ChangeInCoordinates[DIMENSION*ParticleID] = 0.0;
+			ChangeInCoordinates[DIMENSION*ParticleID+1] = 0.0;
 			NumberOfValues[Index]++;
 		}
 		for (int i = 0; i < NumberOfyValues; i++){
@@ -330,9 +332,6 @@ struct SimulationManager {
 				NextUpdateTime += UPDATE_TIME_INTERVAL;
 			}
 		}
-
-		PotEnergyBuffer.push_back(P.computePotentialEnergy());
-		updateAverageTraveledDistances(P, ChangeInCoordinates, AverageTraveledDistances, NumberOfyValues);
 
 		writeSGCMCResultsWithShear(NumberOfABuffer, PotEnergyBuffer, AverageTraveledDistances, NumberOfyValues);
 		writeParticleStateToFile(DirectoryString+"/State_"+FileNameString+"_"+to_string(0)+".dat");
