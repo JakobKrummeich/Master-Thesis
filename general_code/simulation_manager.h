@@ -294,17 +294,6 @@ struct SimulationManager {
 		}
 	}
 
-	void writeTraveledDistances(const double* ChangeInCoordinates) const {
-		ofstream FileStreamToWrite;
-		string FileName = DirectoryString+"/TraveledDistancesvsInity_"+FileNameString+".dat";
-		FileStreamToWrite.open(FileName, ios_base::app);
-		for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
-			FileStreamToWrite << ChangeInCoordinates[DIMENSION*i] << '\t';
-		}
-		FileStreamToWrite << '\n';
-		FileStreamToWrite.close();
-	}
-
 	void runSGCMCSimulationForSingleTemperatureWithShear(int RunCount, int MaxRuntimeInMinutes, chrono::time_point<chrono::steady_clock> StartTime, int MaxNumberOfSweeps, const int NumberOfyValues){
 
 		auto StartOfDataTaking = chrono::steady_clock::now();
@@ -326,12 +315,11 @@ struct SimulationManager {
 		for (; 	chrono::duration_cast<chrono::minutes>(chrono::steady_clock::now()-StartTime).count() < MaxRuntimeInMinutes && SweepCount < MaxNumberOfSweeps; SweepCount++){
 			runSingleSGCMCSweepWithShear(ChangeInCoordinates, AttemptedShearMoves, AcceptedShearMoves);
 			NumberOfABuffer.push_back(P.getNumberOfAParticles());
+			updateAverageTraveledDistances(P, ChangeInCoordinates, AverageTraveledDistances, NumberOfyValues);
 
 			if (SweepCount == NextPotEnergyComputation){
 				PotEnergyBuffer.push_back(P.computePotentialEnergy());
 				NextPotEnergyComputation += POT_ENERGY_UPDATE_INTERVAL;
-
-				updateAverageTraveledDistances(P, ChangeInCoordinates, AverageTraveledDistances, NumberOfyValues);
 			}
 			if (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() >= NextUpdateTime){
 				writeSimulationProgressToErrorStream(RunCount, MaxNumberOfSweeps, SweepCount, Temperature, chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count());
@@ -345,8 +333,6 @@ struct SimulationManager {
 
 		PotEnergyBuffer.push_back(P.computePotentialEnergy());
 		updateAverageTraveledDistances(P, ChangeInCoordinates, AverageTraveledDistances, NumberOfyValues);
-
-		writeTraveledDistances(ChangeInCoordinates);
 
 		writeSGCMCResultsWithShear(NumberOfABuffer, PotEnergyBuffer, AverageTraveledDistances, NumberOfyValues);
 		writeParticleStateToFile(DirectoryString+"/State_"+FileNameString+"_"+to_string(0)+".dat");
@@ -485,15 +471,6 @@ struct SimulationManager {
 			Currenty += yDelta;
 		}
 		FileStreamToWrite << Currenty << '\n';
-		FileStreamToWrite.close();
-
-		FileName = DirectoryString+"/TraveledDistancesvsInity_"+FileNameString+".dat";
-		FileStreamToWrite.open(FileName);
-		FileStreamToWrite << getMetaDataString(MCModus::SGCMC);
-		for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
-			FileStreamToWrite << P.getPosition(i,1) << '\t';
-		}
-		FileStreamToWrite << '\n';
 		FileStreamToWrite.close();
 	}
 
