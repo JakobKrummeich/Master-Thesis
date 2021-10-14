@@ -358,12 +358,7 @@ class Particles {
 			double UpdatedCoordinates [DIMENSION];
 			for (int i = 0; i < DIMENSION; i++){
 				UpdatedCoordinates[i] = Positions[DIMENSION*ParticleIndex + i] + *(Delta + i);
-				if (UpdatedCoordinates[i] < 0.0){
-					UpdatedCoordinates[i] += 1.0;
-				}
-				else if (UpdatedCoordinates[i] >= 1.0){
-					UpdatedCoordinates[i] -= 1.0;
-				}
+				UpdatedCoordinates[i] = abs(UpdatedCoordinates[i]) - static_cast<double>(static_cast<int>(abs(UpdatedCoordinates[i])));
 			}
 			for (int i = 0; i < VerletListHead[2*ParticleIndex+1]; i++){
 				int OtherParticleIndex = VerletIndicesOfNeighbors[VerletListHead[2*ParticleIndex]+i];
@@ -411,12 +406,7 @@ class Particles {
 			double CurrentTraveledDistanceSquared = 0.0;
 			for (int k = 0; k < DIMENSION; k++){
 				Positions[DIMENSION * ParticleIndex + k] += Deltas[k];
-				if (Positions[DIMENSION * ParticleIndex + k] < 0.0){
-					Positions[DIMENSION * ParticleIndex + k] += 1.0;
-				}
-				else if (Positions[DIMENSION * ParticleIndex + k] >= 1.0){
-					Positions[DIMENSION * ParticleIndex + k] -= 1.0;
-				}
+				Positions[DIMENSION * ParticleIndex + k] = abs(Positions[DIMENSION * ParticleIndex + k]) - static_cast<double>(static_cast<int>(abs(Positions[DIMENSION * ParticleIndex + k])));
 				ChangeInCoordinates[DIMENSION * ParticleIndex + k] += Deltas[k];
 				CurrentTraveledDistanceSquared += ChangeInCoordinates[DIMENSION * ParticleIndex + k] * ChangeInCoordinates[DIMENSION * ParticleIndex + k];
 			}

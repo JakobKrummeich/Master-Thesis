@@ -114,7 +114,7 @@ struct SimulationManager {
 		}
 	}
 
-	void runDisplacementStepWithShear(double* ChangeInCoordinates, double& AttemptedShearMoves, double& AcceptedShearMoves) {
+	void runDisplacementStepWithShear(double* ChangeInCoordinates, double& AttemptedShearMoves, double& AcceptedShearMoves, int StepNumber) {
 		NumberOfTriedDisplacements++;
 		int RandomParticleID = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(TOTAL_NUMBER_OF_PARTICLES));
 		double Deltas [DIMENSION];
@@ -124,12 +124,12 @@ struct SimulationManager {
 		double UpdatedyCoordinate = P.getPosition(RandomParticleID,1)+Deltas[1];
 		bool ShearAttempted = false;
 		if (UpdatedyCoordinate > 1.0){
-			Deltas[0] -= ShearRate*P.getInverseBoxLength();
+			Deltas[0] -= ShearRate*P.getInverseBoxLength()*static_cast<double>(StepNumber);
 			AttemptedShearMoves++;
 			ShearAttempted = true;
 		}
 		else if (UpdatedyCoordinate < 0.0){
-			Deltas[0] += ShearRate*P.getInverseBoxLength();
+			Deltas[0] += ShearRate*P.getInverseBoxLength()*static_cast<double>(StepNumber);
 			AttemptedShearMoves++;
 			ShearAttempted = true;
 		}
@@ -223,10 +223,10 @@ struct SimulationManager {
 		}
 	}
 
-	void runSingleSGCMCSweepWithShear(double* ChangeInCoordinates, double& AttemptedShearMoves, double& AcceptedShearMoves){
+	void runSingleSGCMCSweepWithShear(double* ChangeInCoordinates, double& AttemptedShearMoves, double& AcceptedShearMoves, int SweepCount){
 		for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
 			if (RNG.drawRandomNumber() <= DISPLACEMENT_PROBABILITY){
-				runDisplacementStepWithShear(ChangeInCoordinates, AttemptedShearMoves, AcceptedShearMoves);
+				runDisplacementStepWithShear(ChangeInCoordinates, AttemptedShearMoves, AcceptedShearMoves, SweepCount);
 			}
 			else {
 				runTypeChange();
@@ -327,7 +327,7 @@ struct SimulationManager {
 
 		int SweepCount = 0;
 		for (; 	chrono::duration_cast<chrono::minutes>(chrono::steady_clock::now()-StartTime).count() < MaxRuntimeInMinutes && SweepCount < MaxNumberOfSweeps; SweepCount++){
-			runSingleSGCMCSweepWithShear(ChangeInCoordinates, AttemptedShearMoves, AcceptedShearMoves);
+			runSingleSGCMCSweepWithShear(ChangeInCoordinates, AttemptedShearMoves, AcceptedShearMoves, SweepCount);
 			NumberOfABuffer.push_back(P.getNumberOfAParticles());
 			updateAverageTraveledDistances(P, ChangeInCoordinates, AverageTraveledDistances, NumberOfyValues);
 
