@@ -19,7 +19,7 @@ using namespace std;
 
 
 class Particles {
-	private:
+	public:
 		double Positions [DIMENSION*TOTAL_NUMBER_OF_PARTICLES];
 
 		ParticleType ParticleTypes [TOTAL_NUMBER_OF_PARTICLES];
@@ -66,60 +66,203 @@ class Particles {
 			}
 		}
 
-		void buildVerletList() {
+		void buildVerletList(double xDisplacement) {
 			buildCellList();
+
+			vector<int> CellNeighborsHead;
+			CellNeighborsHead.reserve(2*NumberOfSubdivisions*NumberOfSubdivisions);
+			vector<int> CellNeighborsIndices;
+			CellNeighborsIndices.reserve(10*NumberOfSubdivisions*NumberOfSubdivisions);
+			int CurrentIndexInCellNeighbors = 0;
+
+			// cells at the bottom of the box
+			int Indices [DIMENSION]{0,0};
+			for (; Indices[0] < NumberOfSubdivisions; Indices[0]++){
+				CellNeighborsHead.push_back(CurrentIndexInCellNeighbors);
+				int NumberOfNeighbors = 0;
+
+				int IndicesOffsets [DIMENSION]{-1,0};
+				while (IndicesOffsets[DIMENSION - 1] < 2){
+					int NeighborCell = 0;
+					int IndexFactor = 1;
+					for (int i = 0; i < DIMENSION; i++){
+						int OtherCellIndex = Indices[i]+IndicesOffsets[i];
+						if (OtherCellIndex < 0){
+							OtherCellIndex += NumberOfSubdivisions;
+						}
+						else if (OtherCellIndex >= NumberOfSubdivisions){
+							OtherCellIndex -= NumberOfSubdivisions;
+						}
+						NeighborCell += IndexFactor*OtherCellIndex;
+						IndexFactor *= NumberOfSubdivisions;
+					}
+					CellNeighborsIndices.push_back(NeighborCell);
+					NumberOfNeighbors++;
+					CurrentIndexInCellNeighbors++;
+
+					IndicesOffsets[0]++;
+					for (int i = 0; i < DIMENSION - 1; i++){
+						if (IndicesOffsets[i] >= 2){
+							IndicesOffsets[i] = -1;
+							IndicesOffsets[i+1]++;
+						}
+					}
+				}
+				int xOffsetShear = static_cast<int>(xDisplacement * static_cast<double>(NumberOfSubdivisions));
+				for (int xOffset = -1; xOffset < 3; xOffset++){
+					int NeighborCell = NumberOfSubdivisions*(NumberOfSubdivisions-1); // shift to top row of the cells
+					int xOtherCellIndex = xOffset+xOffsetShear+Indices[0];
+					if (xOtherCellIndex < 0){
+						xOtherCellIndex += NumberOfSubdivisions;
+					}
+					else if (xOtherCellIndex >= NumberOfSubdivisions){
+						xOtherCellIndex = xOtherCellIndex % NumberOfSubdivisions;
+					}
+					NeighborCell += xOtherCellIndex;
+
+					CellNeighborsIndices.push_back(NeighborCell);
+					NumberOfNeighbors++;
+					CurrentIndexInCellNeighbors++;
+				}
+
+				CellNeighborsHead.push_back(NumberOfNeighbors);
+			}
+
+			// cells in the middle of the box
+			Indices[0] = 0;
+			Indices[1] = 1;
+			while (Indices[1] < NumberOfSubdivisions - 1){
+				CellNeighborsHead.push_back(CurrentIndexInCellNeighbors);
+				int NumberOfNeighbors = 0;	
+
+				int IndicesOffsets [DIMENSION]{-1,-1};
+				while (IndicesOffsets[DIMENSION - 1] < 2){
+					int NeighborCell = 0;
+					int IndexFactor = 1;
+					for (int i = 0; i < DIMENSION; i++){
+						int OtherCellIndex = Indices[i]+IndicesOffsets[i];
+						if (OtherCellIndex < 0){
+							OtherCellIndex += NumberOfSubdivisions;
+						}
+						else if (OtherCellIndex >= NumberOfSubdivisions){
+							OtherCellIndex -= NumberOfSubdivisions;
+						}
+						NeighborCell += IndexFactor*OtherCellIndex;
+						IndexFactor *= NumberOfSubdivisions;
+					}
+					CellNeighborsIndices.push_back(NeighborCell);
+					NumberOfNeighbors++;
+					CurrentIndexInCellNeighbors++;
+					IndicesOffsets[0]++;
+					for (int i = 0; i < DIMENSION - 1; i++){
+						if (IndicesOffsets[i] >= 2){
+							IndicesOffsets[i] = -1;
+							IndicesOffsets[i+1]++;
+						}
+					}
+				}
+				CellNeighborsHead.push_back(NumberOfNeighbors);
+
+				Indices[0]++;
+				if (Indices[0] >= NumberOfSubdivisions){
+					Indices[0] = 0;
+					Indices[1]++;
+				}
+			}
+
+			// cells at the top of the box
+			Indices[0] = 0;
+			Indices[1] = NumberOfSubdivisions-1;
+			for (; Indices[0] < NumberOfSubdivisions; Indices[0]++){
+				CellNeighborsHead.push_back(CurrentIndexInCellNeighbors);
+				int NumberOfNeighbors = 0;
+
+				int IndicesOffsets [DIMENSION]{-1,-1};
+				while (IndicesOffsets[DIMENSION - 1] < 1){
+					int NeighborCell = 0;
+					int IndexFactor = 1;
+					for (int i = 0; i < DIMENSION; i++){
+						int OtherCellIndex = Indices[i]+IndicesOffsets[i];
+						if (OtherCellIndex < 0){
+							OtherCellIndex += NumberOfSubdivisions;
+						}
+						else if (OtherCellIndex >= NumberOfSubdivisions){
+							OtherCellIndex -= NumberOfSubdivisions;
+						}
+						NeighborCell += IndexFactor*OtherCellIndex;
+						IndexFactor *= NumberOfSubdivisions;
+					}
+					CellNeighborsIndices.push_back(NeighborCell);
+					NumberOfNeighbors++;
+					CurrentIndexInCellNeighbors++;
+
+					IndicesOffsets[0]++;
+					for (int i = 0; i < DIMENSION - 1; i++){
+						if (IndicesOffsets[i] >= 2){
+							IndicesOffsets[i] = -1;
+							IndicesOffsets[i+1]++;
+						}
+					}
+				}
+				int xOffsetShear = NumberOfSubdivisions-static_cast<int>(xDisplacement * static_cast<double>(NumberOfSubdivisions));
+				for (int xOffset = -2; xOffset < 2; xOffset++){
+					int NeighborCell = 0;
+					int xOtherCellIndex = xOffset+xOffsetShear+Indices[0];
+					if (xOtherCellIndex < 0){
+						xOtherCellIndex += NumberOfSubdivisions;
+					}
+					else if (xOtherCellIndex >= NumberOfSubdivisions){
+						xOtherCellIndex = xOtherCellIndex % NumberOfSubdivisions;
+					}
+					NeighborCell += xOtherCellIndex;
+
+					CellNeighborsIndices.push_back(NeighborCell);
+					NumberOfNeighbors++;
+					CurrentIndexInCellNeighbors++;
+				}
+
+				CellNeighborsHead.push_back(NumberOfNeighbors);
+			}
+
+			cerr << "xDisplacement = " << xDisplacement << endl;
+			for (int i = 0; i < CellNeighborsHead.size(); i+=2){
+				cerr << i/2 << ": ";
+				for (int j = 0; j < CellNeighborsHead[i+1]; j++){
+					cerr << CellNeighborsIndices[CellNeighborsHead[i] + j] << ",";
+				}
+				cerr << endl;
+			}
+
 			VerletIndicesOfNeighbors.clear();
 			VerletIndicesOfNeighbors.reserve(40*TOTAL_NUMBER_OF_PARTICLES);
 			int CurrentIndexInVerletIndices = 0;
 
-			int Indices [DIMENSION];
-			for (int i = 0; i < DIMENSION; i++){
-				Indices[i] = 0;
-			}
-			while (Indices[DIMENSION - 1] < NumberOfSubdivisions){
-				int Cell = 0;
-				int IndexFactor = 1;
-				for (int i = 0; i < DIMENSION; i++){
-					Cell += Indices[i]*IndexFactor;
-					IndexFactor *= NumberOfSubdivisions;
-
-				}
-				int CurrentParticleIndex = CellListHead[Cell];
+			for (int i = 0; i < CellNeighborsHead.size(); i+=2){
+				int CurrentParticleIndex = CellListHead[i/2];
 				while (CurrentParticleIndex >= 0){
 					int NumberOfNeighbors = 0;
 					VerletListHead[2*CurrentParticleIndex] = CurrentIndexInVerletIndices;
-					int IndicesOffsets [DIMENSION];
-					for (int i = 0; i < DIMENSION; i++){
-						IndicesOffsets[i] = -1;
-					}
-					while (IndicesOffsets[DIMENSION - 1] < 2){
-						int NeighborCell = 0;
-						int IndexFactor = 1;
-						for (int i = 0; i < DIMENSION; i++){
-							int OtherCellIndex = Indices[i]+IndicesOffsets[i];
-							if (OtherCellIndex < 0){
-								OtherCellIndex += NumberOfSubdivisions;
-							}
-							else if (OtherCellIndex >= NumberOfSubdivisions){
-								OtherCellIndex -= NumberOfSubdivisions;
-							}
-							NeighborCell += IndexFactor*OtherCellIndex;
-							IndexFactor *= NumberOfSubdivisions;
-						}
-						int OtherParticleIndex = CellListHead[NeighborCell];
+					for (int j = 0; j < CellNeighborsHead[i+1]; j++){
+						int OtherParticleIndex = CellListHead[CellNeighborsIndices[CellNeighborsHead[i] + j]];
 						while (OtherParticleIndex >= 0){
 							if (OtherParticleIndex != CurrentParticleIndex){
-								double DistanceSquared = 0.0;
-								for (int k = 0; k < DIMENSION; k++){
-									double CoordinateDifference = Positions[DIMENSION * CurrentParticleIndex + k] - Positions[DIMENSION * OtherParticleIndex + k];
-									if (CoordinateDifference > 0.5){
-										CoordinateDifference -= 1.0;
-									}
-									else if (CoordinateDifference <= -0.5){
-										CoordinateDifference += 1.0;
-									}
-									DistanceSquared += CoordinateDifference * CoordinateDifference;
+								double xCoordinateDifference = Positions[DIMENSION * CurrentParticleIndex] - Positions[DIMENSION * OtherParticleIndex];
+								double yCoordinateDifference = Positions[DIMENSION * CurrentParticleIndex + 1] - Positions[DIMENSION * OtherParticleIndex + 1];
+								if (yCoordinateDifference > 0.5){
+									yCoordinateDifference -= 1.0;
+									xCoordinateDifference -= xDisplacement;
 								}
+								else if (yCoordinateDifference <= -0.5){
+									yCoordinateDifference += 1.0;
+									xCoordinateDifference += xDisplacement;
+								}
+								while (xCoordinateDifference > 0.5){
+									xCoordinateDifference -= 1.0;
+								}
+								while (xCoordinateDifference <= -0.5){
+									xCoordinateDifference += 1.0;
+								}
+								double DistanceSquared = xCoordinateDifference * xCoordinateDifference + yCoordinateDifference * yCoordinateDifference;
 								if (DistanceSquared * BoxLengthSquared <= MAX_VERLET_DIST_SQUARED){
 									NumberOfNeighbors++;
 									VerletIndicesOfNeighbors.push_back(OtherParticleIndex);
@@ -128,26 +271,22 @@ class Particles {
 							}
 							OtherParticleIndex = CellListIndices[OtherParticleIndex];
 						}
-						IndicesOffsets[0]++;
-						for (int i = 0; i < DIMENSION - 1; i++){
-							if (IndicesOffsets[i] >= 2){
-								IndicesOffsets[i] = -1;
-								IndicesOffsets[i+1]++;
-							}
-						}
 					}
 					VerletListHead[2*CurrentParticleIndex+1] = NumberOfNeighbors;
 					CurrentParticleIndex = CellListIndices[CurrentParticleIndex];
 				}
-				Indices[0]++;
-				for (int i = 0; i < DIMENSION - 1; i++){
-					if (Indices[i] >= NumberOfSubdivisions){
-						Indices[i] = 0;
-						Indices[i+1]++;
-					}
-				}
 			}
+
 			NumberOfVerletListBuilds++;
+			cerr << endl << "Resulting neighbors: " << endl;
+			for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
+				cerr << i << ": ";
+				for (int j = 0; j < VerletListHead[2*i+1]; j++){
+					cerr << VerletIndicesOfNeighbors[VerletListHead[2*i]+j] << ",";
+				}
+				cerr << endl;
+			}
+			cerr << endl;
 		}
 
 		void resetTraveledDistances() {
@@ -298,6 +437,7 @@ class Particles {
 					TypeBParticleIndices.push_back(ParticlesInitialized);
 				}
 			}
+			buildVerletList(0.0);
 		}
 
 		void readInParticleState(string FileNameToReadIn, int StateNumber, double Density) {
@@ -327,7 +467,7 @@ class Particles {
 				}
 			}
 			FileStreamToReadIn.close();
-			buildVerletList();
+			buildVerletList(0.0);
 		}
 
 		void printCellList() const {
@@ -350,7 +490,7 @@ class Particles {
 			for (int i = 0; i < VerletIndicesOfNeighbors.size(); i++){
 				cerr << VerletIndicesOfNeighbors[i] << ',';
 			}
-				cerr << endl;
+			cerr << endl;
 		}
 
 		double computeChangeInPotentialEnergyByMoving(int ParticleIndex, const double* Delta) const {
@@ -402,7 +542,7 @@ class Particles {
 		double computeChangeInPotentialEnergyByChangingVolume(double VolumeChange) {
 			double PotEnergyBefore = computePotentialEnergy();
 			updateBoxParametersWithVolumeChange(VolumeChange);
-			buildVerletList();
+			buildVerletList(0.0);
 			resetTraveledDistances();
 			return computePotentialEnergy() - PotEnergyBefore;
 		}
@@ -484,7 +624,7 @@ class Particles {
 				TraveledDistanceIncreased = true;
 			}
 			if (TraveledDistanceIncreased && BoxLength*(sqrt(MostTraveledDistancesSquared[0])+sqrt(MostTraveledDistancesSquared[1])) > SKINDISTANCE){
-				buildVerletList();
+				buildVerletList(0.0);
 				resetTraveledDistances();
 			}
 		}
@@ -504,7 +644,7 @@ class Particles {
 
 		void changeVolume(double VolumeChange) {
 			updateBoxParametersWithVolumeChange(VolumeChange);
-			buildVerletList();
+			buildVerletList(0.0);
 		}
 };
 
