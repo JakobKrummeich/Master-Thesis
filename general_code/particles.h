@@ -35,6 +35,7 @@ class Particles {
 		int NumberOfSubdivisions;
 
 		double xDisplacement;
+		double MaxFieldStrength;
 
 		vector<int> CellListHead;
 		int CellListIndices [TOTAL_NUMBER_OF_PARTICLES];
@@ -401,6 +402,10 @@ class Particles {
 			buildVerletList();
 		}
 
+		void setMaxFieldStrength(double NewMaxFieldStrength){
+			MaxFieldStrength = NewMaxFieldStrength;
+		}
+
 		void resetCounters() {
 			NumberOfVerletListBuilds = 0.0;
 		}
@@ -585,6 +590,17 @@ class Particles {
 			updateBoxParametersWithVolumeChange(VolumeChange);
 			buildVerletList();
 			return computePotentialEnergy() - PotEnergyBefore;
+		}
+
+		double computeWork(const int ParticleIndex, const double* Deltas) const {
+			double UpdatedyCoordinate = Positions[DIMENSION*ParticleIndex+1]+Deltas[1];
+			if (UpdatedyCoordinate < 0.0){
+				UpdatedyCoordinate += 1.0;
+			}
+			else if (UpdatedyCoordinate >= 1.0){
+				UpdatedyCoordinate -= 1.0;
+			}
+			return MaxFieldStrength*Deltas[0]*(Positions[DIMENSION*ParticleIndex+1]+UpdatedyCoordinate-1.0);
 		}
 
 		void updatePosition(int ParticleIndex, const double* Deltas){

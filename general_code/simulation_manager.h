@@ -81,6 +81,10 @@ struct SimulationManager {
 		ShearRate = NewShearRate;
 	}
 
+	void setMaxFieldStrength(double NewFieldStrength){
+		P.setMaxFieldStrength(NewFieldStrength);
+	}
+
 	void setFileNameString(int RunNumber, MCModus M, int NumberOfMCSweeps){
 		if (M == MCModus::SGCMC || M == MCModus::CMC){
 			FileNameString = "N="+to_string(TOTAL_NUMBER_OF_PARTICLES)+"_T="+to_string(Temperature)+"_AvgDens="+to_string(P.getDensity())+"_MCRuns="+to_string(NumberOfMCSweeps)+"_epsAB="+to_string(AB_INTERACTION_STRENGTH)+"_"+to_string(RunNumber);
@@ -121,7 +125,8 @@ struct SimulationManager {
 		for (int i = 0; i < DIMENSION; i++){
 			Deltas[i] = RNG.drawRandomNumber(-MAXIMUM_DISPLACEMENT, MAXIMUM_DISPLACEMENT)*P.getInverseBoxLength();
 		}
-		double AcceptanceProbability = exp(-P.computeChangeInPotentialEnergyByMoving(RandomParticleID, Deltas)*Beta);
+		double Work = P.computeWork(RandomParticleID, Deltas);
+		double AcceptanceProbability = exp(-(P.computeChangeInPotentialEnergyByMoving(RandomParticleID, Deltas)-Work)*Beta);
 		if (AcceptanceProbability >= 1.0 || (RNG.drawRandomNumber() < AcceptanceProbability)){
 			P.updatePosition(RandomParticleID, Deltas);
 			ChangeInCoordinates[DIMENSION * RandomParticleID] += Deltas[0];
