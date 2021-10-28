@@ -19,7 +19,7 @@ using namespace std;
 
 
 class Particles {
-	public:
+	private:
 		double Positions [DIMENSION*TOTAL_NUMBER_OF_PARTICLES];
 
 		ParticleType ParticleTypes [TOTAL_NUMBER_OF_PARTICLES];
@@ -34,10 +34,15 @@ class Particles {
 		double Volume;
 		int NumberOfSubdivisions;
 
+		double xDisplacement;
+
 		vector<int> CellListHead;
 		int CellListIndices [TOTAL_NUMBER_OF_PARTICLES];
 		int VerletListHead [2*TOTAL_NUMBER_OF_PARTICLES];
 		vector<int> VerletIndicesOfNeighbors;
+
+		vector<int> CellNeighborsHead;
+		vector<int> CellNeighborsIndices;
 
 		double ChangeInCoordinates [DIMENSION*TOTAL_NUMBER_OF_PARTICLES];
 		double MostTraveledDistancesSquared [2];
@@ -66,172 +71,181 @@ class Particles {
 			}
 		}
 
-		void buildVerletList(double xDisplacement) {
+		void buildVerletList() {
 			buildCellList();
 
-			vector<int> CellNeighborsHead;
+			CellNeighborsHead.clear();
 			CellNeighborsHead.reserve(2*NumberOfSubdivisions*NumberOfSubdivisions);
-			vector<int> CellNeighborsIndices;
+
+			CellNeighborsIndices.clear();
 			CellNeighborsIndices.reserve(10*NumberOfSubdivisions*NumberOfSubdivisions);
-			int CurrentIndexInCellNeighbors = 0;
+			if (NumberOfSubdivisions == 1){
+				CellNeighborsHead.push_back(0);
+				CellNeighborsHead.push_back(1);
+				CellNeighborsIndices.push_back(0);
+			}
+			else {
+				int CurrentIndexInCellNeighbors = 0;
 
-			// cells at the bottom of the box
-			int Indices [DIMENSION]{0,0};
-			for (; Indices[0] < NumberOfSubdivisions; Indices[0]++){
-				CellNeighborsHead.push_back(CurrentIndexInCellNeighbors);
-				int NumberOfNeighbors = 0;
+				// cells at the bottom of the box
+				int Indices [DIMENSION]{0,0};
+				for (; Indices[0] < NumberOfSubdivisions; Indices[0]++){
+					CellNeighborsHead.push_back(CurrentIndexInCellNeighbors);
+					int NumberOfNeighbors = 0;
 
-				int IndicesOffsets [DIMENSION]{-1,0};
-				while (IndicesOffsets[DIMENSION - 1] < 2){
-					int NeighborCell = 0;
-					int IndexFactor = 1;
-					for (int i = 0; i < DIMENSION; i++){
-						int OtherCellIndex = Indices[i]+IndicesOffsets[i];
-						if (OtherCellIndex < 0){
-							OtherCellIndex += NumberOfSubdivisions;
+					int IndicesOffsets [DIMENSION]{-1,0};
+					while (IndicesOffsets[DIMENSION - 1] < 2){
+						int NeighborCell = 0;
+						int IndexFactor = 1;
+						for (int i = 0; i < DIMENSION; i++){
+							int OtherCellIndex = Indices[i]+IndicesOffsets[i];
+							if (OtherCellIndex < 0){
+								OtherCellIndex += NumberOfSubdivisions;
+							}
+							else if (OtherCellIndex >= NumberOfSubdivisions){
+								OtherCellIndex -= NumberOfSubdivisions;
+							}
+							NeighborCell += IndexFactor*OtherCellIndex;
+							IndexFactor *= NumberOfSubdivisions;
 						}
-						else if (OtherCellIndex >= NumberOfSubdivisions){
-							OtherCellIndex -= NumberOfSubdivisions;
+						CellNeighborsIndices.push_back(NeighborCell);
+						NumberOfNeighbors++;
+						CurrentIndexInCellNeighbors++;
+
+						IndicesOffsets[0]++;
+						for (int i = 0; i < DIMENSION - 1; i++){
+							if (IndicesOffsets[i] >= 2){
+								IndicesOffsets[i] = -1;
+								IndicesOffsets[i+1]++;
+							}
 						}
-						NeighborCell += IndexFactor*OtherCellIndex;
-						IndexFactor *= NumberOfSubdivisions;
 					}
-					CellNeighborsIndices.push_back(NeighborCell);
-					NumberOfNeighbors++;
-					CurrentIndexInCellNeighbors++;
-
-					IndicesOffsets[0]++;
-					for (int i = 0; i < DIMENSION - 1; i++){
-						if (IndicesOffsets[i] >= 2){
-							IndicesOffsets[i] = -1;
-							IndicesOffsets[i+1]++;
+					int xOffsetShear = static_cast<int>(xDisplacement * static_cast<double>(NumberOfSubdivisions));
+					for (int xOffset = -1; xOffset < 3; xOffset++){
+						int NeighborCell = NumberOfSubdivisions*(NumberOfSubdivisions-1); // shift to top row of the cells
+						int xOtherCellIndex = xOffset+xOffsetShear+Indices[0];
+						if (xOtherCellIndex < 0){
+							xOtherCellIndex += NumberOfSubdivisions;
 						}
+						else if (xOtherCellIndex >= NumberOfSubdivisions){
+							xOtherCellIndex = xOtherCellIndex % NumberOfSubdivisions;
+						}
+						NeighborCell += xOtherCellIndex;
+
+						CellNeighborsIndices.push_back(NeighborCell);
+						NumberOfNeighbors++;
+						CurrentIndexInCellNeighbors++;
+					}
+
+					CellNeighborsHead.push_back(NumberOfNeighbors);
+				}
+
+				// cells in the middle of the box
+				Indices[0] = 0;
+				Indices[1] = 1;
+				while (Indices[1] < NumberOfSubdivisions - 1){
+					CellNeighborsHead.push_back(CurrentIndexInCellNeighbors);
+					int NumberOfNeighbors = 0;
+
+					int IndicesOffsets [DIMENSION]{-1,-1};
+					while (IndicesOffsets[DIMENSION - 1] < 2){
+						int NeighborCell = 0;
+						int IndexFactor = 1;
+						for (int i = 0; i < DIMENSION; i++){
+							int OtherCellIndex = Indices[i]+IndicesOffsets[i];
+							if (OtherCellIndex < 0){
+								OtherCellIndex += NumberOfSubdivisions;
+							}
+							else if (OtherCellIndex >= NumberOfSubdivisions){
+								OtherCellIndex -= NumberOfSubdivisions;
+							}
+							NeighborCell += IndexFactor*OtherCellIndex;
+							IndexFactor *= NumberOfSubdivisions;
+						}
+						CellNeighborsIndices.push_back(NeighborCell);
+						NumberOfNeighbors++;
+						CurrentIndexInCellNeighbors++;
+						IndicesOffsets[0]++;
+						for (int i = 0; i < DIMENSION - 1; i++){
+							if (IndicesOffsets[i] >= 2){
+								IndicesOffsets[i] = -1;
+								IndicesOffsets[i+1]++;
+							}
+						}
+					}
+					CellNeighborsHead.push_back(NumberOfNeighbors);
+
+					Indices[0]++;
+					if (Indices[0] >= NumberOfSubdivisions){
+						Indices[0] = 0;
+						Indices[1]++;
 					}
 				}
-				int xOffsetShear = static_cast<int>(xDisplacement * static_cast<double>(NumberOfSubdivisions));
-				for (int xOffset = -1; xOffset < 3; xOffset++){
-					int NeighborCell = NumberOfSubdivisions*(NumberOfSubdivisions-1); // shift to top row of the cells
-					int xOtherCellIndex = xOffset+xOffsetShear+Indices[0];
-					if (xOtherCellIndex < 0){
-						xOtherCellIndex += NumberOfSubdivisions;
-					}
-					else if (xOtherCellIndex >= NumberOfSubdivisions){
-						xOtherCellIndex = xOtherCellIndex % NumberOfSubdivisions;
-					}
-					NeighborCell += xOtherCellIndex;
 
-					CellNeighborsIndices.push_back(NeighborCell);
-					NumberOfNeighbors++;
-					CurrentIndexInCellNeighbors++;
+				// cells at the top of the box
+				Indices[0] = 0;
+				Indices[1] = NumberOfSubdivisions-1;
+				for (; Indices[0] < NumberOfSubdivisions; Indices[0]++){
+					CellNeighborsHead.push_back(CurrentIndexInCellNeighbors);
+					int NumberOfNeighbors = 0;
+
+					int IndicesOffsets [DIMENSION]{-1,-1};
+					while (IndicesOffsets[DIMENSION - 1] < 1){
+						int NeighborCell = 0;
+						int IndexFactor = 1;
+						for (int i = 0; i < DIMENSION; i++){
+							int OtherCellIndex = Indices[i]+IndicesOffsets[i];
+							if (OtherCellIndex < 0){
+								OtherCellIndex += NumberOfSubdivisions;
+							}
+							else if (OtherCellIndex >= NumberOfSubdivisions){
+								OtherCellIndex -= NumberOfSubdivisions;
+							}
+							NeighborCell += IndexFactor*OtherCellIndex;
+							IndexFactor *= NumberOfSubdivisions;
+						}
+						CellNeighborsIndices.push_back(NeighborCell);
+						NumberOfNeighbors++;
+						CurrentIndexInCellNeighbors++;
+
+						IndicesOffsets[0]++;
+						for (int i = 0; i < DIMENSION - 1; i++){
+							if (IndicesOffsets[i] >= 2){
+								IndicesOffsets[i] = -1;
+								IndicesOffsets[i+1]++;
+							}
+						}
+					}
+					int xOffsetShear = NumberOfSubdivisions-static_cast<int>(xDisplacement * static_cast<double>(NumberOfSubdivisions));
+					for (int xOffset = -2; xOffset < 2; xOffset++){
+						int NeighborCell = 0;
+						int xOtherCellIndex = xOffset+xOffsetShear+Indices[0];
+						if (xOtherCellIndex < 0){
+							xOtherCellIndex += NumberOfSubdivisions;
+						}
+						else if (xOtherCellIndex >= NumberOfSubdivisions){
+							xOtherCellIndex = xOtherCellIndex % NumberOfSubdivisions;
+						}
+						NeighborCell += xOtherCellIndex;
+
+						CellNeighborsIndices.push_back(NeighborCell);
+						NumberOfNeighbors++;
+						CurrentIndexInCellNeighbors++;
+					}
+
+					CellNeighborsHead.push_back(NumberOfNeighbors);
 				}
-
-				CellNeighborsHead.push_back(NumberOfNeighbors);
 			}
 
-			// cells in the middle of the box
-			Indices[0] = 0;
-			Indices[1] = 1;
-			while (Indices[1] < NumberOfSubdivisions - 1){
-				CellNeighborsHead.push_back(CurrentIndexInCellNeighbors);
-				int NumberOfNeighbors = 0;	
-
-				int IndicesOffsets [DIMENSION]{-1,-1};
-				while (IndicesOffsets[DIMENSION - 1] < 2){
-					int NeighborCell = 0;
-					int IndexFactor = 1;
-					for (int i = 0; i < DIMENSION; i++){
-						int OtherCellIndex = Indices[i]+IndicesOffsets[i];
-						if (OtherCellIndex < 0){
-							OtherCellIndex += NumberOfSubdivisions;
-						}
-						else if (OtherCellIndex >= NumberOfSubdivisions){
-							OtherCellIndex -= NumberOfSubdivisions;
-						}
-						NeighborCell += IndexFactor*OtherCellIndex;
-						IndexFactor *= NumberOfSubdivisions;
-					}
-					CellNeighborsIndices.push_back(NeighborCell);
-					NumberOfNeighbors++;
-					CurrentIndexInCellNeighbors++;
-					IndicesOffsets[0]++;
-					for (int i = 0; i < DIMENSION - 1; i++){
-						if (IndicesOffsets[i] >= 2){
-							IndicesOffsets[i] = -1;
-							IndicesOffsets[i+1]++;
-						}
-					}
-				}
-				CellNeighborsHead.push_back(NumberOfNeighbors);
-
-				Indices[0]++;
-				if (Indices[0] >= NumberOfSubdivisions){
-					Indices[0] = 0;
-					Indices[1]++;
-				}
-			}
-
-			// cells at the top of the box
-			Indices[0] = 0;
-			Indices[1] = NumberOfSubdivisions-1;
-			for (; Indices[0] < NumberOfSubdivisions; Indices[0]++){
-				CellNeighborsHead.push_back(CurrentIndexInCellNeighbors);
-				int NumberOfNeighbors = 0;
-
-				int IndicesOffsets [DIMENSION]{-1,-1};
-				while (IndicesOffsets[DIMENSION - 1] < 1){
-					int NeighborCell = 0;
-					int IndexFactor = 1;
-					for (int i = 0; i < DIMENSION; i++){
-						int OtherCellIndex = Indices[i]+IndicesOffsets[i];
-						if (OtherCellIndex < 0){
-							OtherCellIndex += NumberOfSubdivisions;
-						}
-						else if (OtherCellIndex >= NumberOfSubdivisions){
-							OtherCellIndex -= NumberOfSubdivisions;
-						}
-						NeighborCell += IndexFactor*OtherCellIndex;
-						IndexFactor *= NumberOfSubdivisions;
-					}
-					CellNeighborsIndices.push_back(NeighborCell);
-					NumberOfNeighbors++;
-					CurrentIndexInCellNeighbors++;
-
-					IndicesOffsets[0]++;
-					for (int i = 0; i < DIMENSION - 1; i++){
-						if (IndicesOffsets[i] >= 2){
-							IndicesOffsets[i] = -1;
-							IndicesOffsets[i+1]++;
-						}
-					}
-				}
-				int xOffsetShear = NumberOfSubdivisions-static_cast<int>(xDisplacement * static_cast<double>(NumberOfSubdivisions));
-				for (int xOffset = -2; xOffset < 2; xOffset++){
-					int NeighborCell = 0;
-					int xOtherCellIndex = xOffset+xOffsetShear+Indices[0];
-					if (xOtherCellIndex < 0){
-						xOtherCellIndex += NumberOfSubdivisions;
-					}
-					else if (xOtherCellIndex >= NumberOfSubdivisions){
-						xOtherCellIndex = xOtherCellIndex % NumberOfSubdivisions;
-					}
-					NeighborCell += xOtherCellIndex;
-
-					CellNeighborsIndices.push_back(NeighborCell);
-					NumberOfNeighbors++;
-					CurrentIndexInCellNeighbors++;
-				}
-
-				CellNeighborsHead.push_back(NumberOfNeighbors);
-			}
-
-			cerr << "xDisplacement = " << xDisplacement << endl;
-			for (int i = 0; i < CellNeighborsHead.size(); i+=2){
+			/*cerr << "xDisplacement = " << xDisplacement << endl;
+			cerr << "CellNeighborsHead.size() = " << CellNeighborsHead.size() << endl;
+			for (int i = 0; i < CellNeighborsHead.size(); i += 2){
 				cerr << i/2 << ": ";
 				for (int j = 0; j < CellNeighborsHead[i+1]; j++){
 					cerr << CellNeighborsIndices[CellNeighborsHead[i] + j] << ",";
 				}
 				cerr << endl;
-			}
+			}*/
 
 			VerletIndicesOfNeighbors.clear();
 			VerletIndicesOfNeighbors.reserve(40*TOTAL_NUMBER_OF_PARTICLES);
@@ -278,6 +292,8 @@ class Particles {
 			}
 
 			NumberOfVerletListBuilds++;
+			resetTraveledDistances();
+			/*cerr << endl << "Size of VerletIndicesOfNeighbors: " << VerletIndicesOfNeighbors.size() << endl;
 			cerr << endl << "Resulting neighbors: " << endl;
 			for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
 				cerr << i << ": ";
@@ -286,7 +302,7 @@ class Particles {
 				}
 				cerr << endl;
 			}
-			cerr << endl;
+			cerr << endl;*/
 		}
 
 		void resetTraveledDistances() {
@@ -326,17 +342,23 @@ class Particles {
 		}
 
 		double computePairwiseParticlePotentialEnergy(const double* Position0, const double* Position1) const {
-			double DistanceSquared = 0.0;
-			for (int i = 0; i < DIMENSION; i++){
-				double CoordinateDifference = *(Position0 + i) - *(Position1 + i);
-				if (CoordinateDifference > 0.5){
-					CoordinateDifference -= 1.0;
-				}
-				else if (CoordinateDifference <= -0.5){
-					CoordinateDifference += 1.0;
-				}
-				DistanceSquared += CoordinateDifference*CoordinateDifference;
+			double xCoordinateDifference = Position0[0] - Position1[0];
+			double yCoordinateDifference = Position0[1] - Position1[1];
+			if (yCoordinateDifference > 0.5){
+				yCoordinateDifference -= 1.0;
+				xCoordinateDifference -= xDisplacement;
 			}
+			else if (yCoordinateDifference <= -0.5){
+				yCoordinateDifference += 1.0;
+				xCoordinateDifference += xDisplacement;
+			}
+			while (xCoordinateDifference > 0.5){
+				xCoordinateDifference -= 1.0;
+			}
+			while (xCoordinateDifference <= -0.5){
+				xCoordinateDifference += 1.0;
+			}
+			double DistanceSquared = xCoordinateDifference * xCoordinateDifference + yCoordinateDifference * yCoordinateDifference;
 			if (DistanceSquared*BoxLengthSquared >= CUTOFF_SQUARED){
 				return 0.0;
 			}
@@ -369,6 +391,16 @@ class Particles {
 			return Volume;
 		}
 
+		double getxDisplacement() const {
+			return xDisplacement;
+		}
+
+		void applyShearStep(double DimensionlessShearRate) {
+			xDisplacement += DimensionlessShearRate;
+			xDisplacement -= static_cast<double>(static_cast<int>(xDisplacement));
+			buildVerletList();
+		}
+
 		void resetCounters() {
 			NumberOfVerletListBuilds = 0.0;
 		}
@@ -385,7 +417,7 @@ class Particles {
 			return NumberOfVerletListBuilds;
 		}
 
-		void initialize(int InitialNumberOfAParticles, double InitialDensity){
+		void initialize(int InitialNumberOfAParticles, double InitialDensity, double InitialxDisplacement){
 			updateBoxParametersWithDensity(InitialDensity);
 			int InitialNumberOfBParticles = TOTAL_NUMBER_OF_PARTICLES - InitialNumberOfAParticles;
 			double FractionOfAParticles = static_cast<double>(InitialNumberOfAParticles)/static_cast<double>(TOTAL_NUMBER_OF_PARTICLES);
@@ -401,6 +433,8 @@ class Particles {
 				MostTraveledDistancesSquared[i] = 0.0;
 				MostTraveledParticleIndices[i] = i;
 			}
+
+			xDisplacement = InitialxDisplacement;
 
 			NumberOfVerletListBuilds = 0.0;
 
@@ -437,11 +471,13 @@ class Particles {
 					TypeBParticleIndices.push_back(ParticlesInitialized);
 				}
 			}
-			buildVerletList(0.0);
+			buildVerletList();
 		}
 
 		void readInParticleState(string FileNameToReadIn, int StateNumber, double Density) {
 			updateBoxParametersWithDensity(Density);
+			xDisplacement = 0.0;
+
 			TypeAParticleIndices.clear();
 			TypeBParticleIndices.clear();
 			ifstream FileStreamToReadIn;
@@ -467,7 +503,7 @@ class Particles {
 				}
 			}
 			FileStreamToReadIn.close();
-			buildVerletList(0.0);
+			buildVerletList();
 		}
 
 		void printCellList() const {
@@ -494,17 +530,22 @@ class Particles {
 		}
 
 		double computeChangeInPotentialEnergyByMoving(int ParticleIndex, const double* Delta) const {
-			double PotEnergyChange = 0.0;
-			double UpdatedCoordinates [DIMENSION];
-			for (int i = 0; i < DIMENSION; i++){
-				UpdatedCoordinates[i] = Positions[DIMENSION*ParticleIndex + i] + *(Delta + i);
-				if (UpdatedCoordinates[i] < 0.0){
-					UpdatedCoordinates[i] += static_cast<double>(static_cast<int>(abs(UpdatedCoordinates[i]))+1);
-				}
-				else if (UpdatedCoordinates[i] >= 1.0){
-					UpdatedCoordinates[i] -= static_cast<double>(static_cast<int>(abs(UpdatedCoordinates[i])));
-				}
+			double UpdatedCoordinates [DIMENSION]{Positions[DIMENSION*ParticleIndex]+Delta[0],Positions[DIMENSION*ParticleIndex+1]+Delta[1]};
+			if (UpdatedCoordinates[1] < 0.0){
+				UpdatedCoordinates[0] += xDisplacement;
+				UpdatedCoordinates[1] += 1.0;
 			}
+			else if (UpdatedCoordinates[1] >= 1.0){
+				UpdatedCoordinates[0] -= xDisplacement;
+				UpdatedCoordinates[1] -= 1.0;
+			}
+			while (UpdatedCoordinates[0] < 0.0){
+				UpdatedCoordinates[0] += 1.0;
+			}
+			while (UpdatedCoordinates[0] >= 1.0){
+				UpdatedCoordinates[0] -= 1.0;
+			}
+			double PotEnergyChange = 0.0;
 			for (int i = 0; i < VerletListHead[2*ParticleIndex+1]; i++){
 				int OtherParticleIndex = VerletIndicesOfNeighbors[VerletListHead[2*ParticleIndex]+i];
 				double InteractionStrength = (ParticleTypes[ParticleIndex] == ParticleTypes[OtherParticleIndex]) ? AA_INTERACTION_STRENGTH : AB_INTERACTION_STRENGTH;
@@ -542,25 +583,40 @@ class Particles {
 		double computeChangeInPotentialEnergyByChangingVolume(double VolumeChange) {
 			double PotEnergyBefore = computePotentialEnergy();
 			updateBoxParametersWithVolumeChange(VolumeChange);
-			buildVerletList(0.0);
-			resetTraveledDistances();
+			buildVerletList();
 			return computePotentialEnergy() - PotEnergyBefore;
 		}
 
 		void updatePosition(int ParticleIndex, const double* Deltas){
-			double CurrentTraveledDistanceSquared = 0.0;
-			for (int k = 0; k < DIMENSION; k++){
-				Positions[DIMENSION * ParticleIndex + k] += Deltas[k];
-
-				if (Positions[DIMENSION * ParticleIndex + k] < 0.0){
-					Positions[DIMENSION * ParticleIndex + k] += static_cast<double>(static_cast<int>(abs(Positions[DIMENSION * ParticleIndex + k]))+1);
-				}
-				else if (Positions[DIMENSION * ParticleIndex + k] >= 1.0){
-					Positions[DIMENSION * ParticleIndex + k] -= static_cast<double>(static_cast<int>(abs(Positions[DIMENSION * ParticleIndex + k])));
-				}
-				ChangeInCoordinates[DIMENSION * ParticleIndex + k] += Deltas[k];
-				CurrentTraveledDistanceSquared += ChangeInCoordinates[DIMENSION * ParticleIndex + k] * ChangeInCoordinates[DIMENSION * ParticleIndex + k];
+			Positions[DIMENSION * ParticleIndex] += Deltas[0];
+			Positions[DIMENSION * ParticleIndex + 1] += Deltas[1];
+			if (Positions[DIMENSION * ParticleIndex + 1] < 0.0){
+				Positions[DIMENSION * ParticleIndex] += xDisplacement;
+				Positions[DIMENSION * ParticleIndex + 1] += 1.0;
 			}
+			else if (Positions[DIMENSION * ParticleIndex + 1] >= 1.0){
+				Positions[DIMENSION * ParticleIndex] -= xDisplacement;
+				Positions[DIMENSION * ParticleIndex + 1] -= 1.0;
+			}
+			while (Positions[DIMENSION * ParticleIndex] < 0.0){
+				Positions[DIMENSION * ParticleIndex] += 1.0;
+			}
+			while (Positions[DIMENSION * ParticleIndex] >= 1.0){
+				Positions[DIMENSION * ParticleIndex] -= 1.0;
+			}
+			if (Positions[DIMENSION * ParticleIndex] >= 1.0 || Positions[DIMENSION * ParticleIndex] < 0.0 || Positions[DIMENSION * ParticleIndex + 1] >= 1.0 || Positions[DIMENSION * ParticleIndex + 1] < 0.0)
+			{
+				cerr << "ERROR: Particle " << ParticleIndex << " has wrong coordinates!" << endl;
+				cerr << "Position: (" << Positions[DIMENSION*ParticleIndex] << "," << Positions[DIMENSION * ParticleIndex + 1] << "), Deltas: (" << Deltas[0] << "," << Deltas[1] << ")" << endl;
+				cerr << "X       Y       Type | #AParticles:  " << fixed << setprecision(numeric_limits<long double>::digits10+1) << getNumberOfAParticles() << "| #BParticles: " << getNumberOfBParticles() << "| BoxLength: " << getBoxLength() << "| xDisplacement: " << getxDisplacement() << endl;
+				for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
+					cerr << getPosition(i,0) << "\t" << getPosition(i,1) << "\t" << getParticleType(i) <<  endl;
+				}
+				exit(EXIT_FAILURE);
+			}
+			ChangeInCoordinates[DIMENSION * ParticleIndex] += Deltas[0];
+			ChangeInCoordinates[DIMENSION * ParticleIndex + 1] += Deltas[1];
+			double CurrentTraveledDistanceSquared = ChangeInCoordinates[DIMENSION * ParticleIndex] * ChangeInCoordinates[DIMENSION * ParticleIndex] + ChangeInCoordinates[DIMENSION * ParticleIndex + 1] * ChangeInCoordinates[DIMENSION * ParticleIndex + 1];
 			bool TraveledDistanceIncreased = false;
 			if (MostTraveledParticleIndices[0] == ParticleIndex){
 				if (CurrentTraveledDistanceSquared > MostTraveledDistancesSquared[0]){
@@ -624,8 +680,7 @@ class Particles {
 				TraveledDistanceIncreased = true;
 			}
 			if (TraveledDistanceIncreased && BoxLength*(sqrt(MostTraveledDistancesSquared[0])+sqrt(MostTraveledDistancesSquared[1])) > SKINDISTANCE){
-				buildVerletList(0.0);
-				resetTraveledDistances();
+				buildVerletList();
 			}
 		}
 
@@ -644,12 +699,12 @@ class Particles {
 
 		void changeVolume(double VolumeChange) {
 			updateBoxParametersWithVolumeChange(VolumeChange);
-			buildVerletList(0.0);
+			buildVerletList();
 		}
 };
 
 ostream& operator<<(ostream& OStream, const Particles& State){
-	OStream << "X       Y       Type | #AParticles:  " << fixed << setprecision(numeric_limits<long double>::digits10+1) << State.getNumberOfAParticles() << "| #BParticles: " << State.getNumberOfBParticles() << "| BoxLength: " << State.getBoxLength() << endl;
+	OStream << "X       Y       Type | #AParticles:  " << fixed << setprecision(numeric_limits<long double>::digits10+1) << State.getNumberOfAParticles() << "| #BParticles: " << State.getNumberOfBParticles() << "| BoxLength: " << State.getBoxLength() << "| xDisplacement: " << State.getxDisplacement() << endl;
 	for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
 		OStream << State.getPosition(i,0) << "\t" << State.getPosition(i,1) << "\t" << State.getParticleType(i) <<  endl;
 	}

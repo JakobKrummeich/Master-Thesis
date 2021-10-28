@@ -9,8 +9,14 @@ using namespace std;
 int main(int argc, char* argv[]){
 
 	Particles P;
-	P.initialize(0,0.1);
+	P.initialize(0,0.1,stod(argv[1]));
 	cerr << P;
-	P.buildVerletList(stod(argv[1]));
+	cerr << endl;
+	double Delta [DIMENSION]{0.0,-0.05};
+	for (int i = 0; i < 10; i++){
+		cerr << "Change of Pot energy: " << P.computeChangeInPotentialEnergyByMoving(0,Delta) << endl << endl;
+		P.updatePosition(0,Delta);
+		cerr << P << endl;
+	}
 }
 

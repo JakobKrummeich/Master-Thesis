@@ -60,8 +60,8 @@ struct SimulationManager {
 		ShearRate(0.0){
 	}
 
-	void initializeParticles(double InitialDensity) {
-		P.initialize(MinNumberOfA,InitialDensity);
+	void initializeParticles(double InitialDensity, double InitialDisplacement) {
+		P.initialize(MinNumberOfA,InitialDensity,InitialDisplacement);
 	}
 
 	void readInParticleState(string FileNameInitialState, int StateCount, double Density) {
@@ -114,34 +114,19 @@ struct SimulationManager {
 		}
 	}
 
-	void runDisplacementStepWithShear(double* ChangeInCoordinates, double& AttemptedShearMoves, double& AcceptedShearMoves, int StepNumber) {
+	void runDisplacementStep(double* ChangeInCoordinates) {
 		NumberOfTriedDisplacements++;
 		int RandomParticleID = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(TOTAL_NUMBER_OF_PARTICLES));
 		double Deltas [DIMENSION];
 		for (int i = 0; i < DIMENSION; i++){
 			Deltas[i] = RNG.drawRandomNumber(-MAXIMUM_DISPLACEMENT, MAXIMUM_DISPLACEMENT)*P.getInverseBoxLength();
 		}
-		double UpdatedyCoordinate = P.getPosition(RandomParticleID,1)+Deltas[1];
-		bool ShearAttempted = false;
-		if (UpdatedyCoordinate > 1.0){
-			Deltas[0] -= ShearRate*P.getInverseBoxLength()*static_cast<double>(StepNumber);
-			AttemptedShearMoves++;
-			ShearAttempted = true;
-		}
-		else if (UpdatedyCoordinate < 0.0){
-			Deltas[0] += ShearRate*P.getInverseBoxLength()*static_cast<double>(StepNumber);
-			AttemptedShearMoves++;
-			ShearAttempted = true;
-		}
 		double AcceptanceProbability = exp(-P.computeChangeInPotentialEnergyByMoving(RandomParticleID, Deltas)*Beta);
 		if (AcceptanceProbability >= 1.0 || (RNG.drawRandomNumber() < AcceptanceProbability)){
 			P.updatePosition(RandomParticleID, Deltas);
-			*(ChangeInCoordinates + DIMENSION*RandomParticleID) += Deltas[0];
-			*(ChangeInCoordinates + DIMENSION*RandomParticleID+1) += Deltas[1];
+			ChangeInCoordinates[DIMENSION * RandomParticleID] += Deltas[0];
+			ChangeInCoordinates[DIMENSION * RandomParticleID + 1] += Deltas[1];
 			NumberOfAcceptedDisplacements++;
-			if (ShearAttempted){
-				AcceptedShearMoves++;
-			}
 		}
 	}
 
@@ -223,10 +208,10 @@ struct SimulationManager {
 		}
 	}
 
-	void runSingleSGCMCSweepWithShear(double* ChangeInCoordinates, double& AttemptedShearMoves, double& AcceptedShearMoves, int SweepCount){
+	void runSingleSGCMCSweepWithPositionTracking(double* ChangeInCoordinates){
 		for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
 			if (RNG.drawRandomNumber() <= DISPLACEMENT_PROBABILITY){
-				runDisplacementStepWithShear(ChangeInCoordinates, AttemptedShearMoves, AcceptedShearMoves, SweepCount);
+				runDisplacementStep(ChangeInCoordinates);
 			}
 			else {
 				runTypeChange();
@@ -296,6 +281,7 @@ struct SimulationManager {
 	void updateAverageTraveledDistances(const Particles& P, double* ChangeInCoordinates, vector<double>& AverageTraveledDistances, const int NumberOfyValues) const {
 		vector<double> NewEntries(NumberOfyValues,0.0);
 		vector<int> NumberOfValues(NumberOfyValues,0);
+		//cerr << P;
 		for (int ParticleID = 0; ParticleID < TOTAL_NUMBER_OF_PARTICLES; ParticleID++){
 			int Index = static_cast<int>(P.getPosition(ParticleID,1)*static_cast<double>(NumberOfyValues));
 			NewEntries[Index] += ChangeInCoordinates[DIMENSION*ParticleID];
@@ -322,12 +308,10 @@ struct SimulationManager {
 		vector<double> AverageTraveledDistances;
 
 		double ChangeInCoordinates [DIMENSION*TOTAL_NUMBER_OF_PARTICLES]{};
-		double AttemptedShearMoves = 0.0;
-		double AcceptedShearMoves = 0.0;
 
 		int SweepCount = 0;
 		for (; 	chrono::duration_cast<chrono::minutes>(chrono::steady_clock::now()-StartTime).count() < MaxRuntimeInMinutes && SweepCount < MaxNumberOfSweeps; SweepCount++){
-			runSingleSGCMCSweepWithShear(ChangeInCoordinates, AttemptedShearMoves, AcceptedShearMoves, SweepCount);
+			runSingleSGCMCSweepWithPositionTracking(ChangeInCoordinates);
 			NumberOfABuffer.push_back(P.getNumberOfAParticles());
 			updateAverageTraveledDistances(P, ChangeInCoordinates, AverageTraveledDistances, NumberOfyValues);
 
@@ -343,11 +327,11 @@ struct SimulationManager {
 				AverageTraveledDistances.clear();
 				NextUpdateTime += UPDATE_TIME_INTERVAL;
 			}
+			P.applyShearStep(ShearRate*P.getInverseBoxLength());
 		}
 
 		writeSGCMCResultsWithShear(NumberOfABuffer, PotEnergyBuffer, AverageTraveledDistances, NumberOfyValues);
 		writeParticleStateToFile(DirectoryString+"/State_"+FileNameString+"_"+to_string(0)+".dat");
-		cerr << "Tried shear moves: " << AttemptedShearMoves << " | AcceptedShearMoves: " << AcceptedShearMoves << " | Ratio: " << AcceptedShearMoves/AttemptedShearMoves << endl;
 		writeSimulationMetaDataToErrorStream(RunCount, chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartOfDataTaking).count(), SweepCount);
 	}
 
@@ -643,7 +627,7 @@ void runPressureMCForMultipleStartStates(double MaxPressure, double MinPressure,
 
 		#pragma omp for
 		for (int RunCount = RunNumberOffset; RunCount < NumberOfRuns+RunNumberOffset; RunCount++){
-			S.initializeParticles(InitialDensity);
+			S.initializeParticles(InitialDensity,0.0);
 			S.randomizeInitialPosition(RunCount, NumberOfInitialRandomizationSweeps);
 			for (double CurrentPressure = MaxPressure; CurrentPressure > MinPressure; CurrentPressure -= PressureStep){
 				S.setPressure(CurrentPressure);
