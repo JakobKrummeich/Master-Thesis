@@ -600,7 +600,7 @@ class Particles {
 			else if (UpdatedyCoordinate >= 1.0){
 				UpdatedyCoordinate -= 1.0;
 			}
-			return MaxFieldStrength*Deltas[0]*(Positions[DIMENSION*ParticleIndex+1]+UpdatedyCoordinate-1.0);
+			return MaxFieldStrength*Deltas[0]*BoxLength*(Positions[DIMENSION*ParticleIndex+1]+UpdatedyCoordinate-1.0);
 		}
 
 		void updatePosition(int ParticleIndex, const double* Deltas){

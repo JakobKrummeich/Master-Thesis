@@ -286,7 +286,6 @@ struct SimulationManager {
 	void updateAverageTraveledDistances(const Particles& P, double* ChangeInCoordinates, vector<double>& AverageTraveledDistances, const int NumberOfyValues) const {
 		vector<double> NewEntries(NumberOfyValues,0.0);
 		vector<int> NumberOfValues(NumberOfyValues,0);
-		//cerr << P;
 		for (int ParticleID = 0; ParticleID < TOTAL_NUMBER_OF_PARTICLES; ParticleID++){
 			int Index = static_cast<int>(P.getPosition(ParticleID,1)*static_cast<double>(NumberOfyValues));
 			NewEntries[Index] += ChangeInCoordinates[DIMENSION*ParticleID];
@@ -467,10 +466,10 @@ struct SimulationManager {
 		double yDelta = 1.0/static_cast<double>(NumberOfyValues);
 		double Currenty = yDelta*0.5;
 		for (int i = 0; i < NumberOfyValues-1; i++){
-			FileStreamToWrite << Currenty << '\t';
+			FileStreamToWrite << Currenty*P.getBoxLength() << '\t';
 			Currenty += yDelta;
 		}
-		FileStreamToWrite << Currenty << '\n';
+		FileStreamToWrite << Currenty*P.getBoxLength() << '\n';
 		FileStreamToWrite.close();
 	}
 
@@ -512,9 +511,9 @@ struct SimulationManager {
 		const int NumberOfRows = AverageTraveledDistances.size()/NumberOfyValues;
 		for (int i = 0; i < NumberOfRows; i++){
 			for (int j = 0; j < NumberOfyValues-1; j++){
-				FileStreamToWrite << AverageTraveledDistances[NumberOfyValues*i+j] << '\t';
+				FileStreamToWrite << AverageTraveledDistances[NumberOfyValues*i+j]*P.getBoxLength() << '\t';
 			}
-			FileStreamToWrite << AverageTraveledDistances[NumberOfyValues*i+NumberOfyValues-1] << '\n';
+			FileStreamToWrite << AverageTraveledDistances[NumberOfyValues*i+NumberOfyValues-1]*P.getBoxLength() << '\n';
 		}
 		FileStreamToWrite.close();
 	}
