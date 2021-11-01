@@ -49,6 +49,8 @@ class Particles {
 		double MostTraveledDistancesSquared [2];
 		int MostTraveledParticleIndices [2];
 
+		double TotalChangeInCoordinates [DIMENSION*TOTAL_NUMBER_OF_PARTICLES];
+
 		double NumberOfVerletListBuilds;
 
 		void buildCellList(){
@@ -432,6 +434,7 @@ class Particles {
 			for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
 				for (int j = 0; j < DIMENSION; j++){
 					ChangeInCoordinates[DIMENSION*i+j] = 0.0;
+					TotalChangeInCoordinates[DIMENSION*i+j] = 0.0;
 				}
 			}
 			for (int i = 0; i < 2; i++){
@@ -632,6 +635,8 @@ class Particles {
 			}
 			ChangeInCoordinates[DIMENSION * ParticleIndex] += Deltas[0];
 			ChangeInCoordinates[DIMENSION * ParticleIndex + 1] += Deltas[1];
+			TotalChangeInCoordinates[DIMENSION * ParticleIndex] += Deltas[0];
+			TotalChangeInCoordinates[DIMENSION * ParticleIndex + 1] += Deltas[1];
 			double CurrentTraveledDistanceSquared = ChangeInCoordinates[DIMENSION * ParticleIndex] * ChangeInCoordinates[DIMENSION * ParticleIndex] + ChangeInCoordinates[DIMENSION * ParticleIndex + 1] * ChangeInCoordinates[DIMENSION * ParticleIndex + 1];
 			bool TraveledDistanceIncreased = false;
 			if (MostTraveledParticleIndices[0] == ParticleIndex){
@@ -716,6 +721,14 @@ class Particles {
 		void changeVolume(double VolumeChange) {
 			updateBoxParametersWithVolumeChange(VolumeChange);
 			buildVerletList();
+		}
+
+		double computeAverageMSD() const {
+			double AverageMSD = 0.0;
+			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
+				AverageMSD += TotalChangeInCoordinates[DIMENSION * ParticleIndex]*TotalChangeInCoordinates[DIMENSION * ParticleIndex] + TotalChangeInCoordinates[DIMENSION * ParticleIndex + 1] * TotalChangeInCoordinates[DIMENSION * ParticleIndex + 1];
+			}
+			return AverageMSD;
 		}
 };
 

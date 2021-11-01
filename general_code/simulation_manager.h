@@ -214,7 +214,8 @@ struct SimulationManager {
 	}
 
 	void runSingleSGCMCSweepWithPositionTracking(double* ChangeInCoordinates){
-		for (int j = 0; j < TOTAL_NUMBER_OF_PARTICLES; j++){
+		static constexpr int NumberOfRunsPerSweeps = static_cast<int>(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES)/DISPLACEMENT_PROBABILITY);
+		for (int j = 0; j < NumberOfRunsPerSweeps; j++){
 			if (RNG.drawRandomNumber() <= DISPLACEMENT_PROBABILITY){
 				runDisplacementStep(ChangeInCoordinates);
 			}
@@ -310,6 +311,7 @@ struct SimulationManager {
 		vector<int> NumberOfABuffer;
 		vector<double> PotEnergyBuffer;
 		vector<double> AverageTraveledDistances;
+		vector<double> AverageMSD;
 
 		double ChangeInCoordinates [DIMENSION*TOTAL_NUMBER_OF_PARTICLES]{};
 
@@ -318,6 +320,7 @@ struct SimulationManager {
 			runSingleSGCMCSweepWithPositionTracking(ChangeInCoordinates);
 			NumberOfABuffer.push_back(P.getNumberOfAParticles());
 			updateAverageTraveledDistances(P, ChangeInCoordinates, AverageTraveledDistances, NumberOfyValues);
+			AverageMSD.push_back(P.computeAverageMSD());
 
 			if (SweepCount == NextPotEnergyComputation){
 				PotEnergyBuffer.push_back(P.computePotentialEnergy());
@@ -326,9 +329,11 @@ struct SimulationManager {
 			if (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() >= NextUpdateTime){
 				writeSimulationProgressToErrorStream(RunCount, MaxNumberOfSweeps, SweepCount, Temperature, chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count());
 				writeSGCMCResultsWithShear(NumberOfABuffer, PotEnergyBuffer, AverageTraveledDistances, NumberOfyValues);
+				writeAverageMSD(AverageMSD);
 				NumberOfABuffer.clear();
 				PotEnergyBuffer.clear();
 				AverageTraveledDistances.clear();
+				AverageMSD.clear();
 				NextUpdateTime += UPDATE_TIME_INTERVAL;
 			}
 			P.applyShearStep(ShearRate*P.getInverseBoxLength());
@@ -471,6 +476,11 @@ struct SimulationManager {
 		}
 		FileStreamToWrite << Currenty*P.getBoxLength() << '\n';
 		FileStreamToWrite.close();
+
+		FileName = DirectoryString+"/AvgMSD_"+FileNameString+".dat";
+		FileStreamToWrite.open(FileName);
+		FileStreamToWrite << getMetaDataString(MCModus::SGCMC);
+		FileStreamToWrite.close();
 	}
 
 	void writeSGCMCResults(const vector<int>& NumberOfABuffer, const vector<double>& PotEnergyBuffer) const {
@@ -514,6 +524,16 @@ struct SimulationManager {
 				FileStreamToWrite << AverageTraveledDistances[NumberOfyValues*i+j]*P.getBoxLength() << '\t';
 			}
 			FileStreamToWrite << AverageTraveledDistances[NumberOfyValues*i+NumberOfyValues-1]*P.getBoxLength() << '\n';
+		}
+		FileStreamToWrite.close();
+	}
+
+	void writeAverageMSD(const vector<double>& MSD) const {
+		string FileName(DirectoryString+"/AvgMSD_"+FileNameString+".dat");
+		ofstream FileStreamToWrite;
+		FileStreamToWrite.open(FileName, ios_base::app);
+		for (int i = 0; i < MSD.size(); i++){
+			FileStreamToWrite << MSD[i] << '\n';
 		}
 		FileStreamToWrite.close();
 	}
