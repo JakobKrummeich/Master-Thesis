@@ -129,8 +129,8 @@ struct SimulationManager {
 		double AcceptanceProbability = exp(-(P.computeChangeInPotentialEnergyByMoving(RandomParticleID, Deltas)-Work)*Beta);
 		if (AcceptanceProbability >= 1.0 || (RNG.drawRandomNumber() < AcceptanceProbability)){
 			P.updatePosition(RandomParticleID, Deltas);
-			ChangeInCoordinates[DIMENSION * RandomParticleID] += Deltas[0];
-			ChangeInCoordinates[DIMENSION * RandomParticleID + 1] += Deltas[1];
+			ChangeInCoordinates[DIMENSION * RandomParticleID] += Deltas[0]*P.getBoxLength();
+			ChangeInCoordinates[DIMENSION * RandomParticleID + 1] += Deltas[1]*P.getBoxLength();
 			NumberOfAcceptedDisplacements++;
 		}
 	}

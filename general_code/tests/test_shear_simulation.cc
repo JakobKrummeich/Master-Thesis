@@ -7,9 +7,9 @@
 using namespace std;
 
 int main(int argc, char* argv[]){
-	double Temperature = 1.0;
-	int MaxNumberOfSweeps = 200000;
-	double ShearRate = 0.000347;
+	double Temperature = 2.0;
+	int MaxNumberOfSweeps = 100000;
+	double ShearRate = 0.00119;
 	int NumberOfyValues = 15;
 
 	SimulationManager S(0, TOTAL_NUMBER_OF_PARTICLES, OUTPUT_DIRECTORY);
