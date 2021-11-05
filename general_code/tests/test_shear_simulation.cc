@@ -7,14 +7,14 @@
 using namespace std;
 
 int main(int argc, char* argv[]){
-	double Temperature = 2.0;
-	int MaxNumberOfSweeps = 100000;
-	double ShearRate = 0.00119;
+	double Temperature = 1.0;
+	int MaxNumberOfSweeps = 200000;
+	double ShearRate = 0.0;//7825;
 	int NumberOfyValues = 15;
 
 	SimulationManager S(0, TOTAL_NUMBER_OF_PARTICLES, OUTPUT_DIRECTORY);
 	S.setShearRate(ShearRate);
-	S.setMaxFieldStrength(1.0);
+	S.setMaxFieldStrength(0.0);
 	S.setTemperature(Temperature);
 
 	const auto StartTime = chrono::steady_clock::now();
