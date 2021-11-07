@@ -53,6 +53,69 @@ class Particles {
 
 		double NumberOfVerletListBuilds;
 
+		class StressComputator {
+			private:
+				vector<double> EdgesInyDirection;
+				vector<double> EdgesInxDirection;
+				int NumberOfAverages;
+
+				double EdgeLength;
+				int NumberOfSubdivisions;
+
+				vector<int> CellListHead;
+				int CellListIndices [TOTAL_NUMBER_OF_PARTICLES];
+
+				void buildCellList(const double* Positions){
+					int NumberOfSubcells = NumberOfSubdivisions;
+					for (int i = 0; i < DIMENSION-1; i++){
+						NumberOfSubcells *= NumberOfSubdivisions;
+					}
+					CellListHead.clear();
+					CellListHead.resize(NumberOfSubcells,-1);
+					int CurrentCellIndex;
+					int IndexFactor;
+					for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
+						CurrentCellIndex = 0;
+						IndexFactor = 1;
+						for (int j = 0; j < DIMENSION; j++){
+							CurrentCellIndex += static_cast<int>(static_cast<double>(NumberOfSubdivisions)*Positions[DIMENSION*ParticleIndex+j])*IndexFactor;
+							IndexFactor *= NumberOfSubdivisions;
+						}
+						CellListIndices[ParticleIndex] = CellListHead[CurrentCellIndex];
+						CellListHead[CurrentCellIndex] = ParticleIndex;
+					}
+				}
+
+				void computeForceThroughyEdge(int xEdgeIndex, int yEdgeIndex, const double* Positions, const vector<int>& CellListHead, const int* CellListIndices, vector<double>& EdgesInyDirection, double xDisplacement){
+					int CurrentCell = xEdgeIndex+NumberOfSubdivisions*yEdgeIndex;
+					for (int yOffset = -1; yOffset < 2; yOffset++){
+						int OtherCell = xEdgeIndex+NumberOfSubdivisions*(yEdgeIndex+yOffset);
+						
+					}
+				}
+
+			public:
+
+				void initialize(double BoxLength, int IntendedNumberOfSubdivisions) {
+					NumberOfAverages = 0;
+					NumberOfSubdivisions = BoxLength/static_cast<double>(IntendedNumberOfSubdivisions) > CUTOFF ? IntendedNumberOfSubdivisions : static_cast<int>(BoxLength / CUTOFF);
+					EdgeLength = BoxLength/static_cast<double>(NumberOfSubdivisions);
+					EdgesInyDirection.assign(NumberOfSubdivisions*NumberOfSubdivisions,0.0);
+					EdgesInxDirection.assign(NumberOfSubdivisions*NumberOfSubdivisions,0.0);
+				}
+
+				void computeCurrentStresses(const double* Positions, double xDisplacement) {
+					NumberOfAverages++;
+					buildCellList(Positions);
+					computeForceThroughyEdge(xEdgeIndex,yEdgeIndex,Positions,CellListHead,CellListIndices,EdgesInyDirection,xDisplacement);
+				}
+
+				void writeAverageStresses(string FilePath) {
+				}
+		};
+
+		StressComputator SC;
+
 		void buildCellList(){
 			int NumberOfSubcells = NumberOfSubdivisions;
 			for (int i = 0; i < DIMENSION-1; i++){
@@ -424,8 +487,9 @@ class Particles {
 			return NumberOfVerletListBuilds;
 		}
 
-		void initialize(int InitialNumberOfAParticles, double InitialDensity, double InitialxDisplacement){
+		void initialize(int InitialNumberOfAParticles, double InitialDensity, double InitialxDisplacement, int NumberOfIntendedStressSubdivisions){
 			updateBoxParametersWithDensity(InitialDensity);
+			SC.initialize(BoxLength, NumberOfIntendedStressSubdivisions);
 			int InitialNumberOfBParticles = TOTAL_NUMBER_OF_PARTICLES - InitialNumberOfAParticles;
 			double FractionOfAParticles = static_cast<double>(InitialNumberOfAParticles)/static_cast<double>(TOTAL_NUMBER_OF_PARTICLES);
 			realRNG RNG;

@@ -60,8 +60,8 @@ struct SimulationManager {
 		ShearRate(0.0){
 	}
 
-	void initializeParticles(double InitialDensity, double InitialDisplacement) {
-		P.initialize(MinNumberOfA,InitialDensity,InitialDisplacement);
+	void initializeParticles(double InitialDensity, double InitialDisplacement, int NumberOfInitialStressSubdivisions) {
+		P.initialize(MinNumberOfA,InitialDensity,InitialDisplacement,NumberOfInitialStressSubdivisions);
 	}
 
 	void readInParticleState(string FileNameInitialState, int StateCount, double Density) {
@@ -651,7 +651,7 @@ void runPressureMCForMultipleStartStates(double MaxPressure, double MinPressure,
 
 		#pragma omp for
 		for (int RunCount = RunNumberOffset; RunCount < NumberOfRuns+RunNumberOffset; RunCount++){
-			S.initializeParticles(InitialDensity,0.0);
+			S.initializeParticles(InitialDensity,0.0,1);
 			S.randomizeInitialPosition(RunCount, NumberOfInitialRandomizationSweeps);
 			for (double CurrentPressure = MaxPressure; CurrentPressure > MinPressure; CurrentPressure -= PressureStep){
 				S.setPressure(CurrentPressure);
