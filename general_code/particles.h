@@ -55,8 +55,9 @@ class Particles {
 
 		class StressComputator {
 			private:
-				vector<double> EdgesInyDirection;
-				vector<double> EdgesInxDirection;
+				const Particles* P;
+				vector<double> StressOfEdgesInyDirection;
+				vector<double> StressOfEdgesInxDirection;
 				int NumberOfAverages;
 
 				double EdgeLength;
@@ -65,7 +66,7 @@ class Particles {
 				vector<int> CellListHead;
 				int CellListIndices [TOTAL_NUMBER_OF_PARTICLES];
 
-				void buildCellList(const double* Positions){
+				void buildCellList(){
 					int NumberOfSubcells = NumberOfSubdivisions;
 					for (int i = 0; i < DIMENSION-1; i++){
 						NumberOfSubcells *= NumberOfSubdivisions;
@@ -78,7 +79,7 @@ class Particles {
 						CurrentCellIndex = 0;
 						IndexFactor = 1;
 						for (int j = 0; j < DIMENSION; j++){
-							CurrentCellIndex += static_cast<int>(static_cast<double>(NumberOfSubdivisions)*Positions[DIMENSION*ParticleIndex+j])*IndexFactor;
+							CurrentCellIndex += static_cast<int>(static_cast<double>(NumberOfSubdivisions)*P->Positions[DIMENSION*ParticleIndex+j])*IndexFactor;
 							IndexFactor *= NumberOfSubdivisions;
 						}
 						CellListIndices[ParticleIndex] = CellListHead[CurrentCellIndex];
@@ -86,28 +87,109 @@ class Particles {
 					}
 				}
 
-				void computeForceThroughyEdge(int xEdgeIndex, int yEdgeIndex, const double* Positions, const vector<int>& CellListHead, const int* CellListIndices, vector<double>& EdgesInyDirection, double xDisplacement){
+				double computePairwiseMagnitudeOfForce(double DimensionlessDistanceSquared) const { //intentionally off by a factor r, so we can just multiply with r-vector for direction
+					double InverseDistanceSquared = 1.0/(DimensionlessDistanceSquared*P->BoxLengthSquared);
+					double InverseDistanceToThePowerOfSix = InverseDistanceSquared * InverseDistanceSquared * InverseDistanceSquared;
+					return (48.0*InverseDistanceToThePowerOfSix*InverseDistanceToThePowerOfSix*InverseDistanceSquared-24.0*InverseDistanceToThePowerOfSix*InverseDistanceSquared-4.0*POTENTIAL_CONSTANT_2*sqrt(InverseDistanceSquared));
+				}
+
+				double computePairwiseMagnitudeOfForce(const double* Position0, const double* Position1) const { //intentionally off by a factor r, so we can just multiply with r-vector for direction
+					double xCoordinateDifference = Position0[0] - Position1[0];
+					double yCoordinateDifference = Position0[1] - Position1[1];
+					if (yCoordinateDifference > 0.5){
+						yCoordinateDifference -= 1.0;
+						xCoordinateDifference -= P->xDisplacement;
+					}
+					else if (yCoordinateDifference <= -0.5){
+						yCoordinateDifference += 1.0;
+						xCoordinateDifference += P->xDisplacement;
+					}
+					while (xCoordinateDifference > 0.5){
+						xCoordinateDifference -= 1.0;
+					}
+					while (xCoordinateDifference <= -0.5){
+						xCoordinateDifference += 1.0;
+					}
+					double DistanceSquared = xCoordinateDifference * xCoordinateDifference + yCoordinateDifference * yCoordinateDifference;
+					if (DistanceSquared*P->BoxLengthSquared >= CUTOFF_SQUARED){
+						return 0.0;
+					}
+					return computePairwiseMagnitudeOfForce(DistanceSquared);
+				}
+
+				void computeForceThroughyEdge(int xEdgeIndex, int yEdgeIndex, vector<double>& StressOfEdgesInyDirection){
+					int EdgeIndex = xEdgeIndex+NumberOfSubdivisions*yEdgeIndex;
 					int CurrentCell = xEdgeIndex+NumberOfSubdivisions*yEdgeIndex;
-					for (int yOffset = -1; yOffset < 2; yOffset++){
-						int OtherCell = xEdgeIndex+NumberOfSubdivisions*(yEdgeIndex+yOffset);
-						
+					int CurrentParticleIndex = CellListHead[CurrentCell];
+					double DimensionlessEdgeLength = 1.0/static_cast<double>(NumberOfSubdivisions);
+					double xPositionOfEdge = static_cast<double>(xEdgeIndex+1)*DimensionlessEdgeLength;
+					double LoweryOfEdge = static_cast<double>(yEdgeIndex)*DimensionlessEdgeLength;
+					double UpperyOfEdge = static_cast<double>(yEdgeIndex+1)*DimensionlessEdgeLength;
+					while (CurrentParticleIndex >= 0){
+						int xIndexOtherCells = xEdgeIndex + 1 < NumberOfSubdivisions ? xEdgeIndex + 1 : 0;
+						for (int yOffset = -1; yOffset < 2; yOffset++){
+							int yIndexOtherCell = yEdgeIndex+yOffset;
+							if (yIndexOtherCell >= NumberOfSubdivisions){
+								yIndexOtherCell = 0;
+							}
+							else if (yIndexOtherCell < 0){
+								yIndexOtherCell = NumberOfSubdivisions - 1;
+							}
+							int OtherCell = xIndexOtherCells+NumberOfSubdivisions*(yIndexOtherCell);
+							int OtherParticleIndex = CellListHead[OtherCell];
+							while (OtherParticleIndex >= 0){
+								//determine first whether the force intersects the edge
+								double x0 = P->Positions[DIMENSION*CurrentParticleIndex];
+								double y0 = P->Positions[DIMENSION*CurrentParticleIndex+1];
+								double x1 = P->Positions[DIMENSION*OtherParticleIndex];
+								double y1 = P->Positions[DIMENSION*OtherParticleIndex+1];
+								double Deltax = x1 - x0;
+								double Deltay = y1 - y0;
+								if (Deltay > 0.5){
+									Deltay -= 1.0;
+									Deltax -= P->xDisplacement;
+								}
+								else if (Deltay <= -0.5){
+									Deltay += 1.0;
+									Deltax += P->xDisplacement;
+								}
+								while (Deltax > 0.5){
+									Deltax -= 1.0;
+								}
+								while (Deltax <= -0.5){
+									Deltax += 1.0;
+								}
+								if (Deltax > 0.0){
+									double yIntersect = Deltay/Deltax*(xPositionOfEdge-x0)+y0;
+									if (LoweryOfEdge <= yIntersect && UpperyOfEdge >= yIntersect){
+										double InteractionStrength = (P->ParticleTypes[CurrentParticleIndex] == P->ParticleTypes[OtherParticleIndex] ? AA_INTERACTION_STRENGTH : AB_INTERACTION_STRENGTH);
+										double MagnitudeOfForce = computePairwiseMagnitudeOfForce(&P->Positions[DIMENSION*OtherParticleIndex], &P->Positions[DIMENSION*CurrentParticleIndex]);
+										StressOfEdgesInyDirection[EdgeIndex*2] += MagnitudeOfForce*P->BoxLength*Deltax;
+										StressOfEdgesInyDirection[EdgeIndex*2+1] += MagnitudeOfForce*P->BoxLength*Deltay;
+									}
+								}
+								OtherParticleIndex = CellListIndices[OtherParticleIndex];
+							}
+						}
+						CurrentParticleIndex = CellListIndices[CurrentParticleIndex];
 					}
 				}
 
 			public:
 
-				void initialize(double BoxLength, int IntendedNumberOfSubdivisions) {
+				void initialize(Particles* OuterP, int IntendedNumberOfSubdivisions){
+					P = OuterP;
 					NumberOfAverages = 0;
-					NumberOfSubdivisions = BoxLength/static_cast<double>(IntendedNumberOfSubdivisions) > CUTOFF ? IntendedNumberOfSubdivisions : static_cast<int>(BoxLength / CUTOFF);
-					EdgeLength = BoxLength/static_cast<double>(NumberOfSubdivisions);
-					EdgesInyDirection.assign(NumberOfSubdivisions*NumberOfSubdivisions,0.0);
-					EdgesInxDirection.assign(NumberOfSubdivisions*NumberOfSubdivisions,0.0);
+					NumberOfSubdivisions = P->BoxLength/static_cast<double>(IntendedNumberOfSubdivisions) > CUTOFF ? IntendedNumberOfSubdivisions : static_cast<int>(P->BoxLength / CUTOFF);
+					EdgeLength = P->BoxLength/static_cast<double>(NumberOfSubdivisions);
+					StressOfEdgesInyDirection.assign(NumberOfSubdivisions*NumberOfSubdivisions,0.0);
+					StressOfEdgesInxDirection.assign(NumberOfSubdivisions*NumberOfSubdivisions,0.0);
 				}
 
-				void computeCurrentStresses(const double* Positions, double xDisplacement) {
+				void computeCurrentStresses() {
 					NumberOfAverages++;
-					buildCellList(Positions);
-					computeForceThroughyEdge(xEdgeIndex,yEdgeIndex,Positions,CellListHead,CellListIndices,EdgesInyDirection,xDisplacement);
+					buildCellList();
+					computeForceThroughyEdge(xEdgeIndex,yEdgeIndex,StressOfEdgesInyDirection);
 				}
 
 				void writeAverageStresses(string FilePath) {
@@ -489,7 +571,7 @@ class Particles {
 
 		void initialize(int InitialNumberOfAParticles, double InitialDensity, double InitialxDisplacement, int NumberOfIntendedStressSubdivisions){
 			updateBoxParametersWithDensity(InitialDensity);
-			SC.initialize(BoxLength, NumberOfIntendedStressSubdivisions);
+			SC.initialize(this, NumberOfIntendedStressSubdivisions);
 			int InitialNumberOfBParticles = TOTAL_NUMBER_OF_PARTICLES - InitialNumberOfAParticles;
 			double FractionOfAParticles = static_cast<double>(InitialNumberOfAParticles)/static_cast<double>(TOTAL_NUMBER_OF_PARTICLES);
 			realRNG RNG;
