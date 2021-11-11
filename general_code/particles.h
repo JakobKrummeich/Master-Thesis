@@ -62,17 +62,19 @@ class Particles {
 
 				double EdgeLength;
 				int NumberOfSubdivisions;
+				double DimensionlessEdgeLength;
 
 				vector<int> CellListHead;
 				int CellListIndices [TOTAL_NUMBER_OF_PARTICLES];
 
-				void buildCellList(){
-					int NumberOfSubcells = NumberOfSubdivisions;
-					for (int i = 0; i < DIMENSION-1; i++){
-						NumberOfSubcells *= NumberOfSubdivisions;
-					}
+				vector<int> CellListHeadDisplacedCells;
+				int CellListIndicesDisplacedCells [TOTAL_NUMBER_OF_PARTICLES];
+
+				void buildCellLists(){
 					CellListHead.clear();
-					CellListHead.resize(NumberOfSubcells,-1);
+					CellListHead.resize(NumberOfSubdivisions*NumberOfSubdivisions,-1);
+					CellListHeadDisplacedCells.clear();
+					CellListHeadDisplacedCells.resize(2*NumberOfSubdivisions,-1);
 					int CurrentCellIndex;
 					int IndexFactor;
 					for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
@@ -82,96 +84,164 @@ class Particles {
 							CurrentCellIndex += static_cast<int>(static_cast<double>(NumberOfSubdivisions)*P->Positions[DIMENSION*ParticleIndex+j])*IndexFactor;
 							IndexFactor *= NumberOfSubdivisions;
 						}
+						if (static_cast<int>(static_cast<double>(NumberOfSubdivisions)*P->Positions[DIMENSION*ParticleIndex+1]) == 0) {
+							double DisplacedxPosition = P->Positions[DIMENSION*ParticleIndex]+P->xDisplacement;
+							if (DisplacedxPosition >= 1.0){
+								DisplacedxPosition -= 1.0;
+							}
+							int DisplacedxIndex = static_cast<int>(static_cast<double>(NumberOfSubdivisions)*DisplacedxPosition);
+							CellListIndicesDisplacedCells[ParticleIndex] = CellListHeadDisplacedCells[DisplacedxIndex+NumberOfSubdivisions];
+							CellListHeadDisplacedCells[DisplacedxIndex+NumberOfSubdivisions] = ParticleIndex;
+						}
+						else if (static_cast<int>(static_cast<double>(NumberOfSubdivisions)*P->Positions[DIMENSION*ParticleIndex+1]) >= NumberOfSubdivisions-1) {
+							double DisplacedxPosition = P->Positions[DIMENSION*ParticleIndex]-P->xDisplacement;
+							if (DisplacedxPosition < 0.0){
+								DisplacedxPosition += 1.0;
+							}
+							int DisplacedxIndex = static_cast<int>(static_cast<double>(NumberOfSubdivisions)*DisplacedxPosition);
+							CellListIndicesDisplacedCells[ParticleIndex] = CellListHeadDisplacedCells[DisplacedxIndex];
+							CellListHeadDisplacedCells[DisplacedxIndex] = ParticleIndex;
+						}
 						CellListIndices[ParticleIndex] = CellListHead[CurrentCellIndex];
 						CellListHead[CurrentCellIndex] = ParticleIndex;
 					}
 				}
 
-				double computePairwiseMagnitudeOfForce(double DimensionlessDistanceSquared) const { //intentionally off by a factor r, so we can just multiply with r-vector for direction
-					double InverseDistanceSquared = 1.0/(DimensionlessDistanceSquared*P->BoxLengthSquared);
+				void printCellLists() const {
+					cerr << "normal CellList: " << endl;
+					for (int i = 0; i < CellListHead.size(); i++){
+						cerr << "Cell " << i << ": " << endl;
+						int CurrentParticleIndex = CellListHead[i];
+						while (CurrentParticleIndex >= 0){
+							cerr << CurrentParticleIndex << ": (" << P->Positions[2*CurrentParticleIndex] << "," << P->Positions[2*CurrentParticleIndex+1] << ") : " << "(" << static_cast<int>(static_cast<double>(NumberOfSubdivisions)*P->Positions[2*CurrentParticleIndex]) << "," << static_cast<int>(static_cast<double>(NumberOfSubdivisions)*P->Positions[2*CurrentParticleIndex+1]) << ")" << endl;
+							CurrentParticleIndex = CellListIndices[CurrentParticleIndex];
+						}
+					}
+
+					cerr << "displaced CellList with xDisplacement=  " << P->xDisplacement << endl;
+					for (int i = 0; i < CellListHeadDisplacedCells.size(); i++){
+						cerr << "Cell " << i << ": " << endl;
+						int CurrentParticleIndex = CellListHeadDisplacedCells[i];
+						while (CurrentParticleIndex >= 0){
+							cerr << CurrentParticleIndex << ": (" << P->Positions[2*CurrentParticleIndex] << "," << P->Positions[2*CurrentParticleIndex+1] << ") : " << "(" << static_cast<int>(static_cast<double>(NumberOfSubdivisions)*P->Positions[2*CurrentParticleIndex]) << "," << static_cast<int>(static_cast<double>(NumberOfSubdivisions)*P->Positions[2*CurrentParticleIndex+1]) << ")" << endl;
+							CurrentParticleIndex = CellListIndicesDisplacedCells[CurrentParticleIndex];
+						}
+					}
+				}
+
+				double computePairwiseMagnitudeOfForce(double DistanceSquared) const { //intentionally off by a factor r, so we can just multiply with r-vector for direction
+					double InverseDistanceSquared = 1.0/DistanceSquared;
 					double InverseDistanceToThePowerOfSix = InverseDistanceSquared * InverseDistanceSquared * InverseDistanceSquared;
 					return (48.0*InverseDistanceToThePowerOfSix*InverseDistanceToThePowerOfSix*InverseDistanceSquared-24.0*InverseDistanceToThePowerOfSix*InverseDistanceSquared-4.0*POTENTIAL_CONSTANT_2*sqrt(InverseDistanceSquared));
 				}
 
-				double computePairwiseMagnitudeOfForce(const double* Position0, const double* Position1) const { //intentionally off by a factor r, so we can just multiply with r-vector for direction
-					double xCoordinateDifference = Position0[0] - Position1[0];
-					double yCoordinateDifference = Position0[1] - Position1[1];
-					if (yCoordinateDifference > 0.5){
-						yCoordinateDifference -= 1.0;
-						xCoordinateDifference -= P->xDisplacement;
-					}
-					else if (yCoordinateDifference <= -0.5){
-						yCoordinateDifference += 1.0;
-						xCoordinateDifference += P->xDisplacement;
-					}
-					while (xCoordinateDifference > 0.5){
-						xCoordinateDifference -= 1.0;
-					}
-					while (xCoordinateDifference <= -0.5){
-						xCoordinateDifference += 1.0;
-					}
-					double DistanceSquared = xCoordinateDifference * xCoordinateDifference + yCoordinateDifference * yCoordinateDifference;
-					if (DistanceSquared*P->BoxLengthSquared >= CUTOFF_SQUARED){
-						return 0.0;
-					}
-					return computePairwiseMagnitudeOfForce(DistanceSquared);
-				}
-
-				void computeForceThroughyEdge(int xEdgeIndex, int yEdgeIndex, vector<double>& StressOfEdgesInyDirection){
+				void computeForceThroughyEdge(int CurrentParticleIndex, int OtherParticleIndex, int xEdgeIndex, int yEdgeIndex, vector<double>& StressOfEdgesInyDirection) {
 					int EdgeIndex = xEdgeIndex+NumberOfSubdivisions*yEdgeIndex;
-					int CurrentCell = xEdgeIndex+NumberOfSubdivisions*yEdgeIndex;
-					int CurrentParticleIndex = CellListHead[CurrentCell];
-					double DimensionlessEdgeLength = 1.0/static_cast<double>(NumberOfSubdivisions);
 					double xPositionOfEdge = static_cast<double>(xEdgeIndex+1)*DimensionlessEdgeLength;
 					double LoweryOfEdge = static_cast<double>(yEdgeIndex)*DimensionlessEdgeLength;
 					double UpperyOfEdge = static_cast<double>(yEdgeIndex+1)*DimensionlessEdgeLength;
-					while (CurrentParticleIndex >= 0){
-						int xIndexOtherCells = xEdgeIndex + 1 < NumberOfSubdivisions ? xEdgeIndex + 1 : 0;
-						for (int yOffset = -1; yOffset < 2; yOffset++){
-							int yIndexOtherCell = yEdgeIndex+yOffset;
-							if (yIndexOtherCell >= NumberOfSubdivisions){
-								yIndexOtherCell = 0;
-							}
-							else if (yIndexOtherCell < 0){
-								yIndexOtherCell = NumberOfSubdivisions - 1;
-							}
-							int OtherCell = xIndexOtherCells+NumberOfSubdivisions*(yIndexOtherCell);
-							int OtherParticleIndex = CellListHead[OtherCell];
-							while (OtherParticleIndex >= 0){
-								//determine first whether the force intersects the edge
-								double x0 = P->Positions[DIMENSION*CurrentParticleIndex];
-								double y0 = P->Positions[DIMENSION*CurrentParticleIndex+1];
-								double x1 = P->Positions[DIMENSION*OtherParticleIndex];
-								double y1 = P->Positions[DIMENSION*OtherParticleIndex+1];
-								double Deltax = x1 - x0;
-								double Deltay = y1 - y0;
-								if (Deltay > 0.5){
-									Deltay -= 1.0;
-									Deltax -= P->xDisplacement;
-								}
-								else if (Deltay <= -0.5){
-									Deltay += 1.0;
-									Deltax += P->xDisplacement;
-								}
-								while (Deltax > 0.5){
-									Deltax -= 1.0;
-								}
-								while (Deltax <= -0.5){
-									Deltax += 1.0;
-								}
-								if (Deltax > 0.0){
-									double yIntersect = Deltay/Deltax*(xPositionOfEdge-x0)+y0;
-									if (LoweryOfEdge <= yIntersect && UpperyOfEdge >= yIntersect){
-										double InteractionStrength = (P->ParticleTypes[CurrentParticleIndex] == P->ParticleTypes[OtherParticleIndex] ? AA_INTERACTION_STRENGTH : AB_INTERACTION_STRENGTH);
-										double MagnitudeOfForce = computePairwiseMagnitudeOfForce(&P->Positions[DIMENSION*OtherParticleIndex], &P->Positions[DIMENSION*CurrentParticleIndex]);
-										StressOfEdgesInyDirection[EdgeIndex*2] += MagnitudeOfForce*P->BoxLength*Deltax;
-										StressOfEdgesInyDirection[EdgeIndex*2+1] += MagnitudeOfForce*P->BoxLength*Deltay;
-									}
-								}
-								OtherParticleIndex = CellListIndices[OtherParticleIndex];
+
+					double x0 = P->Positions[DIMENSION*CurrentParticleIndex];
+					double y0 = P->Positions[DIMENSION*CurrentParticleIndex+1];
+					double x1 = P->Positions[DIMENSION*OtherParticleIndex];
+					double y1 = P->Positions[DIMENSION*OtherParticleIndex+1];
+					double Deltax = x1 - x0;
+					double Deltay = y1 - y0;
+					if (Deltay > 0.5){
+						Deltay -= 1.0;
+						Deltax -= P->xDisplacement;
+					}
+					else if (Deltay <= -0.5){
+						Deltay += 1.0;
+						Deltax += P->xDisplacement;
+					}
+					while (Deltax > 0.5){
+						Deltax -= 1.0;
+					}
+					while (Deltax <= -0.5){
+						Deltax += 1.0;
+					}
+					if (Deltax > 0.0){
+						double DistanceSquared = (Deltax * Deltax + Deltay * Deltay)*P->BoxLengthSquared;
+						if (DistanceSquared < CUTOFF_SQUARED){
+							double yIntersect = Deltay/Deltax*(xPositionOfEdge-x0)+y0;
+							if (LoweryOfEdge <= yIntersect && UpperyOfEdge >= yIntersect){ // the force intersects the edge in question, compute the force of the 2 particles and add it to the total force through the edge
+								double InteractionStrength = (P->ParticleTypes[CurrentParticleIndex] == P->ParticleTypes[OtherParticleIndex] ? AA_INTERACTION_STRENGTH : AB_INTERACTION_STRENGTH);
+								double MagnitudeOfForce = computePairwiseMagnitudeOfForce(DistanceSquared);
+								StressOfEdgesInyDirection[EdgeIndex*DIMENSION] += InteractionStrength*MagnitudeOfForce*P->BoxLength*Deltax;
+								StressOfEdgesInyDirection[EdgeIndex*DIMENSION+1] += InteractionStrength*MagnitudeOfForce*P->BoxLength*Deltay;
 							}
 						}
+					}
+				}
+
+				void computeForcesThroughyEdge(int xEdgeIndex, int yEdgeIndex, int yIndexOtherCell, int CurrentParticleIndex, vector<double>& StressOfEdgesInyDirection) {
+					int xIndexOtherCell = xEdgeIndex + 1 < NumberOfSubdivisions ? xEdgeIndex + 1 : 0;
+					if (yIndexOtherCell >= NumberOfSubdivisions){
+						int OtherParticleIndex = CellListHeadDisplacedCells[NumberOfSubdivisions+xIndexOtherCell];
+						while (OtherParticleIndex >= 0){
+							computeForceThroughyEdge(CurrentParticleIndex, OtherParticleIndex, xEdgeIndex, yEdgeIndex, StressOfEdgesInyDirection);
+							OtherParticleIndex = CellListIndicesDisplacedCells[OtherParticleIndex];
+						}
+					}
+					else if (yIndexOtherCell < 0){
+						int OtherParticleIndex = CellListHeadDisplacedCells[xIndexOtherCell];
+						while (OtherParticleIndex >= 0){
+							computeForceThroughyEdge(CurrentParticleIndex, OtherParticleIndex, xEdgeIndex, yEdgeIndex, StressOfEdgesInyDirection);
+							OtherParticleIndex = CellListIndicesDisplacedCells[OtherParticleIndex];
+						}
+					}
+					else {
+						int OtherCell = xIndexOtherCell+NumberOfSubdivisions*yIndexOtherCell;
+						int OtherParticleIndex = CellListHead[OtherCell];
+						while (OtherParticleIndex >= 0){
+							computeForceThroughyEdge(CurrentParticleIndex, OtherParticleIndex, xEdgeIndex, yEdgeIndex, StressOfEdgesInyDirection);
+							OtherParticleIndex = CellListIndices[OtherParticleIndex];
+						}
+					}
+				}
+
+				void computeForceThroughyEdge(int xEdgeIndex, int yEdgeIndex, vector<double>& StressOfEdgesInyDirection){
+					int CurrentCell = xEdgeIndex+NumberOfSubdivisions*yEdgeIndex;
+					int CurrentParticleIndex = CellListHead[CurrentCell];
+					while (CurrentParticleIndex >= 0){
+						for (int yOffset = -1; yOffset < 2; yOffset++){
+							computeForcesThroughyEdge(xEdgeIndex, yEdgeIndex, yEdgeIndex+yOffset, CurrentParticleIndex, StressOfEdgesInyDirection);
+						}
 						CurrentParticleIndex = CellListIndices[CurrentParticleIndex];
+					}
+
+					int yOtherCellIndex = yEdgeIndex+1;
+					int* CellListIndicesPointer;
+					if (yOtherCellIndex >= NumberOfSubdivisions){
+						CurrentParticleIndex = CellListHeadDisplacedCells[xEdgeIndex+NumberOfSubdivisions];
+						CellListIndicesPointer = CellListIndicesDisplacedCells;
+					}
+					else {
+						CurrentParticleIndex = CellListHead[xEdgeIndex+NumberOfSubdivisions*yOtherCellIndex];
+						CellListIndicesPointer = CellListIndices;
+					}
+					while (CurrentParticleIndex >= 0){
+						for (int yOffset = -2; yOffset < 0; yOffset++){
+							computeForcesThroughyEdge(xEdgeIndex, yEdgeIndex, yOtherCellIndex+yOffset, CurrentParticleIndex, StressOfEdgesInyDirection);
+						}
+						CurrentParticleIndex = CellListIndicesPointer[CurrentParticleIndex];
+					}
+
+					yOtherCellIndex = yEdgeIndex-1;
+					if (yOtherCellIndex < 0){
+						CurrentParticleIndex = CellListHeadDisplacedCells[xEdgeIndex];
+						CellListIndicesPointer = CellListIndicesDisplacedCells;
+					}
+					else {
+						CurrentParticleIndex = CellListHead[xEdgeIndex+NumberOfSubdivisions*yOtherCellIndex];
+						CellListIndicesPointer = CellListIndices;
+					}
+					while (CurrentParticleIndex >= 0){
+						for (int yOffset = 1; yOffset < 3; yOffset++){
+							computeForcesThroughyEdge(xEdgeIndex, yEdgeIndex, yOtherCellIndex+yOffset, CurrentParticleIndex, StressOfEdgesInyDirection);
+						}
+						CurrentParticleIndex = CellListIndicesPointer[CurrentParticleIndex];
 					}
 				}
 
@@ -182,14 +252,19 @@ class Particles {
 					NumberOfAverages = 0;
 					NumberOfSubdivisions = P->BoxLength/static_cast<double>(IntendedNumberOfSubdivisions) > CUTOFF ? IntendedNumberOfSubdivisions : static_cast<int>(P->BoxLength / CUTOFF);
 					EdgeLength = P->BoxLength/static_cast<double>(NumberOfSubdivisions);
-					StressOfEdgesInyDirection.assign(NumberOfSubdivisions*NumberOfSubdivisions,0.0);
-					StressOfEdgesInxDirection.assign(NumberOfSubdivisions*NumberOfSubdivisions,0.0);
+					DimensionlessEdgeLength = 1.0/static_cast<double>(NumberOfSubdivisions);
+					StressOfEdgesInyDirection.assign(NumberOfSubdivisions*NumberOfSubdivisions*DIMENSION,0.0);
+					StressOfEdgesInxDirection.assign(NumberOfSubdivisions*NumberOfSubdivisions*DIMENSION,0.0);
 				}
 
-				void computeCurrentStresses() {
+				void computeStresses() {
 					NumberOfAverages++;
-					buildCellList();
-					computeForceThroughyEdge(xEdgeIndex,yEdgeIndex,StressOfEdgesInyDirection);
+					buildCellLists();
+					for (int xEdgeIndex = 0; xEdgeIndex < NumberOfSubdivisions; xEdgeIndex++){
+						for (int yEdgeIndex = 0; yEdgeIndex < NumberOfSubdivisions; yEdgeIndex++){
+							computeForceThroughyEdge(xEdgeIndex,yEdgeIndex,StressOfEdgesInyDirection);
+						}
+					}
 				}
 
 				void writeAverageStresses(string FilePath) {
@@ -199,12 +274,8 @@ class Particles {
 		StressComputator SC;
 
 		void buildCellList(){
-			int NumberOfSubcells = NumberOfSubdivisions;
-			for (int i = 0; i < DIMENSION-1; i++){
-				NumberOfSubcells *= NumberOfSubdivisions;
-			}
 			CellListHead.clear();
-			CellListHead.resize(NumberOfSubcells,-1);
+			CellListHead.resize(NumberOfSubdivisions*NumberOfSubdivisions,-1);
 			int CurrentCellIndex;
 			int IndexFactor;
 			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
@@ -732,6 +803,10 @@ class Particles {
 				}
 			}
 			return PotEnergy;
+		}
+
+		void computeStresses() {
+			SC.computeStresses();
 		}
 
 		double computeChangeInPotentialEnergyByChangingVolume(double VolumeChange) {

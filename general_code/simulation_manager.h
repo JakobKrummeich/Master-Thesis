@@ -321,6 +321,7 @@ struct SimulationManager {
 			NumberOfABuffer.push_back(P.getNumberOfAParticles());
 			updateAverageTraveledDistances(P, ChangeInCoordinates, AverageTraveledDistances, NumberOfyValues);
 			AverageMSD.push_back(P.computeAverageMSD());
+			P.computeStresses();
 
 			if (SweepCount == NextPotEnergyComputation){
 				PotEnergyBuffer.push_back(P.computePotentialEnergy());

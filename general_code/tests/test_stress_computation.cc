@@ -11,7 +11,7 @@ int main(int argc, char* argv[]){
 	int MaxNumberOfSweeps = 10000;
 	double ShearRate = 0.0;
 	int NumberOfyValues = 15;
-	int NumberOfStressSubdivisions = 7;
+	int NumberOfStressSubdivisions = 8;
 
 	SimulationManager S(0, TOTAL_NUMBER_OF_PARTICLES, OUTPUT_DIRECTORY);
 	S.setShearRate(ShearRate);
@@ -19,7 +19,7 @@ int main(int argc, char* argv[]){
 	S.setTemperature(Temperature);
 
 	const auto StartTime = chrono::steady_clock::now();
-	S.initializeParticles(DENSITY,0.0,7);
+	S.initializeParticles(DENSITY,0.2,NumberOfStressSubdivisions);
 
 	S.setFileNameString(0, MCModus::SGCMC, MaxNumberOfSweeps);
 	S.resetCountersAndBuffers();
