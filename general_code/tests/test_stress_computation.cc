@@ -8,7 +8,7 @@ using namespace std;
 
 int main(int argc, char* argv[]){
 	double Temperature = 1.0;
-	int MaxNumberOfSweeps = 10000;
+	int MaxNumberOfSweeps = 1000000;
 	double ShearRate = 0.0;
 	int NumberOfyValues = 15;
 	int NumberOfStressSubdivisions = 8;

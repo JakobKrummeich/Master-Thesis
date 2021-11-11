@@ -129,7 +129,7 @@ class Particles {
 					}
 				}
 
-				double computePairwiseMagnitudeOfForce(double DistanceSquared) const { //intentionally off by a factor r, so we can just multiply with r-vector for direction
+				double computePairwiseMagnitudeOfForce(double DistanceSquared) const { //intentionally off by a factor r, so we can just multiply with r-vector to get the correct result
 					double InverseDistanceSquared = 1.0/DistanceSquared;
 					double InverseDistanceToThePowerOfSix = InverseDistanceSquared * InverseDistanceSquared * InverseDistanceSquared;
 					return (48.0*InverseDistanceToThePowerOfSix*InverseDistanceToThePowerOfSix*InverseDistanceSquared-24.0*InverseDistanceToThePowerOfSix*InverseDistanceSquared-4.0*POTENTIAL_CONSTANT_2*sqrt(InverseDistanceSquared));
@@ -267,8 +267,22 @@ class Particles {
 					}
 				}
 
-				void writeAverageStresses(string FilePath) {
+				void writeAverageStresses(string FilePath) const {
+					ofstream FileStreamToWrite;
+					FileStreamToWrite.open(FilePath);
+					FileStreamToWrite << "y stresses (i.e. stresses through edges in y direction)" << endl;
+					FileStreamToWrite << "xPos\tlowery\tuppery\tnormal_stress\ttangential_stress" << endl;
+					for (int yEdgeIndex = 0; yEdgeIndex < NumberOfSubdivisions; yEdgeIndex++){
+						double LoweryOfEdge = static_cast<double>(yEdgeIndex)*DimensionlessEdgeLength;
+						double UpperyOfEdge = static_cast<double>(yEdgeIndex+1)*DimensionlessEdgeLength;
+						for (int xEdgeIndex = 0; xEdgeIndex < NumberOfSubdivisions; xEdgeIndex++){
+							double xPositionOfEdge = static_cast<double>(xEdgeIndex+1)*DimensionlessEdgeLength;
+							FileStreamToWrite << xPositionOfEdge << "\t" << LoweryOfEdge << "\t" << UpperyOfEdge << "\t" << StressOfEdgesInyDirection[DIMENSION*(xEdgeIndex+NumberOfSubdivisions*yEdgeIndex)]/static_cast<double>(NumberOfAverages) << "\t" << StressOfEdgesInyDirection[DIMENSION*(xEdgeIndex+NumberOfSubdivisions*yEdgeIndex)+1]/static_cast<double>(NumberOfAverages) << endl;
+						}
+					}
+					FileStreamToWrite.close();
 				}
+
 		};
 
 		StressComputator SC;
@@ -622,6 +636,10 @@ class Particles {
 
 		void setMaxFieldStrength(double NewMaxFieldStrength){
 			MaxFieldStrength = NewMaxFieldStrength;
+		}
+
+		void writeAverageStresses(string FilePath) const {
+			SC.writeAverageStresses(FilePath);
 		}
 
 		void resetCounters() {
