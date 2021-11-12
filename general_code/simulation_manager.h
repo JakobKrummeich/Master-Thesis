@@ -341,7 +341,8 @@ struct SimulationManager {
 		}
 
 		writeSGCMCResultsWithShear(NumberOfABuffer, PotEnergyBuffer, AverageTraveledDistances, NumberOfyValues);
-		P.writeAverageStresses(DirectoryString+"/AvgStresses_"+FileNameString+".dat");
+		writeAverageMSD(AverageMSD);
+		P.writeAverageStresses(DirectoryString+"/AvgStresses_"+FileNameString);
 		writeParticleStateToFile(DirectoryString+"/State_"+FileNameString+"_"+to_string(0)+".dat");
 		writeSimulationMetaDataToErrorStream(RunCount, chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartOfDataTaking).count(), SweepCount);
 	}

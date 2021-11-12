@@ -8,14 +8,14 @@ using namespace std;
 
 int main(int argc, char* argv[]){
 	double Temperature = 1.0;
-	int MaxNumberOfSweeps = 1000000;
-	double ShearRate = 0.0;
+	int MaxNumberOfSweeps = 2000000;
+	double ShearRate = 0.2268;
 	int NumberOfyValues = 15;
-	int NumberOfStressSubdivisions = 8;
+	int NumberOfStressSubdivisions = 14;
 
 	SimulationManager S(0, TOTAL_NUMBER_OF_PARTICLES, OUTPUT_DIRECTORY);
 	S.setShearRate(ShearRate);
-	S.setMaxFieldStrength(0.0);
+	S.setMaxFieldStrength(1.0);
 	S.setTemperature(Temperature);
 
 	const auto StartTime = chrono::steady_clock::now();

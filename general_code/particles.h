@@ -245,6 +245,99 @@ class Particles {
 					}
 				}
 
+				void computeForceThroughxEdge(int CurrentParticleIndex, int OtherParticleIndex, int xEdgeIndex, int yEdgeIndex, vector<double>& StressOfEdgesInxDirection) {
+					int EdgeIndex = xEdgeIndex+NumberOfSubdivisions*yEdgeIndex;
+					double yPositionOfEdge = static_cast<double>(yEdgeIndex+1)*DimensionlessEdgeLength;
+					double LowerxOfEdge = static_cast<double>(xEdgeIndex)*DimensionlessEdgeLength;
+					double UpperxOfEdge = static_cast<double>(xEdgeIndex+1)*DimensionlessEdgeLength;
+
+					double x0 = P->Positions[DIMENSION*CurrentParticleIndex];
+					double y0 = P->Positions[DIMENSION*CurrentParticleIndex+1];
+					double x1 = P->Positions[DIMENSION*OtherParticleIndex];
+					double y1 = P->Positions[DIMENSION*OtherParticleIndex+1];
+					double Deltax = x1 - x0;
+					double Deltay = y1 - y0;
+					if (Deltay > 0.5){
+						Deltay -= 1.0;
+						Deltax -= P->xDisplacement;
+					}
+					else if (Deltay <= -0.5){
+						Deltay += 1.0;
+						Deltax += P->xDisplacement;
+					}
+					while (Deltax > 0.5){
+						Deltax -= 1.0;
+					}
+					while (Deltax <= -0.5){
+						Deltax += 1.0;
+					}
+					if (Deltay > 0.0){
+						double DistanceSquared = (Deltax * Deltax + Deltay * Deltay)*P->BoxLengthSquared;
+						if (DistanceSquared < CUTOFF_SQUARED){
+							double xIntersect = Deltax/Deltay*(yPositionOfEdge-y0)+x0;
+							if (LowerxOfEdge <= xIntersect && UpperxOfEdge >= xIntersect){ // the force intersects the edge in question, compute the force of the 2 particles and add it to the total force through the edge
+								double InteractionStrength = (P->ParticleTypes[CurrentParticleIndex] == P->ParticleTypes[OtherParticleIndex] ? AA_INTERACTION_STRENGTH : AB_INTERACTION_STRENGTH);
+								double MagnitudeOfForce = computePairwiseMagnitudeOfForce(DistanceSquared);
+								StressOfEdgesInxDirection[EdgeIndex*DIMENSION] += InteractionStrength*MagnitudeOfForce*P->BoxLength*Deltay;
+								StressOfEdgesInxDirection[EdgeIndex*DIMENSION+1] += InteractionStrength*MagnitudeOfForce*P->BoxLength*Deltax;
+							}
+						}
+					}
+				}
+
+				void computeForcesThroughxEdge(int xEdgeIndex, int yEdgeIndex, int xIndexOtherCell, int CurrentParticleIndex, vector<double>& StressOfEdgesInxDirection) {
+					if (xIndexOtherCell < 0){
+						xIndexOtherCell += NumberOfSubdivisions;
+					}
+					else if (xIndexOtherCell >= NumberOfSubdivisions){
+						xIndexOtherCell -= NumberOfSubdivisions;
+					}
+					int yIndexOtherCell = yEdgeIndex + 1;
+					if (yIndexOtherCell >= NumberOfSubdivisions){
+						int OtherParticleIndex = CellListHeadDisplacedCells[NumberOfSubdivisions+xIndexOtherCell];
+						while (OtherParticleIndex >= 0){
+							computeForceThroughxEdge(CurrentParticleIndex, OtherParticleIndex, xEdgeIndex, yEdgeIndex, StressOfEdgesInxDirection);
+							OtherParticleIndex = CellListIndicesDisplacedCells[OtherParticleIndex];
+						}
+					}
+					else {
+						int OtherCell = xIndexOtherCell+NumberOfSubdivisions*yIndexOtherCell;
+						int OtherParticleIndex = CellListHead[OtherCell];
+						while (OtherParticleIndex >= 0){
+							computeForceThroughxEdge(CurrentParticleIndex, OtherParticleIndex, xEdgeIndex, yEdgeIndex, StressOfEdgesInxDirection);
+							OtherParticleIndex = CellListIndices[OtherParticleIndex];
+						}
+					}
+				}
+
+				void computeForceThroughxEdge(int xEdgeIndex, int yEdgeIndex, vector<double>& StressOfEdgesInxDirection){
+					int CurrentParticleIndex = CellListHead[xEdgeIndex+NumberOfSubdivisions*yEdgeIndex];
+					while (CurrentParticleIndex >= 0){
+						for (int xOffset = -1; xOffset < 2; xOffset++){
+							computeForcesThroughxEdge(xEdgeIndex, yEdgeIndex, xEdgeIndex+xOffset, CurrentParticleIndex, StressOfEdgesInxDirection);
+						}
+						CurrentParticleIndex = CellListIndices[CurrentParticleIndex];
+					}
+
+					int xCellIndex = xEdgeIndex+1 < NumberOfSubdivisions ? xEdgeIndex + 1 : 0;
+					CurrentParticleIndex = CellListHead[xCellIndex+NumberOfSubdivisions*yEdgeIndex];
+					while (CurrentParticleIndex >= 0){
+						for (int xOffset = -2; xOffset < 0; xOffset++){
+							computeForcesThroughxEdge(xEdgeIndex, yEdgeIndex, xCellIndex+xOffset, CurrentParticleIndex, StressOfEdgesInxDirection);
+						}
+						CurrentParticleIndex = CellListIndices[CurrentParticleIndex];
+					}
+
+					xCellIndex = xEdgeIndex-1 >= 0 ? xEdgeIndex-1 : NumberOfSubdivisions - 1;
+					CurrentParticleIndex = CellListHead[xCellIndex+NumberOfSubdivisions*yEdgeIndex];
+					while (CurrentParticleIndex >= 0){
+						for (int xOffset = 1; xOffset < 3; xOffset++){
+							computeForcesThroughxEdge(xEdgeIndex, yEdgeIndex, xCellIndex+xOffset, CurrentParticleIndex, StressOfEdgesInxDirection);
+						}
+						CurrentParticleIndex = CellListIndices[CurrentParticleIndex];
+					}
+				}
+
 			public:
 
 				void initialize(Particles* OuterP, int IntendedNumberOfSubdivisions){
@@ -263,13 +356,14 @@ class Particles {
 					for (int xEdgeIndex = 0; xEdgeIndex < NumberOfSubdivisions; xEdgeIndex++){
 						for (int yEdgeIndex = 0; yEdgeIndex < NumberOfSubdivisions; yEdgeIndex++){
 							computeForceThroughyEdge(xEdgeIndex,yEdgeIndex,StressOfEdgesInyDirection);
+							computeForceThroughxEdge(xEdgeIndex,yEdgeIndex,StressOfEdgesInxDirection);
 						}
 					}
 				}
 
 				void writeAverageStresses(string FilePath) const {
 					ofstream FileStreamToWrite;
-					FileStreamToWrite.open(FilePath);
+					FileStreamToWrite.open(FilePath+"_yEdges.dat");
 					FileStreamToWrite << "y stresses (i.e. stresses through edges in y direction)" << endl;
 					FileStreamToWrite << "xPos\tlowery\tuppery\tnormal_stress\ttangential_stress" << endl;
 					for (int yEdgeIndex = 0; yEdgeIndex < NumberOfSubdivisions; yEdgeIndex++){
@@ -277,7 +371,19 @@ class Particles {
 						double UpperyOfEdge = static_cast<double>(yEdgeIndex+1)*DimensionlessEdgeLength;
 						for (int xEdgeIndex = 0; xEdgeIndex < NumberOfSubdivisions; xEdgeIndex++){
 							double xPositionOfEdge = static_cast<double>(xEdgeIndex+1)*DimensionlessEdgeLength;
-							FileStreamToWrite << xPositionOfEdge << "\t" << LoweryOfEdge << "\t" << UpperyOfEdge << "\t" << StressOfEdgesInyDirection[DIMENSION*(xEdgeIndex+NumberOfSubdivisions*yEdgeIndex)]/static_cast<double>(NumberOfAverages) << "\t" << StressOfEdgesInyDirection[DIMENSION*(xEdgeIndex+NumberOfSubdivisions*yEdgeIndex)+1]/static_cast<double>(NumberOfAverages) << endl;
+							FileStreamToWrite << xPositionOfEdge << "\t" << LoweryOfEdge << "\t" << UpperyOfEdge << "\t" << StressOfEdgesInyDirection[DIMENSION*(xEdgeIndex+NumberOfSubdivisions*yEdgeIndex)]/(static_cast<double>(NumberOfAverages)*EdgeLength) << "\t" << StressOfEdgesInyDirection[DIMENSION*(xEdgeIndex+NumberOfSubdivisions*yEdgeIndex)+1]/(static_cast<double>(NumberOfAverages)*EdgeLength) << endl;
+						}
+					}
+					FileStreamToWrite.close();
+					FileStreamToWrite.open(FilePath+"_xEdges.dat");
+					FileStreamToWrite << "x stresses (i.e. stresses through edges in x direction)" << endl;
+					FileStreamToWrite << "yPos\tlowerx\tupperx\tnormal_stress\ttangential_stress" << endl;
+					for (int xEdgeIndex = 0; xEdgeIndex < NumberOfSubdivisions; xEdgeIndex++){
+						double LowerxOfEdge = static_cast<double>(xEdgeIndex)*DimensionlessEdgeLength;
+						double UpperxOfEdge = static_cast<double>(xEdgeIndex+1)*DimensionlessEdgeLength;
+						for (int yEdgeIndex = 0; yEdgeIndex < NumberOfSubdivisions; yEdgeIndex++){
+							double yPositionOfEdge = static_cast<double>(yEdgeIndex+1)*DimensionlessEdgeLength;
+							FileStreamToWrite << yPositionOfEdge << "\t" << LowerxOfEdge << "\t" << UpperxOfEdge << "\t" << StressOfEdgesInxDirection[DIMENSION*(xEdgeIndex+NumberOfSubdivisions*yEdgeIndex)]/(static_cast<double>(NumberOfAverages)*EdgeLength) << "\t" << StressOfEdgesInxDirection[DIMENSION*(xEdgeIndex+NumberOfSubdivisions*yEdgeIndex)+1]/(static_cast<double>(NumberOfAverages)*EdgeLength) << endl;
 						}
 					}
 					FileStreamToWrite.close();
