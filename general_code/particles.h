@@ -734,8 +734,8 @@ class Particles {
 			return xDisplacement;
 		}
 
-		void applyShearStep(double DimensionlessShearRate) {
-			xDisplacement += DimensionlessShearRate;
+		void moveImageBoxes(double DimensionlessLeesEdwardsVelocity) {
+			xDisplacement += DimensionlessLeesEdwardsVelocity;
 			xDisplacement -= static_cast<double>(static_cast<int>(xDisplacement));
 			buildVerletList();
 		}
@@ -1073,7 +1073,7 @@ class Particles {
 			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
 				AverageMSD += TotalChangeInCoordinates[DIMENSION * ParticleIndex]*TotalChangeInCoordinates[DIMENSION * ParticleIndex] + TotalChangeInCoordinates[DIMENSION * ParticleIndex + 1] * TotalChangeInCoordinates[DIMENSION * ParticleIndex + 1];
 			}
-			return AverageMSD;
+			return AverageMSD*BoxLengthSquared;
 		}
 };
 
