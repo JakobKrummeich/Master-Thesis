@@ -135,7 +135,7 @@ class Particles {
 					return (48.0*InverseDistanceToThePowerOfSix*InverseDistanceToThePowerOfSix*InverseDistanceSquared-24.0*InverseDistanceToThePowerOfSix*InverseDistanceSquared-4.0*POTENTIAL_CONSTANT_2*sqrt(InverseDistanceSquared));
 				}
 
-				void computeForceThroughyEdge(int CurrentParticleIndex, int OtherParticleIndex, int xEdgeIndex, int yEdgeIndex, vector<double>& StressOfEdgesInyDirection) {
+				void computeForceThroughyEdge(int CurrentParticleIndex, int OtherParticleIndex, double xOffset, double yOffset, int xEdgeIndex, int yEdgeIndex, vector<double>& StressOfEdgesInyDirection) {
 					int EdgeIndex = xEdgeIndex+NumberOfSubdivisions*yEdgeIndex;
 					double xPositionOfEdge = static_cast<double>(xEdgeIndex+1)*DimensionlessEdgeLength;
 					double LoweryOfEdge = static_cast<double>(yEdgeIndex)*DimensionlessEdgeLength;
@@ -164,7 +164,14 @@ class Particles {
 					if (Deltax > 0.0){
 						double DistanceSquared = (Deltax * Deltax + Deltay * Deltay)*P->BoxLengthSquared;
 						if (DistanceSquared < CUTOFF_SQUARED){
-							double yIntersect = Deltay/Deltax*(xPositionOfEdge-x0)+y0;
+							double Shiftedx0 = x0 + xOffset;
+							if (Shiftedx0 < 0.0){
+								Shiftedx0 += 1.0;
+							}
+							else if (Shiftedx0 >= 1.0){
+								Shiftedx0 -= 1.0;
+							}
+							double yIntersect = Deltay/Deltax*(xPositionOfEdge-Shiftedx0)+y0+yOffset;
 							if (LoweryOfEdge <= yIntersect && UpperyOfEdge >= yIntersect){ // the force intersects the edge in question, compute the force of the 2 particles and add it to the total force through the edge
 								double InteractionStrength = (P->ParticleTypes[CurrentParticleIndex] == P->ParticleTypes[OtherParticleIndex] ? AA_INTERACTION_STRENGTH : AB_INTERACTION_STRENGTH);
 								double MagnitudeOfForce = computePairwiseMagnitudeOfForce(DistanceSquared);
@@ -175,19 +182,19 @@ class Particles {
 					}
 				}
 
-				void computeForcesThroughyEdge(int xEdgeIndex, int yEdgeIndex, int yIndexOtherCell, int CurrentParticleIndex, vector<double>& StressOfEdgesInyDirection) {
+				void computeForcesThroughyEdge(int xEdgeIndex, int yEdgeIndex, int yIndexOtherCell, int CurrentParticleIndex, double xOffset, double yOffset, vector<double>& StressOfEdgesInyDirection) {
 					int xIndexOtherCell = xEdgeIndex + 1 < NumberOfSubdivisions ? xEdgeIndex + 1 : 0;
 					if (yIndexOtherCell >= NumberOfSubdivisions){
 						int OtherParticleIndex = CellListHeadDisplacedCells[NumberOfSubdivisions+xIndexOtherCell];
 						while (OtherParticleIndex >= 0){
-							computeForceThroughyEdge(CurrentParticleIndex, OtherParticleIndex, xEdgeIndex, yEdgeIndex, StressOfEdgesInyDirection);
+							computeForceThroughyEdge(CurrentParticleIndex, OtherParticleIndex, xOffset, yOffset, xEdgeIndex, yEdgeIndex, StressOfEdgesInyDirection);
 							OtherParticleIndex = CellListIndicesDisplacedCells[OtherParticleIndex];
 						}
 					}
 					else if (yIndexOtherCell < 0){
 						int OtherParticleIndex = CellListHeadDisplacedCells[xIndexOtherCell];
 						while (OtherParticleIndex >= 0){
-							computeForceThroughyEdge(CurrentParticleIndex, OtherParticleIndex, xEdgeIndex, yEdgeIndex, StressOfEdgesInyDirection);
+							computeForceThroughyEdge(CurrentParticleIndex, OtherParticleIndex, xOffset, yOffset, xEdgeIndex, yEdgeIndex, StressOfEdgesInyDirection);
 							OtherParticleIndex = CellListIndicesDisplacedCells[OtherParticleIndex];
 						}
 					}
@@ -195,7 +202,7 @@ class Particles {
 						int OtherCell = xIndexOtherCell+NumberOfSubdivisions*yIndexOtherCell;
 						int OtherParticleIndex = CellListHead[OtherCell];
 						while (OtherParticleIndex >= 0){
-							computeForceThroughyEdge(CurrentParticleIndex, OtherParticleIndex, xEdgeIndex, yEdgeIndex, StressOfEdgesInyDirection);
+							computeForceThroughyEdge(CurrentParticleIndex, OtherParticleIndex, xOffset, yOffset, xEdgeIndex, yEdgeIndex, StressOfEdgesInyDirection);
 							OtherParticleIndex = CellListIndices[OtherParticleIndex];
 						}
 					}
@@ -206,24 +213,28 @@ class Particles {
 					int CurrentParticleIndex = CellListHead[CurrentCell];
 					while (CurrentParticleIndex >= 0){
 						for (int yOffset = -1; yOffset < 2; yOffset++){
-							computeForcesThroughyEdge(xEdgeIndex, yEdgeIndex, yEdgeIndex+yOffset, CurrentParticleIndex, StressOfEdgesInyDirection);
+							computeForcesThroughyEdge(xEdgeIndex, yEdgeIndex, yEdgeIndex+yOffset, CurrentParticleIndex, 0.0, 0.0, StressOfEdgesInyDirection);
 						}
 						CurrentParticleIndex = CellListIndices[CurrentParticleIndex];
 					}
 
+					double xOffset = 0.0;
+					double yOffset = 0.0;
 					int yOtherCellIndex = yEdgeIndex+1;
 					int* CellListIndicesPointer;
 					if (yOtherCellIndex >= NumberOfSubdivisions){
 						CurrentParticleIndex = CellListHeadDisplacedCells[xEdgeIndex+NumberOfSubdivisions];
 						CellListIndicesPointer = CellListIndicesDisplacedCells;
+						xOffset = P->xDisplacement;
+						yOffset = 1.0;
 					}
 					else {
 						CurrentParticleIndex = CellListHead[xEdgeIndex+NumberOfSubdivisions*yOtherCellIndex];
 						CellListIndicesPointer = CellListIndices;
 					}
 					while (CurrentParticleIndex >= 0){
-						for (int yOffset = -2; yOffset < 0; yOffset++){
-							computeForcesThroughyEdge(xEdgeIndex, yEdgeIndex, yOtherCellIndex+yOffset, CurrentParticleIndex, StressOfEdgesInyDirection);
+						for (int yIndexOffset = -2; yIndexOffset < 0; yIndexOffset++){
+							computeForcesThroughyEdge(xEdgeIndex, yEdgeIndex, yOtherCellIndex+yIndexOffset, CurrentParticleIndex, xOffset, yOffset, StressOfEdgesInyDirection);
 						}
 						CurrentParticleIndex = CellListIndicesPointer[CurrentParticleIndex];
 					}
@@ -232,20 +243,22 @@ class Particles {
 					if (yOtherCellIndex < 0){
 						CurrentParticleIndex = CellListHeadDisplacedCells[xEdgeIndex];
 						CellListIndicesPointer = CellListIndicesDisplacedCells;
+						xOffset = -P->xDisplacement;
+						yOffset = -1.0;
 					}
 					else {
 						CurrentParticleIndex = CellListHead[xEdgeIndex+NumberOfSubdivisions*yOtherCellIndex];
 						CellListIndicesPointer = CellListIndices;
 					}
 					while (CurrentParticleIndex >= 0){
-						for (int yOffset = 1; yOffset < 3; yOffset++){
-							computeForcesThroughyEdge(xEdgeIndex, yEdgeIndex, yOtherCellIndex+yOffset, CurrentParticleIndex, StressOfEdgesInyDirection);
+						for (int yIndexOffset = 1; yIndexOffset < 3; yIndexOffset++){
+							computeForcesThroughyEdge(xEdgeIndex, yEdgeIndex, yOtherCellIndex+yIndexOffset, CurrentParticleIndex, xOffset, yOffset, StressOfEdgesInyDirection);
 						}
 						CurrentParticleIndex = CellListIndicesPointer[CurrentParticleIndex];
 					}
 				}
 
-				void computeForceThroughxEdge(int CurrentParticleIndex, int OtherParticleIndex, int xEdgeIndex, int yEdgeIndex, vector<double>& StressOfEdgesInxDirection) {
+				void computeForceThroughxEdge(int CurrentParticleIndex, int OtherParticleIndex, int xEdgeIndex, int yEdgeIndex, double xOffset, vector<double>& StressOfEdgesInxDirection) {
 					int EdgeIndex = xEdgeIndex+NumberOfSubdivisions*yEdgeIndex;
 					double yPositionOfEdge = static_cast<double>(yEdgeIndex+1)*DimensionlessEdgeLength;
 					double LowerxOfEdge = static_cast<double>(xEdgeIndex)*DimensionlessEdgeLength;
@@ -274,7 +287,7 @@ class Particles {
 					if (Deltay > 0.0){
 						double DistanceSquared = (Deltax * Deltax + Deltay * Deltay)*P->BoxLengthSquared;
 						if (DistanceSquared < CUTOFF_SQUARED){
-							double xIntersect = Deltax/Deltay*(yPositionOfEdge-y0)+x0;
+							double xIntersect = Deltax/Deltay*(yPositionOfEdge-y0)+x0+xOffset;
 							if (LowerxOfEdge <= xIntersect && UpperxOfEdge >= xIntersect){ // the force intersects the edge in question, compute the force of the 2 particles and add it to the total force through the edge
 								double InteractionStrength = (P->ParticleTypes[CurrentParticleIndex] == P->ParticleTypes[OtherParticleIndex] ? AA_INTERACTION_STRENGTH : AB_INTERACTION_STRENGTH);
 								double MagnitudeOfForce = computePairwiseMagnitudeOfForce(DistanceSquared);
@@ -285,7 +298,7 @@ class Particles {
 					}
 				}
 
-				void computeForcesThroughxEdge(int xEdgeIndex, int yEdgeIndex, int xIndexOtherCell, int CurrentParticleIndex, vector<double>& StressOfEdgesInxDirection) {
+				void computeForcesThroughxEdge(int xEdgeIndex, int yEdgeIndex, int xIndexOtherCell, int CurrentParticleIndex, double xOffset, vector<double>& StressOfEdgesInxDirection) {
 					if (xIndexOtherCell < 0){
 						xIndexOtherCell += NumberOfSubdivisions;
 					}
@@ -296,7 +309,7 @@ class Particles {
 					if (yIndexOtherCell >= NumberOfSubdivisions){
 						int OtherParticleIndex = CellListHeadDisplacedCells[NumberOfSubdivisions+xIndexOtherCell];
 						while (OtherParticleIndex >= 0){
-							computeForceThroughxEdge(CurrentParticleIndex, OtherParticleIndex, xEdgeIndex, yEdgeIndex, StressOfEdgesInxDirection);
+							computeForceThroughxEdge(CurrentParticleIndex, OtherParticleIndex, xEdgeIndex, yEdgeIndex, xOffset, StressOfEdgesInxDirection);
 							OtherParticleIndex = CellListIndicesDisplacedCells[OtherParticleIndex];
 						}
 					}
@@ -304,7 +317,7 @@ class Particles {
 						int OtherCell = xIndexOtherCell+NumberOfSubdivisions*yIndexOtherCell;
 						int OtherParticleIndex = CellListHead[OtherCell];
 						while (OtherParticleIndex >= 0){
-							computeForceThroughxEdge(CurrentParticleIndex, OtherParticleIndex, xEdgeIndex, yEdgeIndex, StressOfEdgesInxDirection);
+							computeForceThroughxEdge(CurrentParticleIndex, OtherParticleIndex, xEdgeIndex, yEdgeIndex, xOffset, StressOfEdgesInxDirection);
 							OtherParticleIndex = CellListIndices[OtherParticleIndex];
 						}
 					}
@@ -312,27 +325,36 @@ class Particles {
 
 				void computeForceThroughxEdge(int xEdgeIndex, int yEdgeIndex, vector<double>& StressOfEdgesInxDirection){
 					int CurrentParticleIndex = CellListHead[xEdgeIndex+NumberOfSubdivisions*yEdgeIndex];
+					double xOffset = 0.0;
 					while (CurrentParticleIndex >= 0){
 						for (int xOffset = -1; xOffset < 2; xOffset++){
-							computeForcesThroughxEdge(xEdgeIndex, yEdgeIndex, xEdgeIndex+xOffset, CurrentParticleIndex, StressOfEdgesInxDirection);
+							computeForcesThroughxEdge(xEdgeIndex, yEdgeIndex, xEdgeIndex+xOffset, CurrentParticleIndex, xOffset, StressOfEdgesInxDirection);
 						}
 						CurrentParticleIndex = CellListIndices[CurrentParticleIndex];
 					}
 
-					int xCellIndex = xEdgeIndex+1 < NumberOfSubdivisions ? xEdgeIndex + 1 : 0;
+					int xCellIndex = xEdgeIndex+1;
+					if (xCellIndex >= NumberOfSubdivisions){
+						xCellIndex = 0;
+						xOffset = 1.0;
+					}
 					CurrentParticleIndex = CellListHead[xCellIndex+NumberOfSubdivisions*yEdgeIndex];
 					while (CurrentParticleIndex >= 0){
 						for (int xOffset = -2; xOffset < 0; xOffset++){
-							computeForcesThroughxEdge(xEdgeIndex, yEdgeIndex, xCellIndex+xOffset, CurrentParticleIndex, StressOfEdgesInxDirection);
+							computeForcesThroughxEdge(xEdgeIndex, yEdgeIndex, xCellIndex+xOffset, CurrentParticleIndex, xOffset, StressOfEdgesInxDirection);
 						}
 						CurrentParticleIndex = CellListIndices[CurrentParticleIndex];
 					}
 
-					xCellIndex = xEdgeIndex-1 >= 0 ? xEdgeIndex-1 : NumberOfSubdivisions - 1;
+					xCellIndex = xEdgeIndex-1;
+					if (xCellIndex < 0){
+						xCellIndex = NumberOfSubdivisions - 1;
+						xOffset = -1.0;
+					}
 					CurrentParticleIndex = CellListHead[xCellIndex+NumberOfSubdivisions*yEdgeIndex];
 					while (CurrentParticleIndex >= 0){
 						for (int xOffset = 1; xOffset < 3; xOffset++){
-							computeForcesThroughxEdge(xEdgeIndex, yEdgeIndex, xCellIndex+xOffset, CurrentParticleIndex, StressOfEdgesInxDirection);
+							computeForcesThroughxEdge(xEdgeIndex, yEdgeIndex, xCellIndex+xOffset, CurrentParticleIndex, xOffset, StressOfEdgesInxDirection);
 						}
 						CurrentParticleIndex = CellListIndices[CurrentParticleIndex];
 					}

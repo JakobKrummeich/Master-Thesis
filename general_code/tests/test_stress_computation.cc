@@ -8,14 +8,14 @@ using namespace std;
 
 int main(int argc, char* argv[]){
 	double Temperature = 1.0;
-	int MaxNumberOfSweeps = 2000000;
-	double LeesEdwardsVelocity = 0.000119;
+	int MaxNumberOfSweeps = 200000;
+	double LeesEdwardsVelocity = 0.0000639;
 	int NumberOfyValues = 15;
 	int NumberOfStressSubdivisions = 14;
 
 	SimulationManager S(0, TOTAL_NUMBER_OF_PARTICLES, OUTPUT_DIRECTORY);
 	S.setLeesEdwardsVelocity(LeesEdwardsVelocity);
-	S.setMaxFieldStrength(1.0);
+	S.setMaxFieldStrength(0.5);
 	S.setTemperature(Temperature);
 
 	const auto StartTime = chrono::steady_clock::now();
