@@ -8,18 +8,18 @@ using namespace std;
 
 int main(int argc, char* argv[]){
 	double Temperature = 1.0;
-	int MaxNumberOfSweeps = 200000;
-	double LeesEdwardsVelocity = 0.0000639;
+	int MaxNumberOfSweeps = 100000;
+	double LeesEdwardsVelocity = 0.0000;
 	int NumberOfyValues = 15;
 	int NumberOfStressSubdivisions = 14;
 
 	SimulationManager S(0, TOTAL_NUMBER_OF_PARTICLES, OUTPUT_DIRECTORY);
 	S.setLeesEdwardsVelocity(LeesEdwardsVelocity);
-	S.setMaxFieldStrength(0.5);
+	S.setMaxFieldStrength(1.0);
 	S.setTemperature(Temperature);
 
 	const auto StartTime = chrono::steady_clock::now();
-	S.initializeParticles(DENSITY,0.2,NumberOfStressSubdivisions);
+	S.initializeParticles(DENSITY,0.0,NumberOfStressSubdivisions);
 
 	S.setFileNameString(0, MCModus::SGCMC, MaxNumberOfSweeps);
 	S.resetCountersAndBuffers();

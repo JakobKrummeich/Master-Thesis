@@ -57,7 +57,9 @@ class Particles {
 			private:
 				const Particles* P;
 				vector<double> StressOfEdgesInyDirection;
+				vector<int> NumberOfForceValuesInyDirection;
 				vector<double> StressOfEdgesInxDirection;
+				vector<int> NumberOfForceValuesInxDirection;
 				int NumberOfAverages;
 
 				double EdgeLength;
@@ -177,6 +179,7 @@ class Particles {
 								double MagnitudeOfForce = computePairwiseMagnitudeOfForce(DistanceSquared);
 								StressOfEdgesInyDirection[EdgeIndex*DIMENSION] += InteractionStrength*MagnitudeOfForce*P->BoxLength*Deltax;
 								StressOfEdgesInyDirection[EdgeIndex*DIMENSION+1] += InteractionStrength*MagnitudeOfForce*P->BoxLength*Deltay;
+								NumberOfForceValuesInyDirection[EdgeIndex]++;
 							}
 						}
 					}
@@ -258,7 +261,7 @@ class Particles {
 					}
 				}
 
-				void computeForceThroughxEdge(int CurrentParticleIndex, int OtherParticleIndex, int xEdgeIndex, int yEdgeIndex, double xOffset, vector<double>& StressOfEdgesInxDirection) {
+				void computeForceThroughxEdge(int CurrentParticleIndex, int OtherParticleIndex, double xOffset, int xEdgeIndex, int yEdgeIndex, vector<double>& StressOfEdgesInxDirection) {
 					int EdgeIndex = xEdgeIndex+NumberOfSubdivisions*yEdgeIndex;
 					double yPositionOfEdge = static_cast<double>(yEdgeIndex+1)*DimensionlessEdgeLength;
 					double LowerxOfEdge = static_cast<double>(xEdgeIndex)*DimensionlessEdgeLength;
@@ -293,6 +296,7 @@ class Particles {
 								double MagnitudeOfForce = computePairwiseMagnitudeOfForce(DistanceSquared);
 								StressOfEdgesInxDirection[EdgeIndex*DIMENSION] += InteractionStrength*MagnitudeOfForce*P->BoxLength*Deltay;
 								StressOfEdgesInxDirection[EdgeIndex*DIMENSION+1] += InteractionStrength*MagnitudeOfForce*P->BoxLength*Deltax;
+								NumberOfForceValuesInxDirection[EdgeIndex]++;
 							}
 						}
 					}
@@ -309,7 +313,7 @@ class Particles {
 					if (yIndexOtherCell >= NumberOfSubdivisions){
 						int OtherParticleIndex = CellListHeadDisplacedCells[NumberOfSubdivisions+xIndexOtherCell];
 						while (OtherParticleIndex >= 0){
-							computeForceThroughxEdge(CurrentParticleIndex, OtherParticleIndex, xEdgeIndex, yEdgeIndex, xOffset, StressOfEdgesInxDirection);
+							computeForceThroughxEdge(CurrentParticleIndex, OtherParticleIndex, xOffset, xEdgeIndex, yEdgeIndex, StressOfEdgesInxDirection);
 							OtherParticleIndex = CellListIndicesDisplacedCells[OtherParticleIndex];
 						}
 					}
@@ -317,7 +321,7 @@ class Particles {
 						int OtherCell = xIndexOtherCell+NumberOfSubdivisions*yIndexOtherCell;
 						int OtherParticleIndex = CellListHead[OtherCell];
 						while (OtherParticleIndex >= 0){
-							computeForceThroughxEdge(CurrentParticleIndex, OtherParticleIndex, xEdgeIndex, yEdgeIndex, xOffset, StressOfEdgesInxDirection);
+							computeForceThroughxEdge(CurrentParticleIndex, OtherParticleIndex, xOffset, xEdgeIndex, yEdgeIndex, StressOfEdgesInxDirection);
 							OtherParticleIndex = CellListIndices[OtherParticleIndex];
 						}
 					}
@@ -325,14 +329,15 @@ class Particles {
 
 				void computeForceThroughxEdge(int xEdgeIndex, int yEdgeIndex, vector<double>& StressOfEdgesInxDirection){
 					int CurrentParticleIndex = CellListHead[xEdgeIndex+NumberOfSubdivisions*yEdgeIndex];
-					double xOffset = 0.0;
+
 					while (CurrentParticleIndex >= 0){
-						for (int xOffset = -1; xOffset < 2; xOffset++){
-							computeForcesThroughxEdge(xEdgeIndex, yEdgeIndex, xEdgeIndex+xOffset, CurrentParticleIndex, xOffset, StressOfEdgesInxDirection);
+						for (int xIndexOffset = -1; xIndexOffset < 2; xIndexOffset++){
+							computeForcesThroughxEdge(xEdgeIndex, yEdgeIndex, xEdgeIndex+xIndexOffset, CurrentParticleIndex, 0.0, StressOfEdgesInxDirection);
 						}
 						CurrentParticleIndex = CellListIndices[CurrentParticleIndex];
 					}
 
+					double xOffset = 0.0;
 					int xCellIndex = xEdgeIndex+1;
 					if (xCellIndex >= NumberOfSubdivisions){
 						xCellIndex = 0;
@@ -340,8 +345,8 @@ class Particles {
 					}
 					CurrentParticleIndex = CellListHead[xCellIndex+NumberOfSubdivisions*yEdgeIndex];
 					while (CurrentParticleIndex >= 0){
-						for (int xOffset = -2; xOffset < 0; xOffset++){
-							computeForcesThroughxEdge(xEdgeIndex, yEdgeIndex, xCellIndex+xOffset, CurrentParticleIndex, xOffset, StressOfEdgesInxDirection);
+						for (int xIndexOffset = -2; xIndexOffset < 0; xIndexOffset++){
+							computeForcesThroughxEdge(xEdgeIndex, yEdgeIndex, xCellIndex+xIndexOffset, CurrentParticleIndex, xOffset, StressOfEdgesInxDirection);
 						}
 						CurrentParticleIndex = CellListIndices[CurrentParticleIndex];
 					}
@@ -353,8 +358,8 @@ class Particles {
 					}
 					CurrentParticleIndex = CellListHead[xCellIndex+NumberOfSubdivisions*yEdgeIndex];
 					while (CurrentParticleIndex >= 0){
-						for (int xOffset = 1; xOffset < 3; xOffset++){
-							computeForcesThroughxEdge(xEdgeIndex, yEdgeIndex, xCellIndex+xOffset, CurrentParticleIndex, xOffset, StressOfEdgesInxDirection);
+						for (int xIndexOffset = 1; xIndexOffset < 3; xIndexOffset++){
+							computeForcesThroughxEdge(xEdgeIndex, yEdgeIndex, xCellIndex+xIndexOffset, CurrentParticleIndex, xOffset, StressOfEdgesInxDirection);
 						}
 						CurrentParticleIndex = CellListIndices[CurrentParticleIndex];
 					}
@@ -370,6 +375,8 @@ class Particles {
 					DimensionlessEdgeLength = 1.0/static_cast<double>(NumberOfSubdivisions);
 					StressOfEdgesInyDirection.assign(NumberOfSubdivisions*NumberOfSubdivisions*DIMENSION,0.0);
 					StressOfEdgesInxDirection.assign(NumberOfSubdivisions*NumberOfSubdivisions*DIMENSION,0.0);
+					NumberOfForceValuesInxDirection.assign(NumberOfSubdivisions*NumberOfSubdivisions,0);
+					NumberOfForceValuesInyDirection.assign(NumberOfSubdivisions*NumberOfSubdivisions,0);
 				}
 
 				void computeStresses() {
@@ -409,6 +416,28 @@ class Particles {
 						}
 					}
 					FileStreamToWrite.close();
+					cerr << "Avg number of force values per edge:\n";
+					cerr << "xEdges:\n";
+					double TotalAverage = 0.0;
+					for (int yEdgeIndex = 0; yEdgeIndex < NumberOfSubdivisions; yEdgeIndex++){
+						for (int xEdgeIndex = 0; xEdgeIndex < NumberOfSubdivisions; xEdgeIndex++){
+							cerr << static_cast<double>(NumberOfForceValuesInxDirection[xEdgeIndex+NumberOfSubdivisions*yEdgeIndex])/(NumberOfAverages) << " ";
+							TotalAverage += static_cast<double>(NumberOfForceValuesInxDirection[xEdgeIndex+NumberOfSubdivisions*yEdgeIndex]);
+						}
+						cerr << endl;
+					}
+					cerr << "Total avg: " << TotalAverage/(NumberOfAverages*NumberOfSubdivisions*NumberOfSubdivisions) << endl;
+					cerr << "yEdges:\n";
+					TotalAverage = 0.0;
+					for (int yEdgeIndex = 0; yEdgeIndex < NumberOfSubdivisions; yEdgeIndex++){
+						for (int xEdgeIndex = 0; xEdgeIndex < NumberOfSubdivisions; xEdgeIndex++){
+							cerr << static_cast<double>(NumberOfForceValuesInyDirection[xEdgeIndex+NumberOfSubdivisions*yEdgeIndex])/(NumberOfAverages) << " ";
+							TotalAverage += static_cast<double>(NumberOfForceValuesInyDirection[xEdgeIndex+NumberOfSubdivisions*yEdgeIndex]);
+						}
+						cerr << endl;
+					}
+					cerr << "Total avg: " << TotalAverage/(NumberOfAverages*NumberOfSubdivisions*NumberOfSubdivisions) << endl;
+					cerr << endl;
 				}
 
 		};
