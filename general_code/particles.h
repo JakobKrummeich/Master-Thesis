@@ -784,7 +784,19 @@ class Particles {
 			return xDisplacement;
 		}
 
-		void moveImageBoxes(double ShearRate) {
+		void applyShear(double ShearRate, double* ChangeInCoordinates) {
+			for (int ParticleID = 0; ParticleID < TOTAL_NUMBER_OF_PARTICLES; ParticleID++) {
+				double& xPos = Positions[DIMENSION*ParticleID];
+				double& yPos = Positions[DIMENSION*ParticleID+1];
+				xPos += ShearRate*(yPos-0.5);
+				ChangeInCoordinates[DIMENSION*ParticleID] += ShearRate*(yPos-0.5);
+				if (xPos < 0.0) {
+					xPos += 1.0;
+				}
+				else if (xPos >= 1.0) {
+					xPos -= 1.0;
+				}
+			}
 			xDisplacement += ShearRate;
 			xDisplacement -= static_cast<double>(static_cast<int>(xDisplacement));
 			buildVerletList();

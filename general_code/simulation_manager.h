@@ -332,7 +332,7 @@ struct SimulationManager {
 				AverageMSD.clear();
 				NextUpdateTime += UPDATE_TIME_INTERVAL;
 			}
-			P.moveImageBoxes(ShearRate);
+			P.applyShear(ShearRate, ChangeInCoordinates);
 		}
 
 		writeSGCMCResultsWithShear(NumberOfABuffer, PotEnergyBuffer, AverageTraveledDistances, NumberOfyValues);
