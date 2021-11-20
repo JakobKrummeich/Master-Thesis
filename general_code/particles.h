@@ -35,7 +35,6 @@ class Particles {
 		int NumberOfSubdivisions;
 
 		double xDisplacement;
-		double MaxFieldStrength;
 
 		vector<int> CellListHead;
 		int CellListIndices [TOTAL_NUMBER_OF_PARTICLES];
@@ -785,14 +784,10 @@ class Particles {
 			return xDisplacement;
 		}
 
-		void moveImageBoxes(double DimensionlessLeesEdwardsVelocity) {
-			xDisplacement += DimensionlessLeesEdwardsVelocity;
+		void moveImageBoxes(double ShearRate) {
+			xDisplacement += ShearRate;
 			xDisplacement -= static_cast<double>(static_cast<int>(xDisplacement));
 			buildVerletList();
-		}
-
-		void setMaxFieldStrength(double NewMaxFieldStrength){
-			MaxFieldStrength = NewMaxFieldStrength;
 		}
 
 		void writeAverageStresses(string FilePath) const {
@@ -989,17 +984,6 @@ class Particles {
 			updateBoxParametersWithVolumeChange(VolumeChange);
 			buildVerletList();
 			return computePotentialEnergy() - PotEnergyBefore;
-		}
-
-		double computeWork(const int ParticleIndex, const double* Deltas) const {
-			double UpdatedyCoordinate = Positions[DIMENSION*ParticleIndex+1]+Deltas[1];
-			if (UpdatedyCoordinate < 0.0){
-				UpdatedyCoordinate += 1.0;
-			}
-			else if (UpdatedyCoordinate >= 1.0){
-				UpdatedyCoordinate -= 1.0;
-			}
-			return MaxFieldStrength*Deltas[0]*BoxLength*(Positions[DIMENSION*ParticleIndex+1]+UpdatedyCoordinate-1.0);
 		}
 
 		void updatePosition(int ParticleIndex, const double* Deltas){

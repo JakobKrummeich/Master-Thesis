@@ -28,7 +28,7 @@ struct SimulationManager {
 	double Beta;
 	double Pressure;
 
-	double LeesEdwardsVelocity;
+	double ShearRate;
 
 	realRNG RNG;
 
@@ -57,7 +57,7 @@ struct SimulationManager {
 		NumberOfTriedVolumeChanges(0.0),
 		NumberOfAcceptedVolumeChanges(0.0),
 		DirectoryString(DirectoryForFreshData),
-		LeesEdwardsVelocity(0.0){
+		ShearRate(0.0){
 	}
 
 	void initializeParticles(double InitialDensity, double InitialDisplacement, int NumberOfInitialStressSubdivisions) {
@@ -77,12 +77,8 @@ struct SimulationManager {
 		Pressure = NewPressure;
 	}
 
-	void setLeesEdwardsVelocity(double NewLEVelocity){
-		LeesEdwardsVelocity = NewLEVelocity;
-	}
-
-	void setMaxFieldStrength(double NewFieldStrength){
-		P.setMaxFieldStrength(NewFieldStrength);
+	void setShearRate(double NewShearRate){
+		ShearRate = NewShearRate;
 	}
 
 	void setFileNameString(int RunNumber, MCModus M, int NumberOfMCSweeps){
@@ -125,8 +121,7 @@ struct SimulationManager {
 		for (int i = 0; i < DIMENSION; i++){
 			Deltas[i] = RNG.drawRandomNumber(-MAXIMUM_DISPLACEMENT, MAXIMUM_DISPLACEMENT)*P.getInverseBoxLength();
 		}
-		double Work = P.computeWork(RandomParticleID, Deltas);
-		double AcceptanceProbability = exp(-(P.computeChangeInPotentialEnergyByMoving(RandomParticleID, Deltas)-Work)*Beta);
+		double AcceptanceProbability = exp(-P.computeChangeInPotentialEnergyByMoving(RandomParticleID, Deltas)*Beta);
 		if (AcceptanceProbability >= 1.0 || (RNG.drawRandomNumber() < AcceptanceProbability)){
 			P.updatePosition(RandomParticleID, Deltas);
 			ChangeInCoordinates[DIMENSION * RandomParticleID] += Deltas[0];
@@ -337,7 +332,7 @@ struct SimulationManager {
 				AverageMSD.clear();
 				NextUpdateTime += UPDATE_TIME_INTERVAL;
 			}
-			P.moveImageBoxes(LeesEdwardsVelocity*P.getInverseBoxLength());
+			P.moveImageBoxes(ShearRate);
 		}
 
 		writeSGCMCResultsWithShear(NumberOfABuffer, PotEnergyBuffer, AverageTraveledDistances, NumberOfyValues);
@@ -413,7 +408,7 @@ struct SimulationManager {
 		ostringstream OutputStream;
 		OutputStream.precision(numeric_limits<long double>::digits10+1);
 		if (M == MCModus::SGCMC){
-			OutputStream << fixed << "BOX_LENGTH = " << P.getBoxLength() << " | AA_INTERACTION_STRENGTH = " << AA_INTERACTION_STRENGTH << " | AB_INTERACTION_STRENGTH = " << AB_INTERACTION_STRENGTH << " | MAXIMUM_DISPLACEMENT = " << MAXIMUM_DISPLACEMENT << " | DISPLACEMENT_PROBABILITY = " << DISPLACEMENT_PROBABILITY << " | MinNA = " << MinNumberOfA << " | MaxNA = " << MaxNumberOfA << " | LeesEdwardsVelocity = " << LeesEdwardsVelocity << endl;
+			OutputStream << fixed << "BOX_LENGTH = " << P.getBoxLength() << " | AA_INTERACTION_STRENGTH = " << AA_INTERACTION_STRENGTH << " | AB_INTERACTION_STRENGTH = " << AB_INTERACTION_STRENGTH << " | MAXIMUM_DISPLACEMENT = " << MAXIMUM_DISPLACEMENT << " | DISPLACEMENT_PROBABILITY = " << DISPLACEMENT_PROBABILITY << " | MinNA = " << MinNumberOfA << " | MaxNA = " << MaxNumberOfA << " | ShearRate = " << ShearRate << endl;
 			return OutputStream.str();
 		}
 		else if (M == MCModus::PressureMC) {
@@ -421,7 +416,7 @@ struct SimulationManager {
 			return OutputStream.str();
 		}
 		else {
-			OutputStream << fixed << "BOX_LENGTH = " << P.getBoxLength() << " | AA_INTERACTION_STRENGTH = " << AA_INTERACTION_STRENGTH << " | AB_INTERACTION_STRENGTH = " << AB_INTERACTION_STRENGTH << " | MAXIMUM_DISPLACEMENT = " << MAXIMUM_DISPLACEMENT << " | NA = " << MinNumberOfA << " | LeesEdwardsVelocity = " << LeesEdwardsVelocity << '\n';
+			OutputStream << fixed << "BOX_LENGTH = " << P.getBoxLength() << " | AA_INTERACTION_STRENGTH = " << AA_INTERACTION_STRENGTH << " | AB_INTERACTION_STRENGTH = " << AB_INTERACTION_STRENGTH << " | MAXIMUM_DISPLACEMENT = " << MAXIMUM_DISPLACEMENT << " | NA = " << MinNumberOfA << " | ShearRate = " << ShearRate << '\n';
 			return OutputStream.str();
 		}
 	}
