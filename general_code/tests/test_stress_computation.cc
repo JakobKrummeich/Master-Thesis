@@ -9,7 +9,7 @@ using namespace std;
 int main(int argc, char* argv[]){
 	double Temperature = 1.0;
 	int MaxNumberOfSweeps = 2000000;
-	double ShearRate = 0.0001;
+	double ShearRate = 0.00002;
 	int NumberOfyValues = 15;
 	int NumberOfStressSubdivisions = 14;
 

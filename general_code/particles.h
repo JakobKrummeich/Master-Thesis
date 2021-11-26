@@ -173,7 +173,7 @@ class Particles {
 								Shiftedx0 -= 1.0;
 							}
 							double yIntersect = Deltay/Deltax*(xPositionOfEdge-Shiftedx0)+y0+yOffset;
-							if (LoweryOfEdge <= yIntersect && UpperyOfEdge >= yIntersect){ // the force intersects the edge in question, compute the force of the 2 particles and add it to the total force through the edge
+							if (LoweryOfEdge <= yIntersect && UpperyOfEdge > yIntersect){ // the force intersects the edge in question, compute the force of the 2 particles and add it to the total force through the edge
 								double InteractionStrength = (P->ParticleTypes[CurrentParticleIndex] == P->ParticleTypes[OtherParticleIndex] ? AA_INTERACTION_STRENGTH : AB_INTERACTION_STRENGTH);
 								double MagnitudeOfForce = computePairwiseMagnitudeOfForce(DistanceSquared);
 								StressOfEdgesInyDirection[EdgeIndex*DIMENSION] += InteractionStrength*MagnitudeOfForce*P->BoxLength*Deltax;
@@ -241,6 +241,8 @@ class Particles {
 						CurrentParticleIndex = CellListIndicesPointer[CurrentParticleIndex];
 					}
 
+					xOffset = 0.0;
+					yOffset = 0.0;
 					yOtherCellIndex = yEdgeIndex-1;
 					if (yOtherCellIndex < 0){
 						CurrentParticleIndex = CellListHeadDisplacedCells[xEdgeIndex];
@@ -290,7 +292,7 @@ class Particles {
 						double DistanceSquared = (Deltax * Deltax + Deltay * Deltay)*P->BoxLengthSquared;
 						if (DistanceSquared < CUTOFF_SQUARED){
 							double xIntersect = Deltax/Deltay*(yPositionOfEdge-y0)+x0+xOffset;
-							if (LowerxOfEdge <= xIntersect && UpperxOfEdge >= xIntersect){ // the force intersects the edge in question, compute the force of the 2 particles and add it to the total force through the edge
+							if (LowerxOfEdge <= xIntersect && UpperxOfEdge > xIntersect){ // the force intersects the edge in question, compute the force of the 2 particles and add it to the total force through the edge
 								double InteractionStrength = (P->ParticleTypes[CurrentParticleIndex] == P->ParticleTypes[OtherParticleIndex] ? AA_INTERACTION_STRENGTH : AB_INTERACTION_STRENGTH);
 								double MagnitudeOfForce = computePairwiseMagnitudeOfForce(DistanceSquared);
 								StressOfEdgesInxDirection[EdgeIndex*DIMENSION] += InteractionStrength*MagnitudeOfForce*P->BoxLength*Deltay;
@@ -328,7 +330,6 @@ class Particles {
 
 				void computeForceThroughxEdge(int xEdgeIndex, int yEdgeIndex, vector<double>& StressOfEdgesInxDirection){
 					int CurrentParticleIndex = CellListHead[xEdgeIndex+NumberOfSubdivisions*yEdgeIndex];
-
 					while (CurrentParticleIndex >= 0){
 						for (int xIndexOffset = -1; xIndexOffset < 2; xIndexOffset++){
 							computeForcesThroughxEdge(xEdgeIndex, yEdgeIndex, xEdgeIndex+xIndexOffset, CurrentParticleIndex, 0.0, StressOfEdgesInxDirection);
@@ -350,6 +351,7 @@ class Particles {
 						CurrentParticleIndex = CellListIndices[CurrentParticleIndex];
 					}
 
+					xOffset = 0.0;
 					xCellIndex = xEdgeIndex-1;
 					if (xCellIndex < 0){
 						xCellIndex = NumberOfSubdivisions - 1;
