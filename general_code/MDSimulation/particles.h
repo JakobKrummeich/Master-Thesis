@@ -36,6 +36,8 @@ class Particles {
 		double Volume;
 		int NumberOfSubdivisions;
 
+		double Temperature;
+
 		double xDisplacement;
 
 		vector<int> CellListHead;
@@ -290,7 +292,7 @@ class Particles {
 							double xIntersect = Deltax/Deltay*(yPositionOfEdge-y0)+x0+xOffset;
 							if (LowerxOfEdge <= xIntersect && UpperxOfEdge > xIntersect){ // the force intersects the edge in question, compute the force of the 2 particles and add it to the total force through the edge
 								double InteractionStrength = (P->ParticleTypes[CurrentParticleIndex] == P->ParticleTypes[OtherParticleIndex] ? AA_INTERACTION_STRENGTH : AB_INTERACTION_STRENGTH);
-								double MagnitudeOfForce = computePairwiseMagnitudeOfForce(DistanceSquared);
+								double MagnitudeOfForce = P->computePairwiseMagnitudeOfForce(DistanceSquared);
 								StressOfEdgesInxDirection[EdgeIndex*DIMENSION] += InteractionStrength*MagnitudeOfForce*P->BoxLength*Deltay;
 								StressOfEdgesInxDirection[EdgeIndex*DIMENSION+1] += InteractionStrength*MagnitudeOfForce*P->BoxLength*Deltax;
 								NumberOfForceValuesInxDirection[EdgeIndex]++;
@@ -705,7 +707,45 @@ class Particles {
 		double computePairwiseMagnitudeOfForce(double DistanceSquared) const { //intentionally off by a factor r, so we can just multiply with r-vector to get the correct result
 			double InverseDistanceSquared = 1.0/DistanceSquared;
 			double InverseDistanceToThePowerOfSix = InverseDistanceSquared * InverseDistanceSquared * InverseDistanceSquared;
-			return (48.0*InverseDistanceToThePowerOfSix*InverseDistanceToThePowerOfSix*InverseDistanceSquared-24.0*InverseDistanceToThePowerOfSix*InverseDistanceSquared-4.0*POTENTIAL_CONSTANT_2*sqrt(InverseDistanceSquared));
+			return (48.0*InverseDistanceToThePowerOfSix*InverseDistanceToThePowerOfSix*InverseDistanceSquared-24.0*InverseDistanceToThePowerOfSix*InverseDistanceSquared+4.0*POTENTIAL_CONSTANT_2*sqrt(InverseDistanceSquared));
+		}
+
+		void computeForceOnParticle(int ParticleIndex, double* ForceOnParticle) {
+			*(ForceOnParticle) = 0.0;
+			*(ForceOnParticle+1) = 0.0;
+
+			double x0 = Positions[DIMENSION*ParticleIndex];
+			double y0 = Positions[DIMENSION*ParticleIndex+1];
+
+			for (int i = 0; i < VerletListHead[2*ParticleIndex+1]; i++){
+				int OtherParticleIndex = VerletIndicesOfNeighbors[VerletListHead[2*ParticleIndex]+i];
+
+				double x1 = Positions[DIMENSION*OtherParticleIndex];
+				double y1 = Positions[DIMENSION*OtherParticleIndex+1];
+				double Deltax = x1 - x0;
+				double Deltay = y1 - y0;
+				if (Deltay > 0.5){
+					Deltay -= 1.0;
+					Deltax -= xDisplacement;
+				}
+				else if (Deltay <= -0.5){
+					Deltay += 1.0;
+					Deltax += xDisplacement;
+				}
+				while (Deltax > 0.5){
+					Deltax -= 1.0;
+				}
+				while (Deltax <= -0.5){
+					Deltax += 1.0;
+				}
+				double DistanceSquared = (Deltax*Deltax+Deltay*Deltay)*BoxLengthSquared;
+				if (DistanceSquared < CUTOFF_SQUARED){
+					double InteractionStrength = (ParticleTypes[ParticleIndex] == ParticleTypes[OtherParticleIndex] ? AA_INTERACTION_STRENGTH : AB_INTERACTION_STRENGTH);
+					double MagnitudeOfForce = computePairwiseMagnitudeOfForce(DistanceSquared);
+					*(ForceOnParticle  ) += -MagnitudeOfForce*InteractionStrength*Deltax*BoxLength;
+					*(ForceOnParticle+1) += -MagnitudeOfForce*InteractionStrength*Deltay*BoxLength;
+				}
+			}
 		}
 
 		double computePairwiseParticlePotentialEnergy(double DimensionlessDistanceSquared) const {
@@ -792,12 +832,12 @@ class Particles {
 			return NumberOfVerletListBuilds;
 		}
 
-		void initialize(int InitialNumberOfAParticles, double InitialDensity, double InitialxDisplacement, int NumberOfIntendedStressSubdivisions){
+		void initialize(int InitialNumberOfAParticles, double InitialDensity, double InitialTemperature, double InitialxDisplacement, int NumberOfIntendedStressSubdivisions){
 			updateBoxParametersWithDensity(InitialDensity);
 			SC.initialize(this, NumberOfIntendedStressSubdivisions);
 			int InitialNumberOfBParticles = TOTAL_NUMBER_OF_PARTICLES - InitialNumberOfAParticles;
 			double FractionOfAParticles = static_cast<double>(InitialNumberOfAParticles)/static_cast<double>(TOTAL_NUMBER_OF_PARTICLES);
-			realRNG RNG;
+
 			TypeAParticleIndices.clear();
 			TypeBParticleIndices.clear();
 			for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
@@ -810,6 +850,8 @@ class Particles {
 				MostTraveledDistancesSquared[i] = 0.0;
 				MostTraveledParticleIndices[i] = i;
 			}
+
+			Temperature = InitialTemperature;
 
 			xDisplacement = InitialxDisplacement;
 
@@ -826,10 +868,16 @@ class Particles {
 			for (int i = 0; i < DIMENSION; i++){
 				CurrentPosition[i] = Distance*0.5;
 			}
+
+			realUniformRNG UniformRNG;
+			realGaussianRNG GaussianRNG(0.0,sqrt(Temperature));
 			int NumberOfAParticlesInitialized = 0;
+			double TotalMomentum [DIMENSION]{};
 			for (int ParticlesInitialized = 0; ParticlesInitialized < TOTAL_NUMBER_OF_PARTICLES; ParticlesInitialized++){
 				for (int i = 0; i < DIMENSION; i++){
 					Positions[ParticlesInitialized*DIMENSION + i] = CurrentPosition[i];
+					Velocities[ParticlesInitialized*DIMENSION + i] = GaussianRNG.drawRandomNumber()*InverseBoxLength;
+					TotalMomentum[i] += Velocities[ParticlesInitialized*DIMENSION + i];
 				}
 				CurrentPosition[0] += Distance;
 				for (int i = 1; i < DIMENSION; i++){
@@ -838,7 +886,7 @@ class Particles {
 						CurrentPosition[i] += Distance;
 					}
 				}
-				if ((RNG.drawRandomNumber() <= FractionOfAParticles && NumberOfAParticlesInitialized < InitialNumberOfAParticles) || (TOTAL_NUMBER_OF_PARTICLES - ParticlesInitialized <= InitialNumberOfAParticles - NumberOfAParticlesInitialized)){
+				if ((UniformRNG.drawRandomNumber() <= FractionOfAParticles && NumberOfAParticlesInitialized < InitialNumberOfAParticles) || (TOTAL_NUMBER_OF_PARTICLES - ParticlesInitialized <= InitialNumberOfAParticles - NumberOfAParticlesInitialized)){
 					ParticleTypes[ParticlesInitialized] = ParticleType::A;
 					TypeAParticleIndices.push_back(ParticlesInitialized);
 					NumberOfAParticlesInitialized++;
@@ -848,7 +896,24 @@ class Particles {
 					TypeBParticleIndices.push_back(ParticlesInitialized);
 				}
 			}
+			double KineticEnergy = 0.0;
+			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
+				for (int i = 0; i < DIMENSION; i++){
+					Velocities[DIMENSION*ParticleIndex + i] -= TotalMomentum[i]/static_cast<double>(TOTAL_NUMBER_OF_PARTICLES);
+					KineticEnergy += Velocities[DIMENSION*ParticleIndex + i] * Velocities[DIMENSION*ParticleIndex + i] * BoxLengthSquared;
+				}
+			}
+			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
+				for (int i = 0; i < DIMENSION; i++){
+					Velocities[DIMENSION*ParticleIndex + i] *= sqrt(2.0 * static_cast<double>(TOTAL_NUMBER_OF_PARTICLES) * Temperature / KineticEnergy);
+				}
+			}
+			cerr << "Initial kinetic energy: " << computeKineticEnergy() << endl;
 			buildVerletList();
+			cerr << "Initial potential energy: " << computePotentialEnergy() << endl;
+			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
+				computeForceOnParticle(ParticleIndex, &CurrentForces[DIMENSION*ParticleIndex]);
+			}
 		}
 
 		void readInParticleState(string FileNameToReadIn, int StateNumber, double Density) {
@@ -907,17 +972,39 @@ class Particles {
 		}
 
 		double computePotentialEnergy() const {
-			double PotEnergy = 0.0;
-			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
-				for (int i = 0; i < VerletListHead[2*ParticleIndex+1]; i++){
-					int OtherParticleIndex = VerletIndicesOfNeighbors[VerletListHead[2*ParticleIndex]+i];
-					if (OtherParticleIndex < ParticleIndex){
-						double InteractionStrength = (ParticleTypes[ParticleIndex] == ParticleTypes[OtherParticleIndex] ? AA_INTERACTION_STRENGTH : AB_INTERACTION_STRENGTH);
-						PotEnergy += InteractionStrength * computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*OtherParticleIndex], &Positions[DIMENSION*ParticleIndex]);
+			double TotPotEnergy = 0.0;
+			#pragma omp parallel num_threads(NUMBER_OF_THREADS)
+			{
+				double PotEnergy = 0.0;
+				#pragma omp for
+				for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
+					for (int i = 0; i < VerletListHead[2*ParticleIndex+1]; i++){
+						int OtherParticleIndex = VerletIndicesOfNeighbors[VerletListHead[2*ParticleIndex]+i];
+						if (OtherParticleIndex < ParticleIndex){
+							double InteractionStrength = (ParticleTypes[ParticleIndex] == ParticleTypes[OtherParticleIndex] ? AA_INTERACTION_STRENGTH : AB_INTERACTION_STRENGTH);
+							double PairwisePotEnergy = InteractionStrength * computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*OtherParticleIndex], &Positions[DIMENSION*ParticleIndex]);
+							PotEnergy += PairwisePotEnergy;
+						}
 					}
 				}
+				#pragma omp atomic
+				TotPotEnergy += PotEnergy;
 			}
-			return PotEnergy;
+			return TotPotEnergy;
+		}
+
+		double computeKineticEnergy() const {
+			double KineticEnergy = 0.0;
+			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
+				for (int i = 0; i < DIMENSION; i++){
+					KineticEnergy += Velocities[DIMENSION*ParticleIndex+i]*Velocities[DIMENSION*ParticleIndex+i]*BoxLengthSquared;
+				}
+			}
+			return KineticEnergy*0.5;
+		}
+
+		double computeEnergy() const {
+			return computePotentialEnergy()+computeKineticEnergy();
 		}
 
 		void computeStresses() {
@@ -949,7 +1036,6 @@ class Particles {
 				for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
 					cerr << getPosition(i,0) << "\t" << getPosition(i,1) << "\t" << getParticleType(i) <<  endl;
 				}
-				exit(EXIT_FAILURE);
 			}
 			ChangeInCoordinates[DIMENSION * ParticleIndex] += Deltas[0];
 			ChangeInCoordinates[DIMENSION * ParticleIndex + 1] += Deltas[1];
@@ -1023,16 +1109,24 @@ class Particles {
 			}
 		}
 
-		void updateVelocity(int ParticleIndex, const double* Deltas) {
-			Velocities[DIMENSION*ParticleIndex] += Deltas[0];
-			Velocities[DIMENSION*ParticleIndex + 1] += Deltas[1];
-		}
-
 		void applyTimeStep(double Stepsize) {
-			double NextForces [DIMENSION*TP]
+			static double NextForces [DIMENSION*TOTAL_NUMBER_OF_PARTICLES];
 			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++) {
+				double Deltas [DIMENSION];
 				for (int i = 0; i < DIMENSION; i++) {
-					Positions[DIMENSION*ParticleIndex+i] += Velocities[DIMENSION*ParticleIndex+i]*Stepsize + 0.5*Stepsize*Stepsize*CurrentForces[DIMENSION*ParticleIndex+i];
+					Deltas[i] = Velocities[DIMENSION*ParticleIndex+i]*Stepsize + 0.5*Stepsize*Stepsize*InverseBoxLength*CurrentForces[DIMENSION*ParticleIndex+i];
+				}
+				updatePosition(ParticleIndex, Deltas);
+			}
+			#pragma omp parallel num_threads(NUMBER_OF_THREADS)
+			{
+				#pragma omp for
+				for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
+					computeForceOnParticle(ParticleIndex, &NextForces[DIMENSION*ParticleIndex]);
+					for (int i = 0; i < DIMENSION; i++){
+						Velocities[DIMENSION*ParticleIndex+i] += 0.5*Stepsize*InverseBoxLength*(CurrentForces[DIMENSION*ParticleIndex+i]+NextForces[DIMENSION*ParticleIndex+i]);
+						CurrentForces[DIMENSION*ParticleIndex+i] = NextForces[DIMENSION*ParticleIndex+i];
+					}
 				}
 			}
 		}
