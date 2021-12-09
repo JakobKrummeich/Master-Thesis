@@ -3,6 +3,8 @@
 #include <string>
 #include <chrono>
 #include "../particles.h"
+#include "../stress_computator.h"
+#include "../thermostat.h"
 
 using namespace std;
 
@@ -11,9 +13,11 @@ int main(int argc, char* argv[]){
 
 	int NumberOfyValues = 15;
 	int NumberOfStressSubdivisions = 14;
+	double Temperature = 1.0;
 
-	Particles P;
-	P.initialize(0,DENSITY,1.0,0.0,NumberOfStressSubdivisions);
+	Particles P(500,DENSITY,Temperature,0.0);
+	StressComputator SC(P,NumberOfStressSubdivisions);
+	BussiThermostat BT(Temperature, 2.0, DIMENSION*TOTAL_NUMBER_OF_PARTICLES);
 
 	const auto StartTime = chrono::steady_clock::now();
 	int NextUpdateTime = UPDATE_TIME_INTERVAL;
@@ -24,7 +28,9 @@ int main(int argc, char* argv[]){
 	FileStreamToWrite.open(FileName);
 	FileStreamToWrite << "U\t" << "T\t" << "H\n";
 	for (int StepNumber = 0; StepNumber < MaxNumberOfSweeps; StepNumber++){
-		P.applyTimeStep(Stepsize);
+		P.applyVelocityVerlet(Stepsize);
+		double Alpha = BT.computeRescalingFactor(P, Stepsize);
+		P.rescaleVelocities(Alpha);
 		FileStreamToWrite <<  fixed << setprecision(numeric_limits<long double>::digits10+1) << P.computePotentialEnergy() << '\t' << P.computeKineticEnergy() << '\t' <<  P.computeEnergy() << endl;
 		if (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() >= NextUpdateTime){
 			int Progress = MaxNumberOfSweeps >= 100 ? (StepNumber / (MaxNumberOfSweeps/100)) : StepNumber;
