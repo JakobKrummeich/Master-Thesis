@@ -37,6 +37,7 @@ class Particles {
 		int NumberOfSubdivisions;
 
 		double xDisplacement;
+		double ShearRate;
 
 		vector<int> CellListHead;
 		int CellListIndices [TOTAL_NUMBER_OF_PARTICLES];
@@ -385,13 +386,20 @@ class Particles {
 
 	public:
 
-		Particles():
+		Particles(double ShearRate):
 			NumberOfVerletListBuilds(0.0),
-			xDisplacement(0.0)
+			xDisplacement(0.0),
+			ShearRate(ShearRate)
 		{
+			for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
+				for (int j = 0; j < DIMENSION; j++){
+					ChangeInCoordinates[DIMENSION*i+j] = 0.0;
+					TotalChangeInCoordinates[DIMENSION*i+j] = 0.0;
+				}
+			}
 		}
 
-		Particles (int NumberOfAParticles, double InitialDensity, double InitialTemperature, double InitialxDisplacement){
+		Particles(int NumberOfAParticles, double InitialDensity, double InitialTemperature, double InitialxDisplacement, double InitialShearRate){
 			updateBoxParametersWithDensity(InitialDensity);
 			int NumberOfBParticles = TOTAL_NUMBER_OF_PARTICLES - NumberOfAParticles;
 			double FractionOfAParticles = static_cast<double>(NumberOfAParticles)/static_cast<double>(TOTAL_NUMBER_OF_PARTICLES);
@@ -410,6 +418,7 @@ class Particles {
 			}
 
 			xDisplacement = InitialxDisplacement;
+			ShearRate = InitialShearRate;
 
 			NumberOfVerletListBuilds = 0.0;
 
@@ -426,14 +435,12 @@ class Particles {
 			}
 
 			realUniformRNG UniformRNG;
-			realGaussianRNG GaussianRNG(0.0,sqrt(InitialTemperature));
+			initializeVelocities(InitialTemperature);
 			int NumberOfAParticlesInitialized = 0;
-			double TotalMomentum [DIMENSION]{};
+
 			for (int ParticlesInitialized = 0; ParticlesInitialized < TOTAL_NUMBER_OF_PARTICLES; ParticlesInitialized++){
 				for (int i = 0; i < DIMENSION; i++){
 					Positions[ParticlesInitialized*DIMENSION + i] = CurrentPosition[i];
-					Velocities[ParticlesInitialized*DIMENSION + i] = GaussianRNG.drawRandomNumber()*InverseBoxLength;
-					TotalMomentum[i] += Velocities[ParticlesInitialized*DIMENSION + i];
 				}
 				CurrentPosition[0] += Distance;
 				for (int i = 1; i < DIMENSION; i++){
@@ -452,19 +459,6 @@ class Particles {
 					TypeBParticleIndices.push_back(ParticlesInitialized);
 				}
 			}
-			double KineticEnergy = 0.0;
-			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
-				for (int i = 0; i < DIMENSION; i++){
-					Velocities[DIMENSION*ParticleIndex + i] -= TotalMomentum[i]/static_cast<double>(TOTAL_NUMBER_OF_PARTICLES);
-					KineticEnergy += Velocities[DIMENSION*ParticleIndex + i] * Velocities[DIMENSION*ParticleIndex + i] * BoxLengthSquared;
-				}
-			}
-			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
-				for (int i = 0; i < DIMENSION; i++){
-					Velocities[DIMENSION*ParticleIndex + i] *= sqrt(2.0 * static_cast<double>(TOTAL_NUMBER_OF_PARTICLES) * InitialTemperature / KineticEnergy);
-				}
-			}
-			cerr << "Initial kinetic energy: " << computeKineticEnergy() << endl;
 			buildVerletList();
 			cerr << "Initial potential energy: " << computePotentialEnergy() << endl;
 			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
@@ -472,7 +466,7 @@ class Particles {
 			}
 		}
 
-		void readInParticleState(string FileNameToReadIn, int StateNumber, double Density) {
+		void readInParticleState(string FileNameToReadIn, int Skiplines, int StateNumber, double Density) {
 			updateBoxParametersWithDensity(Density);
 			xDisplacement = 0.0;
 
@@ -481,7 +475,46 @@ class Particles {
 			ifstream FileStreamToReadIn;
 			FileStreamToReadIn.open(FileNameToReadIn);
 
-			skipLines(FileStreamToReadIn, 2+StateNumber*(TOTAL_NUMBER_OF_PARTICLES+2));
+			skipLines(FileStreamToReadIn, Skiplines+StateNumber*(TOTAL_NUMBER_OF_PARTICLES+2));
+
+			string CurrentString;
+
+			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
+				for (int j = 0; j < DIMENSION; j++){
+					getline(FileStreamToReadIn, CurrentString, '\t');
+					Positions[DIMENSION*ParticleIndex+j] = stod(CurrentString);
+				}
+				for (int j = 0; j < DIMENSION; j++){
+					getline(FileStreamToReadIn, CurrentString, '\t');
+					Velocities[DIMENSION*ParticleIndex+j] = stod(CurrentString);
+				}
+				getline(FileStreamToReadIn, CurrentString, '\n');
+				if (CurrentString == "A"){
+					ParticleTypes[ParticleIndex] = ParticleType::A;
+					TypeAParticleIndices.push_back(ParticleIndex);
+				}
+				else {
+					ParticleTypes[ParticleIndex] = ParticleType::B;
+					TypeBParticleIndices.push_back(ParticleIndex);
+				}
+			}
+			FileStreamToReadIn.close();
+			buildVerletList();
+			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
+				computeForceOnParticle(ParticleIndex, &CurrentForces[DIMENSION*ParticleIndex]);
+			}
+		}
+
+		void readInParticlePositions(string FileNameToReadIn, int Skiplines, int StateNumber, double Density) {
+			updateBoxParametersWithDensity(Density);
+			xDisplacement = 0.0;
+
+			TypeAParticleIndices.clear();
+			TypeBParticleIndices.clear();
+			ifstream FileStreamToReadIn;
+			FileStreamToReadIn.open(FileNameToReadIn);
+
+			skipLines(FileStreamToReadIn, Skiplines+StateNumber*(TOTAL_NUMBER_OF_PARTICLES+2));
 
 			string CurrentString;
 
@@ -502,6 +535,34 @@ class Particles {
 			}
 			FileStreamToReadIn.close();
 			buildVerletList();
+			cerr << "Initial potential energy: " << computePotentialEnergy() << endl;
+			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
+				computeForceOnParticle(ParticleIndex, &CurrentForces[DIMENSION*ParticleIndex]);
+			}
+		}
+
+		void initializeVelocities(double InitialTemperature){
+			realGaussianRNG GaussianRNG(0.0,sqrt(InitialTemperature));
+			double TotalMomentum [DIMENSION]{};
+			for (int ParticlesInitialized = 0; ParticlesInitialized < TOTAL_NUMBER_OF_PARTICLES; ParticlesInitialized++){
+				for (int i = 0; i < DIMENSION; i++){
+					Velocities[ParticlesInitialized*DIMENSION + i] = GaussianRNG.drawRandomNumber()*InverseBoxLength;
+					TotalMomentum[i] += Velocities[ParticlesInitialized*DIMENSION + i];
+				}
+			}
+			double KineticEnergy = 0.0;
+			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
+				for (int i = 0; i < DIMENSION; i++){
+					Velocities[DIMENSION*ParticleIndex + i] -= TotalMomentum[i]/static_cast<double>(TOTAL_NUMBER_OF_PARTICLES);
+					KineticEnergy += Velocities[DIMENSION*ParticleIndex + i] * Velocities[DIMENSION*ParticleIndex + i] * BoxLengthSquared;
+				}
+			}
+			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
+				for (int i = 0; i < DIMENSION; i++){
+					Velocities[DIMENSION*ParticleIndex + i] *= sqrt(2.0 * static_cast<double>(TOTAL_NUMBER_OF_PARTICLES) * InitialTemperature / KineticEnergy);
+				}
+			}
+			cerr << "Initial kinetic energy: " << computeKineticEnergy() << endl;
 		}
 
 		static double computePairwiseMagnitudeOfForce(double DistanceSquared) { //intentionally off by a factor r, so we can just multiply with r-vector to get the correct result
@@ -627,10 +688,12 @@ class Particles {
 			if (Positions[DIMENSION * ParticleIndex + 1] < 0.0){
 				Positions[DIMENSION * ParticleIndex] += xDisplacement;
 				Positions[DIMENSION * ParticleIndex + 1] += 1.0;
+				Velocities[DIMENSION * ParticleIndex] += ShearRate;
 			}
 			else if (Positions[DIMENSION * ParticleIndex + 1] >= 1.0){
 				Positions[DIMENSION * ParticleIndex] -= xDisplacement;
 				Positions[DIMENSION * ParticleIndex + 1] -= 1.0;
+				Velocities[DIMENSION * ParticleIndex] -= ShearRate;
 			}
 			while (Positions[DIMENSION * ParticleIndex] < 0.0){
 				Positions[DIMENSION * ParticleIndex] += 1.0;
@@ -719,12 +782,13 @@ class Particles {
 			}
 		}
 
-		void applyVelocityVerlet(double Stepsize) {
+		void applyVelocityVerlet(double Stepsize, double* ChangeInCoordinates) {
 			static double NextForces [DIMENSION*TOTAL_NUMBER_OF_PARTICLES];
 			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++) {
 				double Deltas [DIMENSION];
 				for (int i = 0; i < DIMENSION; i++) {
 					Deltas[i] = Velocities[DIMENSION*ParticleIndex+i]*Stepsize + 0.5*Stepsize*Stepsize*InverseBoxLength*CurrentForces[DIMENSION*ParticleIndex+i];
+					ChangeInCoordinates[DIMENSION*ParticleIndex + i] += Deltas[i];
 				}
 				updatePosition(ParticleIndex, Deltas);
 			}
@@ -739,6 +803,9 @@ class Particles {
 					}
 				}
 			}
+			xDisplacement += ShearRate*Stepsize;
+			xDisplacement -= static_cast<double>(static_cast<int>(xDisplacement));
+			buildVerletList();
 		}
 
 		void rescaleVelocities(double RescalingFactor) {
@@ -746,6 +813,21 @@ class Particles {
 				for (int Coordinate = 0; Coordinate < DIMENSION; Coordinate++){
 					Velocities[DIMENSION*ParticleIndex+Coordinate] *= RescalingFactor;
 				}
+			}
+		}
+
+		void updateAverageTraveledDistances(double* ChangeInCoordinates, vector<double>& AverageTraveledDistances, const int NumberOfyValues) const {
+			vector<double> NewEntries(NumberOfyValues,0.0);
+			vector<int> NumberOfValues(NumberOfyValues,0);
+			for (int ParticleID = 0; ParticleID < TOTAL_NUMBER_OF_PARTICLES; ParticleID++){
+				int Index = static_cast<int>(getPosition(ParticleID,1)*static_cast<double>(NumberOfyValues));
+				NewEntries[Index] += ChangeInCoordinates[DIMENSION*ParticleID];
+				ChangeInCoordinates[DIMENSION*ParticleID] = 0.0;
+				ChangeInCoordinates[DIMENSION*ParticleID+1] = 0.0;
+				NumberOfValues[Index]++;
+			}
+			for (int i = 0; i < NumberOfyValues; i++){
+				AverageTraveledDistances.push_back(NewEntries[i] / static_cast<double>(NumberOfValues[i]));
 			}
 		}
 
@@ -759,9 +841,9 @@ class Particles {
 };
 
 ostream& operator<<(ostream& OStream, const Particles& State){
-	OStream << "X       Y       Type | #AParticles:  " << fixed << setprecision(numeric_limits<long double>::digits10+1) << State.getNumberOfAParticles() << "| #BParticles: " << State.getNumberOfBParticles() << "| BoxLength: " << State.getBoxLength() << "| xDisplacement: " << State.getxDisplacement() << endl;
+	OStream << "x\ty\tvX\tvy\tType\t| #AParticles:  " << fixed << setprecision(numeric_limits<long double>::digits10+1) << State.getNumberOfAParticles() << "| #BParticles: " << State.getNumberOfBParticles() << "| BoxLength: " << State.getBoxLength() << "| xDisplacement: " << State.getxDisplacement() << endl;
 	for (int i = 0; i < TOTAL_NUMBER_OF_PARTICLES; i++){
-		OStream << State.getPosition(i,0) << "\t" << State.getPosition(i,1) << "\t" << State.getParticleType(i) <<  endl;
+		OStream << State.getPosition(i,0) << '\t' << State.getPosition(i,1) << '\t' << State.getVelocity(i,0) << '\t' << State.getVelocity(i,1) << '\t' << State.getParticleType(i) <<  endl;
 	}
 	return OStream;
 }
