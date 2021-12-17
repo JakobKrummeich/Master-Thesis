@@ -14,15 +14,15 @@ int main(int argc, char* argv[]){
 	int NumberOfyValues = 15;
 	int NumberOfStressSubdivisions = 14;
 	double Temperature = 0.83;
-	double ShearRate = 0.01;
+	double ShearRate = 0.0;
 	double ThermostatTime = 0.1;
-	const double Stepsize = 0.001;
+	const double Stepsize = 0.0001;
 
-	Particles P(ShearRate);
-	P.readInParticleState("FinalState_long_equilibration_N=1000.dat", 1, 0, DENSITY);
-	//P.initializeVelocities(Temperature, ShearRate);
-	StressComputator SC(P,NumberOfStressSubdivisions);
-	BussiThermostat BT(Temperature, ThermostatTime, DIMENSION*TOTAL_NUMBER_OF_PARTICLES);
+	Particles P(500, DENSITY, Temperature, 0.0, ShearRate);
+	//P.readInParticleState("FinalState_long_equilibration_N=1000.dat", 1, 0, DENSITY);
+
+	//StressComputator SC(P,NumberOfStressSubdivisions);
+	//BussiThermostat BT(Temperature, ThermostatTime, DIMENSION*TOTAL_NUMBER_OF_PARTICLES);
 
 	const auto StartTime = chrono::steady_clock::now();
 	int NextUpdateTime = UPDATE_TIME_INTERVAL;
@@ -31,6 +31,12 @@ int main(int argc, char* argv[]){
 	vector<double> AverageTraveledDistances;
 	vector<double> AvgVelocities;
 	vector<double> AvgMSD;
+
+	vector<double> TotalMomentumSeries;
+	double TotalMomentum[DIMENSION]{};
+	P.computeTotalMomentum(TotalMomentum);
+	TotalMomentumSeries.push_back(TotalMomentum[0]);
+	TotalMomentumSeries.push_back(TotalMomentum[1]);
 
 	ofstream FileStreamToWrite;
 	string FileName = "AvgTraveledDistances.dat";
@@ -62,14 +68,18 @@ int main(int argc, char* argv[]){
 	FileStreamToWrite << "U\t" << "T\t" << "H\n";
 	for (int StepNumber = 0; StepNumber < MaxNumberOfSweeps; StepNumber++){
 		P.applyVelocityVerlet(Stepsize, ChangeInCoordinates);
-		double Alpha = BT.computeRescalingFactor(P, Stepsize);
-		P.rescaleVelocities(Alpha);
+		//double Alpha = BT.computeRescalingFactor(P, Stepsize);
+		//P.rescaleVelocities(Alpha);
+
+		P.computeTotalMomentum(TotalMomentum);
+		TotalMomentumSeries.push_back(TotalMomentum[0]);
+		TotalMomentumSeries.push_back(TotalMomentum[1]);
 
 		P.updateAverageTraveledDistances(ChangeInCoordinates, AverageTraveledDistances, AvgVelocities, NumberOfyValues);
-		SC.computeStresses();
+		//SC.computeStresses();
 		AvgMSD.push_back(P.computeAverageMSD());
 
-		P.moveImageBoxes(Stepsize);
+		//P.moveImageBoxes(Stepsize);
 
 		FileStreamToWrite <<  fixed << setprecision(numeric_limits<long double>::digits10+1) << P.computePotentialEnergy() << '\t' << P.computeKineticEnergy() << '\t' <<  P.computeEnergy() << endl;
 		if (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() >= NextUpdateTime){
@@ -80,7 +90,7 @@ int main(int argc, char* argv[]){
 	}
 	FileStreamToWrite.close();
 
-	SC.writeAverageStresses("AvgStresses_");
+	//SC.writeAverageStresses("AvgStresses_");
 
 	FileName = "AvgTraveledDistances.dat";
 	FileStreamToWrite.open(FileName, ios_base::app);
@@ -106,6 +116,12 @@ int main(int argc, char* argv[]){
 	FileStreamToWrite.open("AvgMSD.dat");
 	for (int i = 0; i < AvgMSD.size(); i++){
 		FileStreamToWrite << AvgMSD[i] << endl;
+	}
+	FileStreamToWrite.close();
+
+	FileStreamToWrite.open("TotalMomentum_Series.dat");
+	for (int i = 0; i < TotalMomentumSeries.size(); i+=2){
+		FileStreamToWrite << TotalMomentumSeries[i] << '\t' << TotalMomentumSeries[i+1] << endl;
 	}
 	FileStreamToWrite.close();
 

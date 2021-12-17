@@ -553,6 +553,8 @@ class Particles {
 				}
 			}
 			cerr << "Initial kinetic energy: " << computeKineticEnergy() << endl;
+			computeTotalMomentum(TotalMomentum);
+			cerr << fixed << setprecision(numeric_limits<long double>::digits10+1) << "TotalMomentum: (" << TotalMomentum[0] << ',' << TotalMomentum[1] << ')' << endl;
 		}
 
 		void initializeVelocities(double InitialTemperature){
@@ -674,6 +676,16 @@ class Particles {
 
 		double computeEnergy() const {
 			return computePotentialEnergy()+computeKineticEnergy();
+		}
+
+		void computeTotalMomentum(double* Momentum) {
+			*(Momentum + 0) = 0.0;
+			*(Momentum + 1) = 0.0;
+			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++) {
+				for (int Coordinate = 0; Coordinate < DIMENSION; Coordinate++) {
+					*(Momentum + Coordinate) += Velocities[DIMENSION*ParticleIndex+Coordinate];
+				}
+			}
 		}
 
 		void updatePosition(int ParticleIndex, const double* Deltas){
