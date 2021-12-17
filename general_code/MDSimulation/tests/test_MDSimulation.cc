@@ -14,25 +14,42 @@ int main(int argc, char* argv[]){
 	int NumberOfyValues = 15;
 	int NumberOfStressSubdivisions = 14;
 	double Temperature = 0.83;
+	double ShearRate = 0.01;
+	double ThermostatTime = 0.1;
+	const double Stepsize = 0.001;
 
-	Particles P(0.1);
-	P.readInParticlePositions("States_N=1000_T=0.830000_AvgDens=0.750000_MCRuns=2000000_epsAB=0.100000.dat", 2, 3, DENSITY);
-	P.initializeVelocities(Temperature);
+	Particles P(ShearRate);
+	P.readInParticleState("FinalState_long_equilibration_N=1000.dat", 1, 0, DENSITY);
+	//P.initializeVelocities(Temperature, ShearRate);
 	StressComputator SC(P,NumberOfStressSubdivisions);
-	BussiThermostat BT(Temperature, 2.0, DIMENSION*TOTAL_NUMBER_OF_PARTICLES);
+	BussiThermostat BT(Temperature, ThermostatTime, DIMENSION*TOTAL_NUMBER_OF_PARTICLES);
 
 	const auto StartTime = chrono::steady_clock::now();
 	int NextUpdateTime = UPDATE_TIME_INTERVAL;
 
-	double Stepsize = 0.0002;
 	double ChangeInCoordinates [DIMENSION*TOTAL_NUMBER_OF_PARTICLES]{};
 	vector<double> AverageTraveledDistances;
+	vector<double> AvgVelocities;
+	vector<double> AvgMSD;
+
 	ofstream FileStreamToWrite;
 	string FileName = "AvgTraveledDistances.dat";
 	FileStreamToWrite.open(FileName);
 	FileStreamToWrite << endl;
 	double yDelta = 1.0/static_cast<double>(NumberOfyValues);
 	double Currenty = yDelta*0.5;
+	for (int i = 0; i < NumberOfyValues-1; i++){
+		FileStreamToWrite << Currenty*P.getBoxLength() << '\t';
+		Currenty += yDelta;
+	}
+	FileStreamToWrite << Currenty*P.getBoxLength() << '\n';
+	FileStreamToWrite.close();
+
+	FileName = "AvgVelocities.dat";
+	FileStreamToWrite.open(FileName);
+	FileStreamToWrite << endl;
+	yDelta = 1.0/static_cast<double>(NumberOfyValues);
+	Currenty = yDelta*0.5;
 	for (int i = 0; i < NumberOfyValues-1; i++){
 		FileStreamToWrite << Currenty*P.getBoxLength() << '\t';
 		Currenty += yDelta;
@@ -48,7 +65,11 @@ int main(int argc, char* argv[]){
 		double Alpha = BT.computeRescalingFactor(P, Stepsize);
 		P.rescaleVelocities(Alpha);
 
-		P.updateAverageTraveledDistances(ChangeInCoordinates, AverageTraveledDistances, NumberOfyValues);
+		P.updateAverageTraveledDistances(ChangeInCoordinates, AverageTraveledDistances, AvgVelocities, NumberOfyValues);
+		SC.computeStresses();
+		AvgMSD.push_back(P.computeAverageMSD());
+
+		P.moveImageBoxes(Stepsize);
 
 		FileStreamToWrite <<  fixed << setprecision(numeric_limits<long double>::digits10+1) << P.computePotentialEnergy() << '\t' << P.computeKineticEnergy() << '\t' <<  P.computeEnergy() << endl;
 		if (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() >= NextUpdateTime){
@@ -58,6 +79,8 @@ int main(int argc, char* argv[]){
 		}
 	}
 	FileStreamToWrite.close();
+
+	SC.writeAverageStresses("AvgStresses_");
 
 	FileName = "AvgTraveledDistances.dat";
 	FileStreamToWrite.open(FileName, ios_base::app);
@@ -69,10 +92,26 @@ int main(int argc, char* argv[]){
 		FileStreamToWrite << AverageTraveledDistances[NumberOfyValues*i+NumberOfyValues-1]*P.getBoxLength() << '\n';
 	}
 	FileStreamToWrite.close();
-	AverageTraveledDistances.clear();
-	//FileStreamToWrite.open("FinalState.dat");
-	//FileStreamToWrite << P;
-	//FileStreamToWrite.close();
+
+	FileName = "AvgVelocities.dat";
+	FileStreamToWrite.open(FileName, ios_base::app);
+	for (int i = 0; i < NumberOfRows; i++){
+		for (int j = 0; j < NumberOfyValues-1; j++){
+			FileStreamToWrite << AvgVelocities[NumberOfyValues*i+j]*P.getBoxLength() << '\t';
+		}
+		FileStreamToWrite << AvgVelocities[NumberOfyValues*i+NumberOfyValues-1]*P.getBoxLength() << '\n';
+	}
+	FileStreamToWrite.close();
+
+	FileStreamToWrite.open("AvgMSD.dat");
+	for (int i = 0; i < AvgMSD.size(); i++){
+		FileStreamToWrite << AvgMSD[i] << endl;
+	}
+	FileStreamToWrite.close();
+
+	FileStreamToWrite.open("FinalState_long_equilibration_N=1000_2.dat");
+	FileStreamToWrite << P;
+	FileStreamToWrite.close();
 	cerr << "#VerletListBuilds: " << P.getNumberOfVerletListBuilds() << endl;
 	cerr << "Computation time: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s for " << MaxNumberOfSweeps << " MCSweeps." <<  endl << endl;
 }

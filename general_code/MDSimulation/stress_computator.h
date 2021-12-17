@@ -86,7 +86,7 @@ class StressComputator {
 
 			double x0 = P.getPosition(CurrentParticleIndex,0);
 			double y0 = P.getPosition(CurrentParticleIndex,1);
-			double x1 = P.getPosition(OtherParticleIndex,1);
+			double x1 = P.getPosition(OtherParticleIndex,0);
 			double y1 = P.getPosition(OtherParticleIndex,1);
 			double Deltax = x1 - x0;
 			double Deltay = y1 - y0;
@@ -212,7 +212,7 @@ class StressComputator {
 
 			double x0 = P.getPosition(CurrentParticleIndex,0);
 			double y0 = P.getPosition(CurrentParticleIndex,1);
-			double x1 = P.getPosition(OtherParticleIndex,1);
+			double x1 = P.getPosition(OtherParticleIndex,0);
 			double y1 = P.getPosition(OtherParticleIndex,1);
 			double Deltax = x1 - x0;
 			double Deltay = y1 - y0;
@@ -312,11 +312,11 @@ class StressComputator {
 
 		StressComputator(const Particles& P, int IntendedNumberOfSubdivisions):
 			P(P),
-			NumberOfSubdivisions(NumberOfSubdivisions = P.getBoxLength()/static_cast<double>(IntendedNumberOfSubdivisions) > CUTOFF ? IntendedNumberOfSubdivisions : static_cast<int>(P.getBoxLength() / CUTOFF)),
-			NumberOfAverages(0),
-			EdgeLength(P.getBoxLength()/static_cast<double>(NumberOfSubdivisions)),
-			DimensionlessEdgeLength(1.0/static_cast<double>(NumberOfSubdivisions))
+			NumberOfAverages(0)
 		{
+			NumberOfSubdivisions = P.getBoxLength()/static_cast<double>(IntendedNumberOfSubdivisions) > CUTOFF ? IntendedNumberOfSubdivisions : static_cast<int>(P.getBoxLength() / CUTOFF);
+			EdgeLength = P.getBoxLength()/static_cast<double>(NumberOfSubdivisions);
+			DimensionlessEdgeLength = 1.0/static_cast<double>(NumberOfSubdivisions);
 			StressOfEdgesInyDirection.assign(NumberOfSubdivisions*NumberOfSubdivisions*DIMENSION,0.0);
 			StressOfEdgesInxDirection.assign(NumberOfSubdivisions*NumberOfSubdivisions*DIMENSION,0.0);
 			NumberOfForceValuesInxDirection.assign(NumberOfSubdivisions*NumberOfSubdivisions,0);
