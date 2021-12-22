@@ -464,7 +464,6 @@ class Particles {
 
 		void readInParticleState(string FileNameToReadIn, int Skiplines, int StateNumber, double Density) {
 			updateBoxParametersWithDensity(Density);
-			xDisplacement = 0.0;
 
 			TypeAParticleIndices.clear();
 			TypeBParticleIndices.clear();
@@ -474,6 +473,12 @@ class Particles {
 			skipLines(FileStreamToReadIn, Skiplines+StateNumber*(TOTAL_NUMBER_OF_PARTICLES+2));
 
 			string CurrentString;
+			for (int i = 0; i < 4; i++){
+				getline(FileStreamToReadIn, CurrentString, '|');
+			}
+			getline(FileStreamToReadIn, CurrentString, ':');
+			getline(FileStreamToReadIn, CurrentString, '\n');
+			xDisplacement = stod(CurrentString);
 
 			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
 				for (int j = 0; j < DIMENSION; j++){
@@ -667,9 +672,9 @@ class Particles {
 		double computeKineticEnergy() const {
 			double KineticEnergy = 0.0;
 			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
-				for (int i = 0; i < DIMENSION; i++){
-					KineticEnergy += Velocities[DIMENSION*ParticleIndex+i]*Velocities[DIMENSION*ParticleIndex+i];
-				}
+					double xVelWithoutDrift = Velocities[DIMENSION*ParticleIndex] - ShearRate*(Positions[DIMENSION*ParticleIndex+1]-0.5);
+					KineticEnergy += xVelWithoutDrift * xVelWithoutDrift;
+					KineticEnergy += Velocities[DIMENSION*ParticleIndex+1]*Velocities[DIMENSION*ParticleIndex+1];
 			}
 			return KineticEnergy*BoxLengthSquared*0.5;
 		}
@@ -826,9 +831,10 @@ class Particles {
 
 		void rescaleVelocities(double RescalingFactor) {
 			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
-				for (int Coordinate = 0; Coordinate < DIMENSION; Coordinate++){
-					Velocities[DIMENSION*ParticleIndex+Coordinate] *= RescalingFactor;
-				}
+					//Velocities[DIMENSION*ParticleIndex] -= ShearRate*(Positions[DIMENSION*ParticleIndex+1]-0.5);
+					//Velocities[DIMENSION*ParticleIndex] *= RescalingFactor;
+					//Velocities[DIMENSION*ParticleIndex] += ShearRate*(Positions[DIMENSION*ParticleIndex+1]-0.5);
+					Velocities[DIMENSION*ParticleIndex + 1] *= RescalingFactor;
 			}
 		}
 

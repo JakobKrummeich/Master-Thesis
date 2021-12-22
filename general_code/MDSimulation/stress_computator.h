@@ -360,6 +360,7 @@ class StressComputator {
 				}
 			}
 			FileStreamToWrite.close();
+			cerr << fixed << setprecision(5);
 			cerr << "Avg number of force values per edge:\n";
 			cerr << "xEdges:\n";
 			double TotalAverage = 0.0;
