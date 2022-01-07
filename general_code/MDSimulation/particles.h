@@ -19,6 +19,9 @@ using namespace std;
 
 
 class Particles {
+
+	friend class StressComputator;
+
 	private:
 		double Positions [DIMENSION*TOTAL_NUMBER_OF_PARTICLES];
 		double Velocities [DIMENSION*TOTAL_NUMBER_OF_PARTICLES];

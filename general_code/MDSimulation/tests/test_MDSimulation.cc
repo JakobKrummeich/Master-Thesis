@@ -10,7 +10,7 @@ using namespace std;
 
 int main(int argc, char* argv[]){
 	int MaxNumberOfEquilibrationSweeps = 100000;
-	int MaxNumberOfShearSweeps = 2000000;
+	int MaxNumberOfShearSweeps = 200000;
 
 	int NumberOfyValues = 15;
 	int NumberOfStressSubdivisions = 14;
