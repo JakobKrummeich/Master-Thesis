@@ -672,9 +672,9 @@ class Particles {
 		double computeKineticEnergy() const {
 			double KineticEnergy = 0.0;
 			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
-					double xVelWithoutDrift = Velocities[DIMENSION*ParticleIndex] - ShearRate*(Positions[DIMENSION*ParticleIndex+1]-0.5);
-					KineticEnergy += xVelWithoutDrift * xVelWithoutDrift;
-					KineticEnergy += Velocities[DIMENSION*ParticleIndex+1]*Velocities[DIMENSION*ParticleIndex+1];
+					//double xVelWithoutDrift = Velocities[DIMENSION*ParticleIndex] - ShearRate*(Positions[DIMENSION*ParticleIndex+1]-0.5);
+					//KineticEnergy += xVelWithoutDrift * xVelWithoutDrift;
+					KineticEnergy += Velocities[DIMENSION*ParticleIndex]*Velocities[DIMENSION*ParticleIndex]+Velocities[DIMENSION*ParticleIndex+1]*Velocities[DIMENSION*ParticleIndex+1];
 			}
 			return KineticEnergy*BoxLengthSquared*0.5;
 		}

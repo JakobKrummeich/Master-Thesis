@@ -9,6 +9,8 @@ class StressComputator {
 		vector<int> NumberOfForceValuesInxDirection;
 		int NumberOfAverages;
 
+		vector<double> SeriesOfAveragexShearStresses;
+
 		double EdgeLength;
 		int NumberOfSubdivisions;
 		double DimensionlessEdgeLength;
@@ -204,7 +206,7 @@ class StressComputator {
 			}
 		}
 
-		void computeForceThroughxEdge(int CurrentParticleIndex, int OtherParticleIndex, double xOffset, int xEdgeIndex, int yEdgeIndex, vector<double>& StressOfEdgesInxDirection) {
+		void computeForceThroughxEdge(int CurrentParticleIndex, int OtherParticleIndex, double xOffset, int xEdgeIndex, int yEdgeIndex, vector<double>& StressOfEdgesInxDirection, double& AveragexShearStress, int& NumberOfShearValues) {
 			int EdgeIndex = xEdgeIndex+NumberOfSubdivisions*yEdgeIndex;
 			double yPositionOfEdge = static_cast<double>(yEdgeIndex+1)*DimensionlessEdgeLength;
 			double LowerxOfEdge = static_cast<double>(xEdgeIndex)*DimensionlessEdgeLength;
@@ -239,13 +241,17 @@ class StressComputator {
 						double MagnitudeOfForce = P.computePairwiseMagnitudeOfForce(DistanceSquared);
 						StressOfEdgesInxDirection[EdgeIndex*DIMENSION] += InteractionStrength*MagnitudeOfForce*P.getBoxLength()*Deltay;
 						StressOfEdgesInxDirection[EdgeIndex*DIMENSION+1] += InteractionStrength*MagnitudeOfForce*P.getBoxLength()*Deltax;
+
+						AveragexShearStress += InteractionStrength*MagnitudeOfForce*P.getBoxLength()*Deltax;
+						NumberOfShearValues++;
+
 						NumberOfForceValuesInxDirection[EdgeIndex]++;
 					}
 				}
 			}
 		}
 
-		void computeForcesThroughxEdge(int xEdgeIndex, int yEdgeIndex, int xIndexOtherCell, int CurrentParticleIndex, double xOffset, vector<double>& StressOfEdgesInxDirection) {
+		void computeForcesThroughxEdge(int xEdgeIndex, int yEdgeIndex, int xIndexOtherCell, int CurrentParticleIndex, double xOffset, vector<double>& StressOfEdgesInxDirection, double& AveragexShearStress, int& NumberOfShearValues) {
 			if (xIndexOtherCell < 0){
 				xIndexOtherCell += NumberOfSubdivisions;
 			}
@@ -256,7 +262,7 @@ class StressComputator {
 			if (yIndexOtherCell >= NumberOfSubdivisions){
 				int OtherParticleIndex = CellListHeadDisplacedCells[NumberOfSubdivisions+xIndexOtherCell];
 				while (OtherParticleIndex >= 0){
-					computeForceThroughxEdge(CurrentParticleIndex, OtherParticleIndex, xOffset, xEdgeIndex, yEdgeIndex, StressOfEdgesInxDirection);
+					computeForceThroughxEdge(CurrentParticleIndex, OtherParticleIndex, xOffset, xEdgeIndex, yEdgeIndex, StressOfEdgesInxDirection, AveragexShearStress, NumberOfShearValues);
 					OtherParticleIndex = CellListIndicesDisplacedCells[OtherParticleIndex];
 				}
 			}
@@ -264,17 +270,17 @@ class StressComputator {
 				int OtherCell = xIndexOtherCell+NumberOfSubdivisions*yIndexOtherCell;
 				int OtherParticleIndex = CellListHead[OtherCell];
 				while (OtherParticleIndex >= 0){
-					computeForceThroughxEdge(CurrentParticleIndex, OtherParticleIndex, xOffset, xEdgeIndex, yEdgeIndex, StressOfEdgesInxDirection);
+					computeForceThroughxEdge(CurrentParticleIndex, OtherParticleIndex, xOffset, xEdgeIndex, yEdgeIndex, StressOfEdgesInxDirection, AveragexShearStress, NumberOfShearValues);
 					OtherParticleIndex = CellListIndices[OtherParticleIndex];
 				}
 			}
 		}
 
-		void computeForceThroughxEdge(int xEdgeIndex, int yEdgeIndex, vector<double>& StressOfEdgesInxDirection){
+		void computeForceThroughxEdge(int xEdgeIndex, int yEdgeIndex, vector<double>& StressOfEdgesInxDirection, double& AveragexShearStress, int& NumberOfShearValues){
 			int CurrentParticleIndex = CellListHead[xEdgeIndex+NumberOfSubdivisions*yEdgeIndex];
 			while (CurrentParticleIndex >= 0){
 				for (int xIndexOffset = -1; xIndexOffset < 2; xIndexOffset++){
-					computeForcesThroughxEdge(xEdgeIndex, yEdgeIndex, xEdgeIndex+xIndexOffset, CurrentParticleIndex, 0.0, StressOfEdgesInxDirection);
+					computeForcesThroughxEdge(xEdgeIndex, yEdgeIndex, xEdgeIndex+xIndexOffset, CurrentParticleIndex, 0.0, StressOfEdgesInxDirection, AveragexShearStress, NumberOfShearValues);
 				}
 				CurrentParticleIndex = CellListIndices[CurrentParticleIndex];
 			}
@@ -288,7 +294,7 @@ class StressComputator {
 			CurrentParticleIndex = CellListHead[xCellIndex+NumberOfSubdivisions*yEdgeIndex];
 			while (CurrentParticleIndex >= 0){
 				for (int xIndexOffset = -2; xIndexOffset < 0; xIndexOffset++){
-					computeForcesThroughxEdge(xEdgeIndex, yEdgeIndex, xCellIndex+xIndexOffset, CurrentParticleIndex, xOffset, StressOfEdgesInxDirection);
+					computeForcesThroughxEdge(xEdgeIndex, yEdgeIndex, xCellIndex+xIndexOffset, CurrentParticleIndex, xOffset, StressOfEdgesInxDirection, AveragexShearStress, NumberOfShearValues);
 				}
 				CurrentParticleIndex = CellListIndices[CurrentParticleIndex];
 			}
@@ -302,7 +308,7 @@ class StressComputator {
 			CurrentParticleIndex = CellListHead[xCellIndex+NumberOfSubdivisions*yEdgeIndex];
 			while (CurrentParticleIndex >= 0){
 				for (int xIndexOffset = 1; xIndexOffset < 3; xIndexOffset++){
-					computeForcesThroughxEdge(xEdgeIndex, yEdgeIndex, xCellIndex+xIndexOffset, CurrentParticleIndex, xOffset, StressOfEdgesInxDirection);
+					computeForcesThroughxEdge(xEdgeIndex, yEdgeIndex, xCellIndex+xIndexOffset, CurrentParticleIndex, xOffset, StressOfEdgesInxDirection, AveragexShearStress, NumberOfShearValues);
 				}
 				CurrentParticleIndex = CellListIndices[CurrentParticleIndex];
 			}
@@ -326,12 +332,24 @@ class StressComputator {
 		void computeStresses() {
 			NumberOfAverages++;
 			buildCellLists();
+
+			double AveragexShearStress = 0.0;
+			int NumberOfShearStresses = 0;
+
 			for (int xEdgeIndex = 0; xEdgeIndex < NumberOfSubdivisions; xEdgeIndex++){
 				for (int yEdgeIndex = 0; yEdgeIndex < NumberOfSubdivisions; yEdgeIndex++){
-					computeForceThroughyEdge(xEdgeIndex,yEdgeIndex,StressOfEdgesInyDirection);
-					computeForceThroughxEdge(xEdgeIndex,yEdgeIndex,StressOfEdgesInxDirection);
+					computeForceThroughyEdge(xEdgeIndex, yEdgeIndex, StressOfEdgesInyDirection);
+					computeForceThroughxEdge(xEdgeIndex, yEdgeIndex, StressOfEdgesInxDirection, AveragexShearStress, NumberOfShearStresses);
 				}
 			}
+			SeriesOfAveragexShearStresses.push_back(AveragexShearStress/static_cast<double>(NumberOfShearStresses));
+			double controlValue = 0.0;
+			for (int xEdgeIndex = 0; xEdgeIndex < NumberOfSubdivisions; xEdgeIndex++){
+				for (int yEdgeIndex = 0; yEdgeIndex < NumberOfSubdivisions; yEdgeIndex++){
+					controlValue += StressOfEdgesInxDirection[DIMENSION * (xEdgeIndex+NumberOfSubdivisions*yEdgeIndex)+1];
+				}
+			}
+			cerr << "control value:" << controlValue << endl;
 		}
 
 		void writeAverageStresses(string FilePath) const {
@@ -360,6 +378,13 @@ class StressComputator {
 				}
 			}
 			FileStreamToWrite.close();
+			FileStreamToWrite.open(FilePath+"_xShearStressSeries.dat");
+			FileStreamToWrite << "avg x shear stresses series (i.e. shear stresses through edges in x direction)" << endl;
+			for (int i = 0; i < SeriesOfAveragexShearStresses.size(); i++){
+				FileStreamToWrite << SeriesOfAveragexShearStresses[i] << '\n';
+			}
+			FileStreamToWrite.close();
+
 			cerr << fixed << setprecision(5);
 			cerr << "Avg number of force values per edge:\n";
 			cerr << "xEdges:\n";
