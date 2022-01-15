@@ -10,14 +10,14 @@ using namespace std;
 
 int main(int argc, char* argv[]){
 	int MaxNumberOfEquilibrationSweeps = 100000;
-	int MaxNumberOfShearSweeps = 1000000;
+	int MaxNumberOfShearSweeps = 10000;
 
 	int NumberOfyValues = 15;
 	int NumberOfStressSubdivisions = 14;
 	double Temperature = 2.0;
 	double ShearRate = 0.1;
 	double ThermostatTime = 0.1;
-	const double Stepsize = 0.0001;
+	const double Stepsize = 0.0004;
 
 	Particles P(500, DENSITY, Temperature, 0.0, 0.0);
 	//Particles P(ShearRate);

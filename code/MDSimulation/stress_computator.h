@@ -7,7 +7,9 @@ class StressComputator {
 		vector<int> NumberOfForceValuesInyDirection;
 		vector<double> StressOfEdgesInxDirection;
 		vector<int> NumberOfForceValuesInxDirection;
+
 		int NumberOfAverages;
+		int NumberOfConfigurations;
 
 		vector<double> SeriesOfAveragexShearStresses;
 
@@ -364,9 +366,11 @@ class StressComputator {
 
 	public:
 
-		StressComputator(const Particles& P, int IntendedNumberOfSubdivisions):
+		StressComputator(const Particles& P, int IntendedNumberOfSubdivisions, int NumberOfTimeSteps, int NumberOfAverageConfigurations):
 			P(P),
-			NumberOfAverages(0)
+			NumberOfAverages(0),
+			NumberOfConfigurations(NumberOfAverageConfigurations),
+			SeriesOfAveragexShearStresses(NumberOfTimeSteps,0.0)
 		{
 			NumberOfSubdivisions = P.getBoxLength()/static_cast<double>(IntendedNumberOfSubdivisions) > CUTOFF ? IntendedNumberOfSubdivisions : static_cast<int>(P.getBoxLength() / CUTOFF);
 			EdgeLength = P.getBoxLength()/static_cast<double>(NumberOfSubdivisions);
@@ -377,7 +381,7 @@ class StressComputator {
 			NumberOfForceValuesInyDirection.assign(NumberOfSubdivisions*NumberOfSubdivisions,0);
 		}
 
-		void computeStresses() {
+		void computeStresses(int TimeStep) {
 			NumberOfAverages++;
 			buildCellLists();
 
@@ -389,7 +393,7 @@ class StressComputator {
 					computeForceThroughxEdge(xEdgeIndex, yEdgeIndex, StressOfEdgesInxDirection, AveragexShearStress);
 				}
 			}
-			SeriesOfAveragexShearStresses.push_back(AveragexShearStress/(static_cast<double>(NumberOfSubdivisions*NumberOfSubdivisions)*EdgeLength));
+			SeriesOfAveragexShearStresses[TimeStep] += (AveragexShearStress/(static_cast<double>(NumberOfSubdivisions*NumberOfSubdivisions)*EdgeLength));
 		}
 
 		void writeAverageStresses(string FilePath) const {
@@ -421,7 +425,7 @@ class StressComputator {
 			FileStreamToWrite.open(FilePath+"_xShearStressSeries.dat");
 			FileStreamToWrite << "avg x shear stresses series (i.e. shear stresses through edges in x direction)" << endl;
 			for (int i = 0; i < SeriesOfAveragexShearStresses.size(); i++){
-				FileStreamToWrite << SeriesOfAveragexShearStresses[i] << '\n';
+				FileStreamToWrite << SeriesOfAveragexShearStresses[i]/static_cast<double>(NumberOfConfigurations) << '\n';
 			}
 			FileStreamToWrite.close();
 
