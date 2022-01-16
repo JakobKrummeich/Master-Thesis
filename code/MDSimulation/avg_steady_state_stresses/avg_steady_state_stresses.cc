@@ -9,8 +9,8 @@
 using namespace std;
 
 int main(int argc, char* argv[]){
-	const int MaxNumberOfEquilibrationSweeps = 1000;
-	const int NumberOfDataTakingSweeps = 1000;
+	const int MaxNumberOfEquilibrationSweeps = 20000;
+	const int NumberOfDataTakingSweeps = 20000;
 
 	const double ShearRate = atof(argv[1]);
 	const int NumberOfShearEquilibrationSweeps = atoi(argv[2]);

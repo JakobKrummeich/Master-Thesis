@@ -21,7 +21,7 @@ settings="#!/bin/bash
 #SBATCH --partition=parallel
 #SBATCH --nodes=1-1
 #SBATCH --output=/dev/null
-#SBATCH --cpus-per-task=2
+#SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=800mb
 #SBATCH --workdir=/home1/krummeich/Master-Thesis/code/MDSimulation/avg_steady_state_stresses"
 
@@ -44,13 +44,14 @@ for shear_rate_eq_steps_pair in "${shear_rate_eq_steps_pairs[@]}"; do
 	echo "$settings" > ${submit_filename}
 	echo  -e  >> ${submit_filename}
 
-	shear_directory=${new_directory}/shear_rate=${tuple[0]}
+	shear_directory=${new_directory}/shear_rate=${tuple[0]}/
 	make_directory_if_necessary shear_directory
 
-	srun_command="srun --ntasks=1 --error=error_stream_output/N=${N}_%J.err ./avg_steady_state_stresses ${tuple[0]} ${tuple[1]} ${shear_directory} &
+	srun_command="srun --ntasks=1 --error=${shear_directory}/error_stream.err ./avg_steady_state_stresses ${tuple[0]} ${tuple[1]} ${shear_directory} &
 
 wait"
 	echo "$srun_command" >> ${submit_filename}
-	#sbatch ${submit_filename}
+	sbatch ${submit_filename}
+
 done
 
