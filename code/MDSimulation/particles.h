@@ -561,8 +561,6 @@ class Particles {
 				}
 			}
 			cerr << "Initial kinetic energy: " << computeKineticEnergy() << endl;
-			computeTotalMomentum(TotalMomentum);
-			cerr << fixed << setprecision(numeric_limits<long double>::digits10+1) << "TotalMomentum: (" << TotalMomentum[0] << ',' << TotalMomentum[1] << ')' << endl;
 		}
 
 		static double computePairwiseMagnitudeOfForce(double DistanceSquared) { //intentionally off by a factor r, so we can just multiply with r-vector to get the correct result
@@ -833,9 +831,6 @@ class Particles {
 
 		void rescaleVelocities(double RescalingFactor) {
 			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
-					//Velocities[DIMENSION*ParticleIndex] -= ShearRate*(Positions[DIMENSION*ParticleIndex+1]-0.5);
-					//Velocities[DIMENSION*ParticleIndex] *= RescalingFactor;
-					//Velocities[DIMENSION*ParticleIndex] += ShearRate*(Positions[DIMENSION*ParticleIndex+1]-0.5);
 					Velocities[DIMENSION*ParticleIndex + 1] *= RescalingFactor;
 			}
 		}
