@@ -79,7 +79,7 @@ int main(int argc, char* argv[]){
 			}
 		}
 		cerr << "#VerletListBuilds: " << P.getNumberOfVerletListBuilds() << endl;
-		cerr << "Computation time: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s for " << NumberOfShearEquilibrationSweeps+MaxNumberOfEquilibrationSweeps+NumberOfDataTakingSweeps << " MCSweeps." <<  endl << endl;
+		cerr << "Computation time: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s for " << NumberOfShearEquilibrationSweeps+MaxNumberOfEquilibrationSweeps+NumberOfDataTakingSweeps << " steps." <<  endl << endl;
 	}
 
 	SC.writeAverageStresses(DataPath+"AvgStresses_T="+to_string(Temperature)+"_shear_rate="+to_string(ShearRate));
