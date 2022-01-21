@@ -12,6 +12,7 @@ class StressComputator {
 		int NumberOfConfigurations;
 
 		vector<double> SeriesOfAveragexShearStresses;
+		double AveragexShearStressTotal;
 
 		double EdgeLength;
 		int NumberOfSubdivisions;
@@ -353,7 +354,7 @@ class StressComputator {
 							if (DistanceSquared < CUTOFF_SQUARED){
 								double InteractionStrength = (P.getParticleType(ParticleIndex) == P.getParticleType(OtherParticleIndex) ? AA_INTERACTION_STRENGTH : AB_INTERACTION_STRENGTH);
 								double MagnitudeOfForce = P.computePairwiseMagnitudeOfForce(DistanceSquared);
-								ShearStress += InteractionStrength*MagnitudeOfForce*P.getBoxLength()*Deltax;
+								ShearStress += InteractionStrength*MagnitudeOfForce*Deltax*Deltay;
 							}
 						}
 					}
@@ -370,7 +371,8 @@ class StressComputator {
 			P(P),
 			NumberOfAverages(0),
 			NumberOfConfigurations(NumberOfAverageConfigurations),
-			SeriesOfAveragexShearStresses(NumberOfTimeSteps,0.0)
+			SeriesOfAveragexShearStresses(NumberOfTimeSteps,0.0),
+			AveragexShearStressTotal(0.0)
 		{
 			NumberOfSubdivisions = P.getBoxLength()/static_cast<double>(IntendedNumberOfSubdivisions) > CUTOFF ? IntendedNumberOfSubdivisions : static_cast<int>(P.getBoxLength() / CUTOFF);
 			EdgeLength = P.getBoxLength()/static_cast<double>(NumberOfSubdivisions);
@@ -394,6 +396,7 @@ class StressComputator {
 				}
 			}
 			SeriesOfAveragexShearStresses[TimeStep] += (AveragexShearStress/(static_cast<double>(NumberOfSubdivisions*NumberOfSubdivisions)*EdgeLength));
+			AveragexShearStressTotal += computeTotalxShearStress();
 		}
 
 		void writeAverageStresses(string FilePath) const {
@@ -452,5 +455,7 @@ class StressComputator {
 			}
 			cerr << "Total avg: " << TotalAverage/(NumberOfAverages*NumberOfSubdivisions*NumberOfSubdivisions) << endl;
 			cerr << endl;
+
+			cerr << "Avg x shear stress total=" << AveragexShearStressTotal/(static_cast<double>(NumberOfAverages)) << endl;
 		}
 };

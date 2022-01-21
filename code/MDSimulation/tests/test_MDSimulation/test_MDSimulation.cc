@@ -2,28 +2,28 @@
 #include <stdlib.h>
 #include <string>
 #include <chrono>
-#include "../particles.h"
-#include "../stress_computator.h"
-#include "../thermostat.h"
+#include "../../particles.h"
+#include "../../stress_computator.h"
+#include "../../thermostat.h"
 
 using namespace std;
 
 int main(int argc, char* argv[]){
-	int MaxNumberOfEquilibrationSweeps = 100000;
-	int MaxNumberOfShearSweeps = 10000;
+	int MaxNumberOfEquilibrationSweeps = 10000;
+	int MaxNumberOfShearSweeps = 500000;
 
 	int NumberOfyValues = 15;
 	int NumberOfStressSubdivisions = 14;
 	double Temperature = 2.0;
-	double ShearRate = 0.1;
-	double ThermostatTime = 0.1;
+	double ShearRate = 0.02;
+	double ThermostatTime = 0.03;
 	const double Stepsize = 0.0004;
 
 	Particles P(500, DENSITY, Temperature, 0.0, 0.0);
 	//Particles P(ShearRate);
 	//P.readInParticleState("FinalState_long_equilibration_N=1000.dat", 0, 0, DENSITY);
 
-	StressComputator SC(P,NumberOfStressSubdivisions);
+	StressComputator SC(P,NumberOfStressSubdivisions,MaxNumberOfShearSweeps,1);
 	BussiThermostat BT(Temperature, ThermostatTime, DIMENSION*TOTAL_NUMBER_OF_PARTICLES);
 
 	const auto StartTime = chrono::steady_clock::now();
@@ -71,7 +71,7 @@ int main(int argc, char* argv[]){
 		P.rescaleVelocities(Alpha);
 
 		P.updateAverageVelocities(AvgVelocities, NumberOfyValues);
-		SC.computeStresses();
+		SC.computeStresses(StepNumber);
 		//AvgMSD.push_back(P.computeAverageMSD());
 
 		P.moveImageBoxes(Stepsize);
