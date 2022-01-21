@@ -56,6 +56,8 @@ class Particles {
 		double TotalChangeInCoordinates [DIMENSION*TOTAL_NUMBER_OF_PARTICLES];
 
 		double NumberOfVerletListBuilds;
+		double NumberOfTriedTypeChanges;
+		double NumberOfAcceptedTypeChanges;
 
 		void buildCellList(){
 			CellListHead.clear();
@@ -386,6 +388,30 @@ class Particles {
 			return computePairwiseParticlePotentialEnergy(DistanceSquared);
 		}
 
+		double computeChangeInPotentialEnergyBySwitching(int ParticleIndexInTypeArray, ParticleType ParticleTypeBefore) const {
+			int ParticleIndex = (ParticleTypeBefore == ParticleType::A) ? TypeAParticleIndices[ParticleIndexInTypeArray] : TypeBParticleIndices[ParticleIndexInTypeArray];
+			double PotEnergyChange = 0.0;
+			for (int i = 0; i < VerletListHead[2*ParticleIndex+1]; i++){
+				int OtherParticleIndex = VerletIndicesOfNeighbors[VerletListHead[2*ParticleIndex]+i];
+				double PrefactorDifference = (ParticleTypes[ParticleIndex] == ParticleTypes[OtherParticleIndex]) ? AB_INTERACTION_STRENGTH - AA_INTERACTION_STRENGTH : AA_INTERACTION_STRENGTH - AB_INTERACTION_STRENGTH;
+				PotEnergyChange += PrefactorDifference * computePairwiseParticlePotentialEnergy(&Positions[DIMENSION*OtherParticleIndex], &Positions[DIMENSION*ParticleIndex]);
+			}
+			return PotEnergyChange;
+		}
+
+		void switchParticleType(int ParticleIndexInTypeArray, ParticleType ParticleTypeBefore) {
+			if (ParticleTypeBefore == ParticleType::A){
+				TypeBParticleIndices.push_back(TypeAParticleIndices[ParticleIndexInTypeArray]);
+				ParticleTypes[TypeAParticleIndices[ParticleIndexInTypeArray]] = ParticleType::B;
+				TypeAParticleIndices.erase(ParticleIndexInTypeArray);
+			}
+			else {
+				TypeAParticleIndices.push_back(TypeBParticleIndices[ParticleIndexInTypeArray]);
+				ParticleTypes[TypeBParticleIndices[ParticleIndexInTypeArray]] = ParticleType::A;
+				TypeBParticleIndices.erase(ParticleIndexInTypeArray);
+			}
+		}
+
 	public:
 
 		Particles(double ShearRate):
@@ -611,6 +637,8 @@ class Particles {
 
 		void resetCounters() {
 			NumberOfVerletListBuilds = 0.0;
+			NumberOfTriedTypeChanges = 0.0;
+			NumberOfAcceptedTypeChanges = 0.0;
 		}
 
 		int getNumberOfAParticles() const {
@@ -832,6 +860,41 @@ class Particles {
 		void rescaleVelocities(double RescalingFactor) {
 			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
 					Velocities[DIMENSION*ParticleIndex + 1] *= RescalingFactor;
+			}
+		}
+
+		void runTypeChange(realUniformRNG& RNG, int MinNumberOfA, int MaxNumberOfA, double Beta) {
+			NumberOfTriedTypeChanges++;
+			int NumberOfAParticles = getNumberOfAParticles();
+			int NumberOfBParticles = getNumberOfBParticles();
+			int RandomParticleIndexInTypeArray;
+			double ParticleNumbersPrefactor;
+
+			ParticleType ParticleTypeBefore;
+			bool ParticleSwitchAllowed = false;
+
+			if (RNG.drawRandomNumber() <= 0.5){
+				if (NumberOfAParticles > MinNumberOfA){
+					ParticleSwitchAllowed = true;
+					RandomParticleIndexInTypeArray = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(NumberOfAParticles));
+					ParticleTypeBefore = ParticleType::A;
+					ParticleNumbersPrefactor = static_cast<double>(NumberOfAParticles)/static_cast<double>(NumberOfBParticles+1);
+				}
+			}
+			else {
+				if (NumberOfAParticles < MaxNumberOfA){
+					ParticleSwitchAllowed = true;
+					RandomParticleIndexInTypeArray = static_cast<int>(RNG.drawRandomNumber()*static_cast<double>(NumberOfBParticles));
+					ParticleTypeBefore = ParticleType::B;
+					ParticleNumbersPrefactor = static_cast<double>(NumberOfBParticles)/static_cast<double>(NumberOfAParticles+1);
+				}
+			}
+			if (ParticleSwitchAllowed){
+				double AcceptanceProbability = ParticleNumbersPrefactor*exp(-Beta*(computeChangeInPotentialEnergyBySwitching(RandomParticleIndexInTypeArray, ParticleTypeBefore)));
+				if (AcceptanceProbability >= 1.0 || (RNG.drawRandomNumber() < AcceptanceProbability)){
+					switchParticleType(RandomParticleIndexInTypeArray, ParticleTypeBefore);
+					NumberOfAcceptedTypeChanges++;
+				}
 			}
 		}
 

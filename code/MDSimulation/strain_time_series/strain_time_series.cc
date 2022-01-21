@@ -16,7 +16,7 @@ int main(int argc, char* argv[]){
 	int NumberOfStressSubdivisions = 14;
 	double Temperature = 2.0;
 	double ShearRate = 0.05;
-	double ThermostatTime = 0.2;
+	double ThermostatTime = 0.05;
 	const double Stepsize = 0.0004;
 
 	const int NumberOfPositions = 500;
