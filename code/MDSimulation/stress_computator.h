@@ -1,4 +1,13 @@
+#ifndef STRESS_COMPUTATOR_INCLUDED
+#define STRESS_COMPUTATOR_INCLUDED
+
+#include <iostream>
+#include <vector>
+#include <string>
+
 #include "particles.h"
+
+using namespace std;
 
 class StressComputator {
 	private:
@@ -459,3 +468,5 @@ class StressComputator {
 			cerr << "Avg x shear stress total=" << AveragexShearStressTotal/(static_cast<double>(NumberOfAverages)) << endl;
 		}
 };
+
+#endif // STRESS_COMPUTATOR_INCLUDED
