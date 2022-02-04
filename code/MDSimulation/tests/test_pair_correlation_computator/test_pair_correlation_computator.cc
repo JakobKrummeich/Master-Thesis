@@ -10,21 +10,21 @@
 using namespace std;
 
 int main(int argc, char* argv[]){
-	int MaxNumberOfEquilibrationSweeps = 1000;
-	int MaxNumberOfShearSweeps = 2000;
+	int MaxNumberOfEquilibrationSweeps = 10000;
+	int MaxNumberOfShearSweeps = 15000;
 
 	int NumberOfyValues = 15;
 	int NumberOfStressSubdivisions = 14;
 	const double Temperature = 2.0;
 	const double Beta = 1.0/Temperature;
-	double ShearRate = 0.0;
+	double ShearRate = 0.04;
 	double ThermostatTime = 0.001;
 	const double Stepsize = 0.001;
 	const int numberOfPositions = 1000;
 
 	realUniformRNG RNG;
 
-	PairCorrelationComputator PCC(400);
+	PairCorrelationComputator PCC(100,5.0,sqrt(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES) / DENSITY));
 	BussiThermostat BT(Temperature, ThermostatTime, DIMENSION*TOTAL_NUMBER_OF_PARTICLES);
 
 	for (int positionsIndex = 0; positionsIndex < numberOfPositions; positionsIndex++){
@@ -71,6 +71,6 @@ int main(int argc, char* argv[]){
 		cerr << "Computation time: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s for " << MaxNumberOfShearSweeps+MaxNumberOfEquilibrationSweeps << " MCSweeps." <<  endl << endl;
 	}
 
-	PCC.writeResults("./", sqrt(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES/DENSITY)));
+	PCC.writeResults("./");
 }
 

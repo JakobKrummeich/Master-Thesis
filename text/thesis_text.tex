@@ -1,0 +1,239 @@
+\documentclass[DIV=9,11pt,BCOR=5mm,twoside=semi,abstract]{scrreprt}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{dsfont}
+\usepackage[main=american,australian,ngerman,british]{babel}
+\usepackage{csquotes}
+%\usepackage[onehalfspacing]{setspace}
+
+\usepackage[separate-uncertainty=true]{siunitx}
+\sisetup{range-phrase=-,range-units=single}
+\usepackage{xcolor}
+\usepackage{xpatch}
+\usepackage{float}
+\usepackage{placeins}
+\usepackage{graphicx}
+
+\usepackage{multirow}
+\usepackage{microtype}
+
+
+\usepackage[style=numeric,backend=biber, dateabbrev=false,urldate=long,sorting=none]{biblatex} 
+\addbibresource{bibBA.bib}
+
+%allow linebreaks after numbers in urls and dois 
+\setcounter{biburlnumpenalty}{9000}
+
+%\KOMAoptions{DIV=last}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+	
+%	\titlehead{{\Large Ruprecht-Karls-Universität Heidelberg}}
+%	\subject{Bachelor Thesis}
+%	\title{Development of a cooling system for mirrors in an UHV chamber}
+%	\author{Jakob Krummeich}
+%	\date{13.09.2019}
+%	\publishers{Adviser and first examiner: Priv.-Doz. Dr. José Ramón Crespo López-Urrutia\\
+%				Second examiner: Prof. Dr. Thomas Pfeifer}
+%	\maketitle
+
+\begin{titlepage}
+	\centering
+	\textbf{\Large Theoretische Physik II: Soft Matter\\}
+	\textbf{\Large Heinrich-Heine-Universität Düsseldorf\\}
+	\vspace{12 cm}
+	Master thesis in physics submitted by\\
+	\vspace{4mm}
+	\textbf{\large Jakob Krummeich\\}
+	\vspace{4mm}
+	and written at the\\
+	\vspace{4mm}
+	\textbf{Institute for Theoretical Physics\\}
+	\vspace{4mm}
+	\textbf{Düsseldorf\\}
+	\vspace{4mm}
+	\textbf{XX.XX.2022}
+	
+	\cleardoubleoddpage
+	\thispagestyle{empty}
+	\centering
+	\textbf{\huge Critical behavior of a 2-D Lennard-Jones mixture under shear \\}
+	\vspace{4mm}
+	\textbf{\huge \\}
+	
+	\vspace{12cm}
+	
+	\begin{tabular}{ll}
+		Adviser and first examiner: & Prof. Dr. J. Horbarch\\
+		\rule{0pt}{4ex}
+		Second examiner: & Prof. Dr. H. Löwen
+	\end{tabular}
+	
+	
+\end{titlepage}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+	\begin{abstract}
+	
+	\end{abstract}
+	
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+	\AfterTOCHead[toc]{%
+		\thispagestyle{empty}%
+		\pagestyle{empty}%
+	}
+	
+	\tableofcontents
+	\thispagestyle{empty}
+	\cleardoubleoddpage
+	\pagenumbering{arabic}
+	
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+	\chapter{Introduction}
+	\label{chap:introduction}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+	\chapter{Theoretical background}
+	\label{chap:theory}
+
+	\section{Pair correlation function }
+	\label{sec:theory_pair_correlation_function}
+	
+	The partial pair correlation functions for a binary mixture can be defined as 
+	
+	\begin{align}
+		g_{\alpha\beta}\left( \vec{r} \right) = \frac{V}{N_{\alpha}N_{\beta}} \langle \sum_{i \neq j} \delta \left( \vec{r} - \left( \vec{r}_i - \vec{r}_j \right) \right) \rangle
+	\end{align}
+	
+	where $\alpha,\beta \in \{A,B\}$ label the particle type, $V$ is the total volume, $N_{\alpha}$, $N_{\beta}$ denote the particle numbers, $\langle . \rangle$ indicates the ensemble average and $\delta (.)$ is the delta function. The sum runs over all pairs of particles $i,j$ where $i \neq j$, so that $\vec{r}_{ij} = \vec{r}_i - \vec{r}_j$ are the distance vectors between particle types $\alpha$ and $\beta$. Thus, $g_{\alpha \beta} \left( \vec{r} \right)$ simply is the averaged distribution of  $\vec{r}_{ij}$ over the volume space $V$. Note that this definition implies $g_{\alpha\beta} (\vec{r}) = g_{\alpha\beta} (-\vec{r})$, i.e. $g_{\alpha\beta}(\vec{r})$ is an even function. \par
+	
+	In 2 dimensions with the usual map
+	
+	\begin{align}
+		\vec{r} = 
+		\begin{pmatrix}
+			r \cdot \cos \phi\\
+			r \cdot \sin \phi
+		\end{pmatrix}
+	\end{align}
+
+	for $r\in (0, \infty]$, $\phi \in [0, 2\pi)$ and
+	
+	\begin{align}
+		\phi_{ij} = \sphericalangle \left( \vec{r}_i,\vec{r}_j \right)
+	\end{align}
+	
+	we get 
+	
+	\begin{align}
+		g_{\alpha\beta}\left( \vec{r} \right) = \frac{2V}{N_{\alpha}N_{\beta}} \langle \sum_{i} \sum_{i < j} \frac{1}{r} \delta \left( r - | \vec{r}_i - \vec{r}_j | \right) \delta \left( \phi - \phi_{ij} \right) \rangle.
+	\end{align}
+
+	To examine structural anisotropy we expand $g_{\alpha\beta}(\vec{r})$ into spherical harmonics: 
+	
+	\begin{align}
+		g_{\alpha\beta}(\vec{r}) = \sum_{l=0}^{\infty} \sum_{m=-l}^{l} g_{lm}^{\alpha\beta} Y_{lm}(\theta, \phi)
+	\end{align}
+
+	where $Y_{lm}(\theta, \phi)$ are spherical harmonics with degree $l$ and order $m$. In 2 dimensions we restrict $\theta = \pi/2$. Since the spherical harmonics form a complete orthonormal set the coefficients $g^{\alpha\beta}_{lm}$ are given by
+	
+	\begin{align}
+		g^{\alpha\beta}_{lm} (r) &= \frac{2V}{N_{\alpha}N_{\beta}} \langle \sum_{i} \sum_{i < j} \int_{0}^{2\pi} \text{d}\phi' \frac{1}{r} \delta \left( r - | \vec{r}_i - \vec{r}_j | \right) \delta \left( \phi' - \phi_{ij} \right) Y_{lm}^{*}(\pi/2,\phi') \rangle \\
+		&= \frac{2V}{N_{\alpha}N_{\beta}} \langle \sum_{i} \sum_{i < j} \frac{1}{r} \delta \left( r - | \vec{r}_i - \vec{r}_j | \right)  Y_{lm}^{*}(\pi/2,\phi_{ij}) \rangle.
+	\end{align}
+
+	Note that $g_{lm}^{\alpha\beta}$ depends only on $r$ since the angular dependence of $g_{\alpha\beta}$ is fully included in $Y_{lm}$. Furthermore, since $g_{\alpha\beta}(\vec{r}) = g_{\alpha\beta} (-\vec{r} )$ and $Y_{lm}(-\vec{r}) = (-1)^{l} Y_{lm}(\vec{r})$ we see that all $g_{lm}^{\alpha\beta}$ with odd $l$ vanish. For isotropic systems all coefficients except $g_{00}^{\alpha\beta}(r)$ vanish. \par
+	
+	Of special importance in the context of Couette flow is the imaginary part of $g_{22}^{\alpha\beta}$ as it can be linked to the configurational part of the shear stress. In Cartesian coordinates we have 
+	
+	\begin{align}
+		\text{Im}Y_{22} = \sqrt{\frac{15}{8\pi}} \frac{xy}{r^2}
+	\end{align}
+
+	so that in 2 dimensions we get
+	
+	\begin{align}
+		\text{Im} g_{22}^{\alpha\beta} = \sqrt{\frac{15}{2\pi}} \frac{V}{N_{\alpha} N_{\beta}} \langle \sum_{i} \sum_{i < j} \frac{1}{r^3} \delta \left( r - | \vec{r}_i - \vec{r}_j | \right) (x_i - y_j)(y_i - y_j) \rangle.
+	\end{align}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+	\section{Static structure factors}
+	\label{sec:theory_structure_factors}
+	
+	We can define partial structure factors by
+	
+	\begin{align}
+		S_{\alpha\beta}(\vec{q}) = \frac{1}{N} \langle \sum_{i,j,i \neq j} \exp\left[ -\text{i} \vec{q} (\vec{r}_i - \vec{r}_j) \right] \rangle
+	\end{align}
+
+	where the sum runs over all distance vectors $\vec{r}_{ij} = \vec{r}_i - \vec{r}_j$ of particles of types $\alpha,\beta \in \{A,B\}$. Thus, the partial structure factors are proportional to the Fourier transform of the partial pair correlation functions $g_{\alpha\beta}(\vec{r})$ given in section \ref{sec:theory_pair_correlation_function}. Furthermore, with this definition it is clear that $S_{\alpha\beta} (\vec{q}) \in \mathds{R}$ as the partial pair correlation functions are even. \par
+	
+	In a system with periodic boundary conditions we need to respect the symmetry, so that only a discrete set of $\vec{q}$ values is allowed. In a 2 dimensional system in a quadratic box with length $L$ these are given by 
+	
+	\begin{align}
+		\vec{q} \in 
+		\begin{pmatrix}
+			\frac{2\pi}{L} z_x\\
+			\frac{2\pi}{L} z_y
+		\end{pmatrix}, 
+		z_{x,y} \in \mathds{Z}.
+	\end{align}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+	\chapter{Simulation methods}
+	\label{chap:simulation_methods}
+	
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+	\chapter{Results}
+	\label{chap:results}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\chapter{Conclusion and Outlook}
+\label{chap:conclusion}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+	\nocite{*}
+	\begin{otherlanguage}{british}	%other language ensures the date format is day/month/year and not month/day/year
+		\printbibliography[title =Sources and References]
+	\end{otherlanguage}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+\chapter*{Attachments}
+
+
+
+
+\chapter*{Erklärung}
+
+Ich versichere, dass ich diese Arbeit selbstständig verfasst und keine anderen als die
+angegebenen Quellen und Hilfsmittel benutzt habe. \vspace{2cm}
+
+
+Düsseldorf, den XX.XX.2022
+
+\vspace{2 cm}
+
+
+Jakob Krummeich
+
+
+	
+\end{document}

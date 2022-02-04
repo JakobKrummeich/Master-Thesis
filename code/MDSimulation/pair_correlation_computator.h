@@ -17,6 +17,8 @@ class PairCorrelationComputator {
 	private:
 
 		const double deltar; //dimensionless
+		const double boxLength;
+		const double maxLength;
 
 		vector<double> img22AA;
 		vector<double> img22BB;
@@ -24,13 +26,14 @@ class PairCorrelationComputator {
 
 		int numberOfValues;
 		int numberOfAveragedPositions;
-		double boxLength;
 
 	public:
 
-		PairCorrelationComputator(int numberOfValues):
+		PairCorrelationComputator(int numberOfValues, double maxLength, double boxLength): //maxLength and boxLength in units of sigma
 			numberOfValues(numberOfValues),
-			deltar(1.0/(numberOfValues*sqrt(2.0))),
+			boxLength(boxLength),
+			maxLength(maxLength),
+			deltar(maxLength/(boxLength*static_cast<double>(numberOfValues))),
 			numberOfAveragedPositions(0),
 			img22AA(numberOfValues, 0.0),
 			img22BB(numberOfValues, 0.0),
@@ -70,36 +73,38 @@ class PairCorrelationComputator {
 						deltax += 1.0;
 					}
 					double r = sqrt(deltax*deltax + deltay*deltay);
-					double inverserCubed = 1.0/(r*r*r);
-					int binIndex = static_cast<int>(r*static_cast<double>(numberOfValues*sqrt(2.0)));
+					if (r*boxLength < maxLength){
 
-					ParticleType type0 = P.getParticleType(particleIndex);
-					ParticleType type1 = P.getParticleType(otherParticleIndex);
+						double inverserCubed = 1.0/(r*r*r);
+						int binIndex = static_cast<int>(r*boxLength*static_cast<double>(numberOfValues)/maxLength);
 
-					const double newValue = sqrt(7.5/M_PI) / (static_cast<double>(numberOfAParticles*numberOfBParticles) * deltar) * (deltax * deltay) * inverserCubed;
+						ParticleType type0 = P.getParticleType(particleIndex);
+						ParticleType type1 = P.getParticleType(otherParticleIndex);
 
-					if (type0 != type1){
-						img22AB[binIndex] += newValue;
-					}
-					else if (type0 == ParticleType::A){
-						img22AA[binIndex] += newValue;
-					}
-					else {
-						img22BB[binIndex] += newValue;
+						const double newValue = sqrt(7.5/M_PI) * (deltax * deltay) * inverserCubed / (deltar);
+
+						if (type0 != type1){
+							img22AB[binIndex] += newValue / static_cast<double>(numberOfAParticles*numberOfBParticles);
+						}
+						else if (type0 == ParticleType::A){
+							img22AA[binIndex] += newValue / static_cast<double>(numberOfAParticles*numberOfAParticles);
+						}
+						else {
+							img22BB[binIndex] += newValue / static_cast<double>(numberOfBParticles*numberOfBParticles);
+						}
 					}
 				}
 			}
 		}
 
-		void writeResults(string filePath, double boxLength) const {
+		void writeResults(string filePath) const {
 			ofstream fS;
 			fS.open(filePath+"Img22.dat");
-			fS << "boxLength = " << boxLength << endl;
-			fS << "r (dimensionless)\tImg22AA\tImg22BB\tImg22AB" << endl;
+			fS << "r [sigma]\tImg22AA\tImg22BB\tImg22AB" << endl;
 			double r = deltar*0.5;
 			for (int i = 0; i < numberOfValues; i++){
 				double inverseNumberOfAverages = 1.0/(static_cast<double>(numberOfAveragedPositions));
-				fS << r << '\t' << img22AA[i]*inverseNumberOfAverages << '\t' << img22BB[i]*inverseNumberOfAverages << '\t' << img22AB[i]*inverseNumberOfAverages << '\n';
+				fS << r*boxLength << '\t' << img22AA[i]*inverseNumberOfAverages << '\t' << img22BB[i]*inverseNumberOfAverages << '\t' << img22AB[i]*inverseNumberOfAverages << '\n';
 				r += deltar;
 			}
 			fS.close();
