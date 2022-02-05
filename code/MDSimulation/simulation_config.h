@@ -10,13 +10,10 @@ constexpr int TOTAL_NUMBER_OF_PARTICLES = 1000;
 
 constexpr double DENSITY = 0.75;
 
-const string OUTPUT_DIRECTORY = "./N="+to_string(TOTAL_NUMBER_OF_PARTICLES);
-
-constexpr int NUMBER_OF_RUNS = 1;
 constexpr int NUMBER_OF_THREADS = 2;
 
 constexpr int UPDATE_TIME_INTERVAL = 60;
-constexpr int POT_ENERGY_UPDATE_INTERVAL = 200;
+constexpr int ENERGY_UPDATE_INTERVAL = 200;
 
 constexpr int MAX_RUNTIME_IN_MINUTES = 2850;
 

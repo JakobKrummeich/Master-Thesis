@@ -10,25 +10,27 @@
 using namespace std;
 
 int main(int argc, char* argv[]){
-	int MaxNumberOfEquilibrationSweeps = 10000;
-	int MaxNumberOfShearSweeps = 300000;
+	int MaxNumberOfEquilibrationSweeps = 1000000;
+	int MaxNumberOfShearSweeps = 000;
 
 	int NumberOfyValues = 15;
 	int NumberOfStressSubdivisions = 14;
-	const double Temperature = 0.7;
+	const double Temperature = 0.77;
 	const double Beta = 1.0/Temperature;
-	double ShearRate = 0.15;
+	double ShearRate = 0.04;
 	double ThermostatTime = 0.001;
 	const double Stepsize = 0.001;
 
 	realUniformRNG RNG;
 
 	Particles P(500, DENSITY, Temperature, 0.0, 0.0);
-	StressComputator SC(P,NumberOfStressSubdivisions, MaxNumberOfShearSweeps, 1);
+	StressComputator SC(P, NumberOfStressSubdivisions, MaxNumberOfShearSweeps, 10);
 	BussiThermostat BT(Temperature, ThermostatTime, DIMENSION*TOTAL_NUMBER_OF_PARTICLES);
 
 	const auto StartTime = chrono::steady_clock::now();
 	int NextUpdateTime = UPDATE_TIME_INTERVAL;
+
+	vector<int> NumberOfASeries;
 
 	ofstream FileStreamToWrite;
 	cerr << "Equilibration started.\n";
@@ -39,7 +41,11 @@ int main(int argc, char* argv[]){
 		P.applyVelocityVerlet(Stepsize);
 		double Alpha = BT.computeRescalingFactor(P, Stepsize);
 		P.rescaleVelocities(Alpha);
-		//AvgMSD.push_back(P.computeAverageMSD());
+
+		for (int typeChangeCounter = 0; typeChangeCounter < 100; typeChangeCounter++){
+			P.runTypeChange(RNG, 0, TOTAL_NUMBER_OF_PARTICLES, Beta);
+		}
+		NumberOfASeries.push_back(P.getNumberOfAParticles());
 
 		FileStreamToWrite <<  fixed << setprecision(numeric_limits<long double>::digits10+1) << P.computePotentialEnergy() << '\t' << P.computeKineticEnergy() << '\t' <<  P.computeEnergy() << endl;
 		if (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() >= NextUpdateTime){
@@ -49,7 +55,6 @@ int main(int argc, char* argv[]){
 		}
 	}
 
-	vector<int> NumberOfASeries;
 	cerr << "Equilibration finished. Shearing with rate= " << ShearRate << " enabled.\n";
 	P.setShearRate(ShearRate);
 	for (int StepNumber = 0; StepNumber < MaxNumberOfShearSweeps; StepNumber++){
@@ -58,12 +63,11 @@ int main(int argc, char* argv[]){
 		P.rescaleVelocities(Alpha);
 
 		SC.computeStresses(StepNumber);
-		//AvgMSD.push_back(P.computeAverageMSD());
 
 		P.moveImageBoxes(Stepsize);
 
-		P.runTypeChange(RNG, 0, TOTAL_NUMBER_OF_PARTICLES, Beta);
-		NumberOfASeries.push_back(P.getNumberOfAParticles());
+		//P.runTypeChange(RNG, 0, TOTAL_NUMBER_OF_PARTICLES, Beta);
+		//NumberOfASeries.push_back(P.getNumberOfAParticles());
 
 		FileStreamToWrite <<  fixed << setprecision(numeric_limits<long double>::digits10+1) << P.computePotentialEnergy() << '\t' << P.computeKineticEnergy() << '\t' <<  P.computeEnergy() << endl;
 		if (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() >= NextUpdateTime){
