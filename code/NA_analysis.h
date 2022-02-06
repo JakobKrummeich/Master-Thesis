@@ -1,15 +1,17 @@
-#ifndef SERIES_ANALYSIS_INCLUDED
-#define SERIES_ANALYSIS_INCLUDED
+#ifndef NA_ANALYSIS_INCLUDED
+#define NA_ANALYSIS_INCLUDED
 
 #include <vector>
 #include <cmath>
 #include <iostream>
+#include <iomanip>
+#include <limits>
 #include <string>
 #include <fstream>
 
 using namespace std;
 
-class SeriesAnalyzer{
+class NAAnalyzer{
 
 	private:
 
@@ -41,9 +43,32 @@ class SeriesAnalyzer{
 			return Series;
 		}
 
+		vector<unsigned long> readHistogram(string filePath){
+			vector<unsigned long> histogram(TotalNumberOfParticles);
+
+			ifstream fS;
+			fS.open(filePath);
+
+			string currentString;
+			getline(fS, currentString);
+
+			for (int i = 0; i <= TotalNumberOfParticles; i++){
+				fS >> currentString;
+				fS >> currentString;
+				histogram[i] = stoul(currentString);
+			}
+			return histogram;
+		}
+
 		void updateHistogramWithNewSeries(const vector<unsigned long>& NASeries){
-			for (unsigned long i = MinNumberOfSweeps; i < NASeries.size(); i++){
+			for (unsigned long i = 0; i < NASeries.size(); i++){
 				NADistribution[NASeries[i]].yValue++;
+			}
+		}
+
+		void updateHistogramWithNewHistogram(const vector<unsigned long>& NAHistogram){
+			for (int i = 0; i <= TotalNumberOfParticles; i++){
+				NADistribution[i].yValue += static_cast<double>(NAHistogram[i]);
 			}
 		}
 
@@ -92,7 +117,7 @@ class SeriesAnalyzer{
 		static void writeDistributionToFile(string FileName, const vector<ValuePair>& Distribution) {
 			ofstream FileStreamToWriteTo;
 			FileStreamToWriteTo.open(FileName);
-			FileStreamToWriteTo << "xA\tprobability_density\n";
+			FileStreamToWriteTo << fixed << setprecision(numeric_limits<long double>::digits10+1) << "xA\tprobability_density\n";
 			for (unsigned long i = 0; i < Distribution.size(); i++){
 				FileStreamToWriteTo << Distribution[i].xValue << '\t' << Distribution[i].yValue << '\n';
 			}
@@ -114,7 +139,7 @@ class SeriesAnalyzer{
 
 	public:
 
-		SeriesAnalyzer(unsigned long TotalNumberOfParticles):
+		NAAnalyzer(unsigned long TotalNumberOfParticles):
 			TotalNumberOfParticles(TotalNumberOfParticles){
 			for (unsigned long i = 0; i <= TotalNumberOfParticles; i++){
 				NADistribution.emplace_back(static_cast<double>(i)/static_cast<double>(TotalNumberOfParticles), 0.0);
@@ -124,6 +149,11 @@ class SeriesAnalyzer{
 		void addNewSeries(string FileNameNASeries){
 			vector<unsigned long> NewNASeries = readInSeries(FileNameNASeries);
 			updateHistogramWithNewSeries(NewNASeries);
+		}
+
+		void addNewHistogram(string fileName){
+			vector<unsigned long> newNAHistogram = readHistogram(fileName);
+			updateHistogramWithNewHistogram(newNAHistogram);
 		}
 
 		void normalizeNADistribution(){
@@ -177,4 +207,4 @@ class SeriesAnalyzer{
 		}
 };
 
-#endif /* SERIES_ANALYSIS_INCLUDED */
+#endif /* NA_ANALYSIS_INCLUDED */
