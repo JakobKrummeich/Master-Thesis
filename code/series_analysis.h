@@ -41,7 +41,7 @@ class SeriesAnalyzer{
 			return Series;
 		}
 
-		void updateHistogramWithNewSeries(const vector<unsigned long>& NASeries, unsigned long MinNumberOfSweeps ){
+		void updateHistogramWithNewSeries(const vector<unsigned long>& NASeries){
 			for (unsigned long i = MinNumberOfSweeps; i < NASeries.size(); i++){
 				NADistribution[NASeries[i]].yValue++;
 			}
@@ -121,9 +121,9 @@ class SeriesAnalyzer{
 			}
 		}
 
-		void addNewSeries(string FileNameNASeries, unsigned long MinNumberOfEquilibrationSweeps){
+		void addNewSeries(string FileNameNASeries){
 			vector<unsigned long> NewNASeries = readInSeries(FileNameNASeries);
-			updateHistogramWithNewSeries(NewNASeries, MinNumberOfEquilibrationSweeps);
+			updateHistogramWithNewSeries(NewNASeries);
 		}
 
 		void normalizeNADistribution(){

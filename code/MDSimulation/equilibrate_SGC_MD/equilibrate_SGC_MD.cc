@@ -13,8 +13,8 @@ int main(int argc, char* argv[]){
 	const double Temperature = stod(argv[1]);
 	string outputDirectory = argv[2];
 
-	const int numberOfEquilibrationSweeps = 100000;
-	const int numberOfDataTakingSweeps = 100000;
+	const int numberOfEquilibrationSweeps = 10000;
+	const int numberOfDataTakingSweeps = 10000;
 	const int numberOfAttemptedTypeSwitches = 100;
 
 	const double Beta = 1.0/Temperature;
