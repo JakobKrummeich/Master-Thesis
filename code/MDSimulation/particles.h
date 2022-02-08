@@ -843,6 +843,9 @@ class Particles {
 				}
 				updatePosition(ParticleIndex, Deltas);
 			}
+			if (ShearRate != 0.0){
+				moveImageBoxes(Stepsize);
+			}
 			double NextForces [DIMENSION*TOTAL_NUMBER_OF_PARTICLES];
 			computeForces(NextForces);
 			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
@@ -900,15 +903,17 @@ class Particles {
 		}
 
 		void updateAverageVelocities(vector<double>& AvgVelocities, const int NumberOfyValues) const {
-			vector<double> NewVelocityEntries(NumberOfyValues,0.0);
+			vector<double> newVelocityEntries(DIMENSION*NumberOfyValues,0.0);
 			vector<int> NumberOfValues(NumberOfyValues,0);
 			for (int ParticleID = 0; ParticleID < TOTAL_NUMBER_OF_PARTICLES; ParticleID++){
 				int Index = static_cast<int>(getPosition(ParticleID,1)*static_cast<double>(NumberOfyValues));
-				NewVelocityEntries[Index] += Velocities[DIMENSION*ParticleID];
+				newVelocityEntries[Index*DIMENSION+0] += Velocities[DIMENSION*ParticleID];
+				newVelocityEntries[Index*DIMENSION+1] += Velocities[DIMENSION*ParticleID+1];
 				NumberOfValues[Index]++;
 			}
 			for (int i = 0; i < NumberOfyValues; i++){
-				AvgVelocities.push_back(NewVelocityEntries[i] / static_cast<double>(NumberOfValues[i]));
+				AvgVelocities[i] += (newVelocityEntries[DIMENSION*i+0] / static_cast<double>(NumberOfValues[i]));
+				AvgVelocities[NumberOfyValues+i] += (newVelocityEntries[DIMENSION*i+1] / static_cast<double>(NumberOfValues[i]));
 			}
 		}
 
