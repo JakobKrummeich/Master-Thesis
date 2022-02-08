@@ -17,6 +17,7 @@
 \usepackage{float}
 \usepackage{placeins}
 \usepackage{graphicx}
+\usepackage{epstopdf}
 
 \usepackage{multirow}
 \usepackage{microtype}
@@ -194,9 +195,38 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+	\chapter{Model description}
+	\label{chap:model_description}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%	
+
 	\chapter{Simulation methods}
 	\label{chap:simulation_methods}
 	
+	\section{Velocity-Verlet-Algorithm}
+	\label{sec:velocity_verlet_algorithm}
+	
+	To numerically solve the equation of motion for Hamiltonian systems we use the Velocity-Verlet-Algorithm, which evolves the position $\vec{r}_i(t)$ and velocity $\vec{v}_i(t)$ of particle $i$ from time $t$ to $t+\Delta t$ according to
+	
+	\begin{align}
+		\vec{r}_i (t+\Delta t) &= \vec{r}_i (t) + \Delta t \cdot \vec{v}_i (t) + \frac{({\Delta t})^2}{2m_i}  \vec{F}_i(t) \\
+		\vec{v}_i (t+\Delta t) &= \vec{v}_i (t) + \frac{\Delta t}{2 m_i} \left( \vec{F}_i(t) + \vec{F}_i (t+ \Delta t) \right)
+	\end{align}
+	
+	where $m_i$ is the particle's mass, $\vec{F}_i$ is the force on the particle at time $t$ or $t + \Delta t$ respectively. Note that to use this algorithm conveniently it is necessary that $\vec{F}_i (t + \Delta t)$ does not depend on the velocities of the particles, which is the case for our model since the forces are conservative. \par 
+	¸This algorithm has the property to be time-reversible and conserving the total energy up to corrections of order $(\Delta t)^2$.
+	
+	\section{Lees-Edwards boundary conditions}
+	\label{sec:lees_edwards_boundary_conditions}
+	
+	Lees-Edwards boundary conditions have been introduced in 1972 by A.W. Lees and S.F. Edwards as a method to introduce shear in a simulation box with periodic boundary conditions [CITATION NEEDED]. In 'usual' periodic boundary conditions we can think of  the simulation box to be surrounded by an infinite number of copies of itself, which are also called 'image' boxes in this context. To introduce shear in the system using Lees-Edwards boundary conditions we 'slide' the image boxes with a constant speed against the 'original' box.
+	
+	\begin{figure}[H]
+		\centering
+		\includegraphics[trim =0cm 0cm 0cm 0cm,clip,width = 0.6\textwidth]{images/periodic_boundary_conditions_1}
+		\caption{'Usual' periodic boundary conditions}
+		\label{fig:periodic_boundary_conditions}
+	\end{figure}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 	\chapter{Results}
