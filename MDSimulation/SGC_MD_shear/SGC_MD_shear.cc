@@ -40,7 +40,7 @@ int main(int argc, char* argv[]){
 	vector<double> AvgVelocities(DIMENSION*numberOfyValuesForVelocities, 0.0);
 
 	ofstream FileStreamToWrite;
-	string FileName = "AvgVelocities.dat";
+	string FileName = outputDirectory + "avgVelocities.dat";
 	FileStreamToWrite.open(FileName);
 	double yDelta = 1.0/static_cast<double>(numberOfyValuesForVelocities);
 	double Currenty = yDelta*0.5;
@@ -125,7 +125,7 @@ int main(int argc, char* argv[]){
 	}
 
 	PCC.computeImg22(P);
-	PCC.writeResults("./");
+	PCC.writeResults(outputDirectory);
 
 	FileName = outputDirectory + "histogram_NA.dat";
 	FileStreamToWrite.open(FileName);
@@ -140,9 +140,9 @@ int main(int argc, char* argv[]){
 	FileStreamToWrite << P;
 	FileStreamToWrite.close();
 
-	SC.writeAverageStresses("AvgStresses");
+	SC.writeAverageStresses(outputDirectory + "avgStresses");
 
-	FileName = "AvgVelocities.dat";
+	FileName = outputDirectory + "avgVelocities.dat";
 	FileStreamToWrite.open(FileName, ios_base::app);
 	for (int i = 0; i < DIMENSION; i++){
 		for (int j = 0; j < numberOfyValuesForVelocities-1; j++){
