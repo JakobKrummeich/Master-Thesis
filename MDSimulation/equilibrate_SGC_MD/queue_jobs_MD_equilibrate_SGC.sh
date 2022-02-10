@@ -9,8 +9,9 @@ function make_directory_if_necessary() {
 }
 
 temperature=$1
-
 number_of_runs=$2
+number_of_equilibration_sweeps=$3
+number_of_data_taking_sweeps=$4
 
 datapath="data/MDSimulations/equilibrate_SGC_MD/N=1000/T=${temperature}" # relative to root directory of repository
 
@@ -36,7 +37,7 @@ for (( runNumber=0; runNumber<${number_of_runs}; runNumber++ )); do
 	result_directory="${new_directory}/${runNumber}/"
 	make_directory_if_necessary result_directory
 
-	srun_command="srun --ntasks=1 --error=${result_directory}/error_stream.err ./equilibrate_SGC_MD ${temperature} ${result_directory} &
+	srun_command="srun --ntasks=1 --error=${result_directory}/error_stream.err ./equilibrate_SGC_MD ${temperature} ${result_directory} ${number_of_equilibration_sweeps} ${number_of_data_taking_sweeps} &
 
 wait"
 	echo "$srun_command" >> ${submit_filename}
