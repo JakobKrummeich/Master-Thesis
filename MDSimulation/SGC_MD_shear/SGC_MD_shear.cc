@@ -19,7 +19,7 @@ int main(int argc, char* argv[]){
 	const int numberOfDataTakingSweeps = 1000000;
 	const int numberOfAttemptedTypeSwitches = 100;
 
-	const	int numberOfyValuesForVelocities = 15;
+	const int numberOfyValuesForVelocities = 15;
 
 	const double Beta = 1.0/Temperature;
 
