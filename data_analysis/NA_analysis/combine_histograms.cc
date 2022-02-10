@@ -15,6 +15,12 @@ int main(int argc, char* argv[]){
 	OutputFileName += "NAProbDist_";
 	OutputFileName += argv[1];
 	OutputFileName += ".dat";
+
+	string symmetrizedDistFilename = argv[3];
+	symmetrizedDistFilename += "symmetrizedNAProbDist_";
+	symmetrizedDistFilename += argv[1];
+	symmetrizedDistFilename += ".dat";
+
 	int TotalNumberOfParticles = atoi(argv[2]);
 
 	NAAnalyzer Analyzer(TotalNumberOfParticles);
@@ -26,6 +32,8 @@ int main(int argc, char* argv[]){
 	}
 	Analyzer.normalizeNADistribution();
 	Analyzer.writeNAProbabilityDistributionToFile(OutputFileName);
+	Analyzer.computeAndWriteSymmetrizedNADistribution(symmetrizedDistFilename);
+
 	double FirstMoment = Analyzer.computeFirstMomentOfHalfDistribution();
 	double BinderCumulant = Analyzer.computeBinderCumulant();
 	cout << FirstMoment << '\t' << BinderCumulant;

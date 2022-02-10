@@ -164,6 +164,11 @@ class NAAnalyzer{
 			writeDistributionToFile(FileName, NADistribution);
 		}
 
+		void computeAndWriteSymmetrizedNADistribution(string filename) const {
+			vector<ValuePair> symmetrizedDistribution = symmetrizeDistribution(NADistribution);
+			writeDistributionToFile(filename, symmetrizedDistribution);
+		}
+
 		double computeFirstMomentOfHalfDistribution() const {
 
 			vector<ValuePair> SymmetrizedDistribution = symmetrizeDistribution(NADistribution);
