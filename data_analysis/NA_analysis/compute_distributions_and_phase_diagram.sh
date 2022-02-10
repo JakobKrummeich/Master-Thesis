@@ -13,7 +13,7 @@ function make_directory_if_necessary() {
 sourcepath=$1
 
 [[ ${sourcepath} =~ (N=[[:digit:]]*) ]] && number_of_particles_string=${BASH_REMATCH[1]}
-target_filepath="${sourcepath}/analyzed_data/"
+target_filepath="${sourcepath}/aggregated_data/"
 make_directory_if_necessary target_filepath
 phase_diagram_filename="${target_filepath}first_moment_binder_cumulant_${number_of_particles_string}.dat"
 

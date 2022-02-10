@@ -1,7 +1,7 @@
 #include <iostream>
 #include <stdlib.h>
 
-#include "../../NA_analysis.h"
+#include "NA_analysis.h"
 
 using namespace std;
 
