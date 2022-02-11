@@ -69,7 +69,7 @@ int main(int argc, char* argv[]){
 				avgValues[i] += newValues[i];
 			}
 		}
-		numberOfFilesRead ++;
+		numberOfFilesRead++;
 	}
 	for (int i = 0; i < avgValues.size(); i++){
 		avgValues[i] /= static_cast<double>(numberOfFilesRead);
