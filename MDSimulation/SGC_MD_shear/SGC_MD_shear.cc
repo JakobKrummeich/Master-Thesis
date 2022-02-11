@@ -15,8 +15,10 @@ int main(int argc, char* argv[]){
 	string initialStateFile = argv[2];
 	string outputDirectory = argv[3];
 
-	const int numberOfEquilibrationSweeps = 1000000;
-	const int numberOfDataTakingSweeps = 1000000;
+	const int numberOfEquilibrationSweeps = stoi(argv[4]);
+	const int numberOfDataTakingSweeps = stoi(argv[5]);
+	const double shearRate = stod(argv[6]);
+
 	const int numberOfAttemptedTypeSwitches = 100;
 
 	const int numberOfyValuesForVelocities = 15;
@@ -25,7 +27,7 @@ int main(int argc, char* argv[]){
 
 	const double ThermostatTime = 0.001;
 	const double Stepsize = 0.001;
-	const double shearRate = 0.04;
+
 
 	realUniformRNG RNG;
 

@@ -10,6 +10,9 @@ function make_directory_if_necessary() {
 
 temperature=$1
 initStateDirectory=$2
+numberOfEquilibrationSweeps=$3
+numberOfDataTakingSweeps=$4
+shearRate=$5
 
 targetpath="data/MDSimulations/SGC_MD_shear/N=1000/T=${temperature}" # relative to root directory of repository
 
@@ -40,7 +43,7 @@ for dir in ${initStateDirectory}*/ ; do
 
 	initialStateFile="${dir}final_state.dat"
 
-	srun_command="srun --ntasks=1 --error=${result_directory}error_stream.err ./SGC_MD_shear ${temperature} ${initialStateFile} ${result_directory} &
+	srun_command="srun --ntasks=1 --error=${result_directory}error_stream.err ./SGC_MD_shear ${temperature} ${initialStateFile} ${result_directory} ${numberOfEquilibrationSweeps} ${numberOfDataTakingSweeps} ${shearRate} &
 
 wait"
 	echo "$srun_command" >> ${submit_filename}
