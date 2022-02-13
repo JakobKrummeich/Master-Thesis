@@ -12,7 +12,7 @@ settings="#!/bin/bash
 sourcepath=$1
 
 submitFilename="computeNA_analysis.sh"
-srun_command="srun --ntasks=1 --error=./error_stream.err ./compute_distributions_and_phase_diagram.sh ${sourcepath} &
+srun_command="srun --ntasks=1 --error=./error_stream.err ./compute_aggregated_distribution.sh ${sourcepath} &
 wait"
 
 echo "$settings" > ${submitFilename}
