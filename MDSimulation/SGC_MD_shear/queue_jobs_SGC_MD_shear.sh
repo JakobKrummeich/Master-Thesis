@@ -23,34 +23,47 @@ make_directory_if_necessary newDirectory
 newDirectory+="/singleRunData"
 make_directory_if_necessary newDirectory
 
-settings="#!/bin/bash
-#SBATCH --ntasks=1
-#SBATCH --partition=parallel
-#SBATCH --nodes=1-1
-#SBATCH --output=/dev/null
-#SBATCH --cpus-per-task=2
-#SBATCH --mem-per-cpu=800mb
-#SBATCH --workdir=/home1/krummeich/Master-Thesis/code/MDSimulation/SGC_MD_shear"
+numberOfInitialStates=0
 
 for dir in ${initStateDirectory}*/ ; do
 
 	[[ ${dir} =~ T=[[:digit:]]*.[[:digit:]]*/([[:digit:]]*)/ ]] && runNumber="${BASH_REMATCH[1]}"
 
-	submit_filename="SGC_MD_shear_N=1000_T=${temperature}_shearRate=${shearRate}_${runNumber}.sh"
-	echo "$settings" > ${submit_filename}
-	echo -e >> ${submit_filename}
-
 	result_directory="${newDirectory}/${runNumber}/"
 	make_directory_if_necessary result_directory
 
-	initialStateFile="${dir}final_state.dat"
-
-	srun_command="srun --ntasks=1 --error=${result_directory}error_stream.err ./SGC_MD_shear ${temperature} ${initialStateFile} ${result_directory} ${numberOfEquilibrationSweeps} ${numberOfDataTakingSweeps} ${shearRate} &
-
-wait"
-	echo "$srun_command" >> ${submit_filename}
-	sbatch ${submit_filename}
-	rm ${submit_filename}
+	((numberOfInitialStates+=1))
 
 done
 
+settings="#!/bin/bash
+#SBATCH --ntasks=${numberOfInitialStates}
+#SBATCH --partition=parallel
+#SBATCH --nodes=1
+#SBATCH --output=/dev/null
+#SBATCH --cpus-per-task=1
+#SBATCH --mem-per-cpu=800mb
+#SBATCH --workdir=/home1/krummeich/Master-Thesis/code/MDSimulation/SGC_MD_shear"
+
+submit_filename="SGC_MD_shear_N=1000_T=${temperature}_shearRate=${shearRate}.sh"
+echo "$settings" > ${submit_filename}
+echo $'\n' >> ${submit_filename}
+
+for dir in ${initStateDirectory}*/ ; do
+
+	[[ ${dir} =~ T=[[:digit:]]*.[[:digit:]]*/([[:digit:]]*)/ ]] && runNumber="${BASH_REMATCH[1]}"
+
+	result_directory="${newDirectory}/${runNumber}/"
+
+	initialStateFile="${dir}final_state.dat"
+
+	srun_command="srun --ntasks=1 --error=${result_directory}error_stream.err ./SGC_MD_shear ${temperature} ${initialStateFile} ${result_directory} ${numberOfEquilibrationSweeps} ${numberOfDataTakingSweeps} ${shearRate} &"
+
+	echo "$srun_command" >> ${submit_filename}
+
+done
+
+echo $'\n\nwait' >> ${submit_filename}
+
+sbatch ${submit_filename}
+rm ${submit_filename}
