@@ -10,7 +10,7 @@ constexpr int TOTAL_NUMBER_OF_PARTICLES = 1000;
 
 constexpr double DENSITY = 0.75;
 
-constexpr int NUMBER_OF_THREADS = 2;
+constexpr int NUMBER_OF_THREADS = 1;
 
 constexpr int UPDATE_TIME_INTERVAL = 60;
 constexpr int ENERGY_UPDATE_INTERVAL = 200;

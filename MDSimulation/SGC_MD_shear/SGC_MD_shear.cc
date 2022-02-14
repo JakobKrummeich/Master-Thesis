@@ -8,6 +8,53 @@
 #include "../pair_correlation_computator.h"
 #include "../thermostat.h"
 
+void writeAvgVelocityFile(string outputDirectory, const vector<double>& avgVelocities, int numberOfDataTakingSweeps, double boxLength, int numberOfyValuesForVelocities){
+	ofstream ofs(outputDirectory + "avgVelocities.dat");
+
+	double yDelta = 1.0/static_cast<double>(numberOfyValuesForVelocities);
+	double Currenty = yDelta*0.5;
+	for (int i = 0; i < numberOfyValuesForVelocities-1; i++){
+		ofs << Currenty*boxLength << '\t';
+		Currenty += yDelta;
+	}
+	ofs << Currenty*boxLength << '\n';
+	for (int i = 0; i < DIMENSION; i++){
+		for (int j = 0; j < numberOfyValuesForVelocities-1; j++){
+			ofs << avgVelocities[numberOfyValuesForVelocities*i+j]*boxLength/(static_cast<double>(numberOfDataTakingSweeps)) << '\t';
+		}
+		ofs << avgVelocities[numberOfyValuesForVelocities*i+numberOfyValuesForVelocities-1]*boxLength/(static_cast<double>(numberOfDataTakingSweeps)) << '\n';
+	}
+}
+
+void writeEnergySeriesFile(string outputDirectory, const vector<double>& energySeries){
+	ofstream ofs(outputDirectory + "energySeries.dat");
+
+	ofs << "U\t" << "T\t" << "H\n";
+	ofs <<  fixed << setprecision(numeric_limits<long double>::digits10+1);
+	for (int i = 0; i < energySeries.size(); ){
+		for (int j = 0; j < 2; j++){
+			ofs << energySeries[i] << '\t';
+			i++;
+		}
+		ofs << energySeries[i] << '\n';
+		i++;
+	}
+}
+
+void writeHistogramFile(string outputDirectory, const uint32_t* histogramNA){
+	ofstream ofs(outputDirectory + "histogram_NA.dat");
+
+	ofs << "NA\t" << "#of appearances\n";
+	for (int i = 0; i <= TOTAL_NUMBER_OF_PARTICLES; i++) {
+		ofs << i << '\t' << histogramNA[i] << '\n';
+	}
+}
+
+void writeFinalStateFile(string outputDirectory, const Particles& P){
+	ofstream ofs(outputDirectory + "N=1000_final_state.dat");
+	ofs << P;
+}
+
 using namespace std;
 
 int main(int argc, char* argv[]){
@@ -39,28 +86,11 @@ int main(int argc, char* argv[]){
 
 	BussiThermostat BT(Temperature, ThermostatTime, DIMENSION*TOTAL_NUMBER_OF_PARTICLES);
 
-	vector<double> AvgVelocities(DIMENSION*numberOfyValuesForVelocities, 0.0);
-
-	ofstream FileStreamToWrite;
-	string FileName = outputDirectory + "avgVelocities.dat";
-	FileStreamToWrite.open(FileName);
-	double yDelta = 1.0/static_cast<double>(numberOfyValuesForVelocities);
-	double Currenty = yDelta*0.5;
-	for (int i = 0; i < numberOfyValuesForVelocities-1; i++){
-		FileStreamToWrite << Currenty*P.getBoxLength() << '\t';
-		Currenty += yDelta;
-	}
-	FileStreamToWrite << Currenty*P.getBoxLength() << '\n';
-	FileStreamToWrite.close();
+	vector<double> avgVelocities(DIMENSION*numberOfyValuesForVelocities, 0.0);
+	vector<double> energySeries;
 
 	const auto StartTime = chrono::steady_clock::now();
 	int NextUpdateTime = UPDATE_TIME_INTERVAL;
-
-	FileName = outputDirectory + "energySeries.dat";
-	FileStreamToWrite.open(FileName);
-	FileStreamToWrite << "U\t" << "T\t" << "H\n";
-	FileStreamToWrite.close();
-
 	int nextEnergyComputation = ENERGY_UPDATE_INTERVAL;
 
 	cerr << "Equilibration started.\n";
@@ -77,10 +107,10 @@ int main(int argc, char* argv[]){
 
 		if (StepNumber == nextEnergyComputation){
 			nextEnergyComputation += ENERGY_UPDATE_INTERVAL;
-			string FileName = outputDirectory + "energySeries.dat";
-			FileStreamToWrite.open(FileName, ios_base::app);
-			FileStreamToWrite <<  fixed << setprecision(numeric_limits<long double>::digits10+1) << P.computePotentialEnergy() << '\t' << P.computeKineticEnergy() << '\t' <<  P.computeEnergy() << endl;
-			FileStreamToWrite.close();
+
+			energySeries.push_back(P.computePotentialEnergy());
+			energySeries.push_back(P.computeKineticEnergy());
+			energySeries.push_back(P.computeEnergy());
 		}
 
 		if (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() >= NextUpdateTime){
@@ -107,16 +137,16 @@ int main(int argc, char* argv[]){
 		int numberOfAParticles = P.getNumberOfAParticles();
 		histogramNA[numberOfAParticles]++;
 
-		P.updateAverageVelocities(AvgVelocities, numberOfyValuesForVelocities);
+		P.updateAverageVelocities(avgVelocities, numberOfyValuesForVelocities);
 		
 		SC.computeStresses(StepNumber+numberOfEquilibrationSweeps);
 
 		if (StepNumber == nextEnergyComputation){
 			nextEnergyComputation += ENERGY_UPDATE_INTERVAL;
-			string FileName = outputDirectory + "energySeries.dat";
-			FileStreamToWrite.open(FileName, ios_base::app);
-			FileStreamToWrite <<  fixed << setprecision(numeric_limits<long double>::digits10+1) << P.computePotentialEnergy() << '\t' << P.computeKineticEnergy() << '\t' <<  P.computeEnergy() << endl;
-			FileStreamToWrite.close();
+
+			energySeries.push_back(P.computePotentialEnergy());
+			energySeries.push_back(P.computeKineticEnergy());
+			energySeries.push_back(P.computeEnergy());
 		}
 
 		if (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() >= NextUpdateTime){
@@ -127,32 +157,14 @@ int main(int argc, char* argv[]){
 	}
 
 	PCC.computeImg22(P);
+
 	PCC.writeResults(outputDirectory);
-
-	FileName = outputDirectory + "histogram_NA.dat";
-	FileStreamToWrite.open(FileName);
-	FileStreamToWrite << "NA\t" << "#of appearances\n";
-	for (int i = 0; i <= TOTAL_NUMBER_OF_PARTICLES; i++) {
-		FileStreamToWrite << i << '\t' << histogramNA[i] << '\n';
-	}
-	FileStreamToWrite.close();
-
-	FileName = outputDirectory + "N=1000_final_state.dat";
-	FileStreamToWrite.open(FileName);
-	FileStreamToWrite << P;
-	FileStreamToWrite.close();
-
+	writeAvgVelocityFile(outputDirectory, avgVelocities, numberOfDataTakingSweeps, P.getBoxLength(), numberOfyValuesForVelocities);
+	writeEnergySeriesFile(outputDirectory, energySeries);
+	writeHistogramFile(outputDirectory, histogramNA);
+	writeFinalStateFile(outputDirectory, P);
 	SC.writeAverageStresses(outputDirectory + "avgStresses");
 
-	FileName = outputDirectory + "avgVelocities.dat";
-	FileStreamToWrite.open(FileName, ios_base::app);
-	for (int i = 0; i < DIMENSION; i++){
-		for (int j = 0; j < numberOfyValuesForVelocities-1; j++){
-			FileStreamToWrite << AvgVelocities[numberOfyValuesForVelocities*i+j]*P.getBoxLength()/(static_cast<double>(numberOfDataTakingSweeps)) << '\t';
-		}
-		FileStreamToWrite << AvgVelocities[numberOfyValuesForVelocities*i+numberOfyValuesForVelocities-1]*P.getBoxLength()/(static_cast<double>(numberOfDataTakingSweeps)) << '\n';
-	}
-	FileStreamToWrite.close();
 
 	cerr << "#VerletListBuilds: " << P.getNumberOfVerletListBuilds() << endl;
 	cerr << "Computation time: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s for " << numberOfDataTakingSweeps+numberOfEquilibrationSweeps << " MCSweeps." <<  endl << endl;
