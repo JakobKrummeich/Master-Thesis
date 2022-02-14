@@ -112,12 +112,6 @@ int main(int argc, char* argv[]){
 			energySeries.push_back(P.computeKineticEnergy());
 			energySeries.push_back(P.computeEnergy());
 		}
-
-		if (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() >= NextUpdateTime){
-			int Progress = numberOfEquilibrationSweeps >= 100 ? (StepNumber / (numberOfEquilibrationSweeps/100)) : StepNumber;
-			cerr << "Progress: " << Progress << "%| StepNumber: " << StepNumber << "| Time passed: " <<  chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
-			NextUpdateTime += UPDATE_TIME_INTERVAL;
-		}
 	}
 
 	cerr << "Data taking started.\n";
@@ -147,12 +141,6 @@ int main(int argc, char* argv[]){
 			energySeries.push_back(P.computePotentialEnergy());
 			energySeries.push_back(P.computeKineticEnergy());
 			energySeries.push_back(P.computeEnergy());
-		}
-
-		if (chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() >= NextUpdateTime){
-			int Progress = numberOfDataTakingSweeps >= 100 ? (StepNumber / (numberOfDataTakingSweeps/100)) : StepNumber;
-			cerr << "Progress: " << Progress << "%| StepNumber: " << StepNumber << "| Time passed: " <<  chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s" << endl;
-			NextUpdateTime += UPDATE_TIME_INTERVAL;
 		}
 	}
 
