@@ -32,12 +32,10 @@ for dir in ${initStateDirectory}*/ ; do
 	result_directory="${newDirectory}/${runNumber}/"
 	make_directory_if_necessary result_directory
 
-	((numberOfInitialStates+=1))
-
 done
 
 settings="#!/bin/bash
-#SBATCH --ntasks=${numberOfInitialStates}
+#SBATCH --ntasks=1
 #SBATCH --partition=parallel
 #SBATCH --nodes=1
 #SBATCH --output=/dev/null
@@ -45,9 +43,7 @@ settings="#!/bin/bash
 #SBATCH --mem-per-cpu=800mb
 #SBATCH --workdir=/home1/krummeich/Master-Thesis/code/MDSimulation/SGC_MD_shear"
 
-submit_filename="SGC_MD_shear_N=1000_T=${temperature}_shearRate=${shearRate}.sh"
-echo "$settings" > ${submit_filename}
-echo $'\n' >> ${submit_filename}
+
 
 for dir in ${initStateDirectory}*/ ; do
 
@@ -57,13 +53,18 @@ for dir in ${initStateDirectory}*/ ; do
 
 	initialStateFile="${dir}final_state.dat"
 
-	srun_command="srun --ntasks=1 --error=${result_directory}error_stream.err ./SGC_MD_shear ${temperature} ${initialStateFile} ${result_directory} ${numberOfEquilibrationSweeps} ${numberOfDataTakingSweeps} ${shearRate} &"
+	srun_command="srun --ntasks=1 --error=${result_directory}error_stream.err ./SGC_MD_shear ${temperature} ${initialStateFile} ${result_directory} ${numberOfEquilibrationSweeps} ${numberOfDataTakingSweeps} ${shearRate} &
 
+wait"
+
+	submit_filename="SGC_MD_shear_N=1000_T=${temperature}_shearRate=${shearRate}_${runNumber}.sh"
+	echo "$settings" > ${submit_filename}
+	echo $'\n' >> ${submit_filename}
 	echo "$srun_command" >> ${submit_filename}
+
+	sbatch ${submit_filename}
+	rm ${submit_filename}
 
 done
 
-echo $'\n\nwait' >> ${submit_filename}
 
-sbatch ${submit_filename}
-rm ${submit_filename}
