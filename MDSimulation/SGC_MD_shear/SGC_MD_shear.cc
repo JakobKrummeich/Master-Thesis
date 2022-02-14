@@ -26,7 +26,7 @@ int main(int argc, char* argv[]){
 	const double Beta = 1.0/Temperature;
 
 	const double ThermostatTime = 0.001;
-	const double Stepsize = 0.001;
+	const double Stepsize = 0.0005;
 
 
 	realUniformRNG RNG;
