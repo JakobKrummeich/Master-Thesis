@@ -329,6 +329,8 @@ class StressComputator {
 				double ShearStress = 0.0;
 				#pragma omp for
 				for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
+					ShearStress += P.getVelocity(ParticleIndex,0)*P.getVelocity(ParticleIndex,1);
+
 					for (int i = 0; i < P.VerletListHead[2*ParticleIndex+1]; i++){
 						int OtherParticleIndex = P.VerletIndicesOfNeighbors[P.VerletListHead[2*ParticleIndex]+i];
 						if (OtherParticleIndex < ParticleIndex){
@@ -352,15 +354,11 @@ class StressComputator {
 							while (Deltax <= -0.5){
 								Deltax += 1.0;
 							}
-							if (Deltay < 0.0){
-								Deltax *= -1.0;
-								Deltay *= -1.0;
-							}
 							double DistanceSquared = (Deltax * Deltax + Deltay * Deltay)*P.getBoxLengthSquared();
 							if (DistanceSquared < CUTOFF_SQUARED){
 								double InteractionStrength = (P.getParticleType(ParticleIndex) == P.getParticleType(OtherParticleIndex) ? AA_INTERACTION_STRENGTH : AB_INTERACTION_STRENGTH);
 								double MagnitudeOfForce = P.computePairwiseMagnitudeOfForce(DistanceSquared);
-								ShearStress += InteractionStrength*MagnitudeOfForce*Deltax*Deltay;
+								ShearStress += InteractionStrength*MagnitudeOfForce*Deltax*Deltay; // magnitude of force intentionally off by a factor of r!
 							}
 						}
 					}
