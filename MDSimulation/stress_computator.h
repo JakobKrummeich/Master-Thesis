@@ -366,7 +366,7 @@ class StressComputator {
 				#pragma omp atomic
 				TotShearStress += ShearStress;
 			}
-			return TotShearStress;
+			return -TotShearStress;
 		}
 
 	public:

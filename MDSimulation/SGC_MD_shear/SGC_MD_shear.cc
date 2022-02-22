@@ -59,12 +59,14 @@ using namespace std;
 
 int main(int argc, char* argv[]){
 	const double Temperature = stod(argv[1]);
-	string initialStateFile = argv[2];
-	string outputDirectory = argv[3];
+	const double shearRate = stod(argv[2]);
+	string initialStateFile = argv[3];
+	string outputDirectory = argv[4];
 
-	const int numberOfEquilibrationSweeps = stoi(argv[4]);
-	const int numberOfDataTakingSweeps = stoi(argv[5]);
-	const double shearRate = stod(argv[6]);
+	const int numberOfEquilibrationSweeps = stoi(argv[5]);
+	const int numberOfDataTakingSweeps = stoi(argv[6]);
+	const double stepsize = stod(argv[7]);
+
 
 	const int numberOfAttemptedTypeSwitches = 100;
 
@@ -73,7 +75,6 @@ int main(int argc, char* argv[]){
 	const double Beta = 1.0/Temperature;
 
 	const double ThermostatTime = 0.001;
-	const double Stepsize = 0.0005;
 
 
 	realUniformRNG RNG;
@@ -95,8 +96,8 @@ int main(int argc, char* argv[]){
 
 	cerr << "Equilibration started.\n";
 	for (int StepNumber = 0; StepNumber < numberOfEquilibrationSweeps; StepNumber++){
-		P.applyVelocityVerlet(Stepsize);
-		double Alpha = BT.computeRescalingFactor(P, Stepsize);
+		P.applyVelocityVerlet(stepsize);
+		double Alpha = BT.computeRescalingFactor(P, stepsize);
 		P.rescaleVelocities(Alpha);
 
 		for (int typeChangeCounter = 0; typeChangeCounter < numberOfAttemptedTypeSwitches; typeChangeCounter++){
@@ -121,8 +122,8 @@ int main(int argc, char* argv[]){
 	uint32_t histogramNA [TOTAL_NUMBER_OF_PARTICLES+1]{};
 
 	for (int StepNumber = 0; StepNumber < numberOfDataTakingSweeps; StepNumber++){
-		P.applyVelocityVerlet(Stepsize);
-		double Alpha = BT.computeRescalingFactor(P, Stepsize);
+		P.applyVelocityVerlet(stepsize);
+		double Alpha = BT.computeRescalingFactor(P, stepsize);
 		P.rescaleVelocities(Alpha);
 
 		for (int typeChangeCounter = 0; typeChangeCounter < numberOfAttemptedTypeSwitches; typeChangeCounter++){
