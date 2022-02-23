@@ -25,7 +25,6 @@ make_directory_if_necessary newDirectory
 newDirectory+="/singleRunData"
 make_directory_if_necessary newDirectory
 
-numberOfInitialStates=0
 
 for dir in ${initStateDirectory}*/ ; do
 
@@ -38,9 +37,10 @@ done
 
 settings="#!/bin/bash
 #SBATCH --ntasks=1
-#SBATCH --partition=parallel
+#SBATCH --partition=parallel,normal,amd,oip
 #SBATCH --nodes=1
 #SBATCH --output=/dev/null
+#SBATCH --error=/dev/null
 #SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=800mb
 #SBATCH --workdir=/home1/krummeich/Master-Thesis/code/MDSimulation/SGC_MD_shear"
@@ -55,7 +55,7 @@ for dir in ${initStateDirectory}*/ ; do
 
 	initialStateFile="${dir}final_state.dat"
 
-	srun_command="srun --ntasks=1 --error=${result_directory}error_stream.err ./SGC_MD_shear ${temperature} ${shearRate} ${initialStateFile} ${result_directory} ${numberOfEquilibrationSweeps} ${numberOfDataTakingSweeps} ${stepsize} &
+	srun_command="srun --ntasks=1 ./SGC_MD_shear ${temperature} ${shearRate} ${initialStateFile} ${result_directory} ${numberOfEquilibrationSweeps} ${numberOfDataTakingSweeps} ${stepsize} &
 
 wait"
 
