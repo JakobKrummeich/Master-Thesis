@@ -1,13 +1,13 @@
 #ifndef PAIR_COMPUTATOR_INCLUDED
 #define PAIR_COMPUTATOR_INCLUDED
 
-#include "../particle_type.h"
-#include "particles.h"
-
 #include <iostream>
 #include <vector>
 #include <string>
+#include <chrono>
+#include <thread>
 
+#include "../particle_type.h"
 #include "particles.h"
 
 using namespace std;
@@ -98,16 +98,20 @@ class PairCorrelationComputator {
 		}
 
 		void writeResults(string filePath) const {
-			ofstream fS;
-			fS.open(filePath+"Img22.dat");
-			fS << "r [sigma]\tImg22AA\tImg22BB\tImg22AB" << endl;
+			ofstream ofs(filePath+"Img22.dat");
+
+			while (!ofs.is_open()){
+				ofs.open(filePath+"Img22.dat");
+				this_thread::sleep_for(std::chrono::milliseconds(100));
+			}
+
+			ofs << "r [sigma]\tImg22AA\tImg22BB\tImg22AB" << endl;
 			double r = deltar*0.5;
 			for (int i = 0; i < numberOfValues; i++){
 				double inverseNumberOfAverages = 1.0/(static_cast<double>(numberOfAveragedPositions));
-				fS << r*boxLength << '\t' << img22AA[i]*inverseNumberOfAverages << '\t' << img22BB[i]*inverseNumberOfAverages << '\t' << img22AB[i]*inverseNumberOfAverages << '\n';
+				ofs << r*boxLength << '\t' << img22AA[i]*inverseNumberOfAverages << '\t' << img22BB[i]*inverseNumberOfAverages << '\t' << img22AB[i]*inverseNumberOfAverages << '\n';
 				r += deltar;
 			}
-			fS.close();
 		}
 };
 

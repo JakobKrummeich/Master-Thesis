@@ -25,8 +25,6 @@ make_directory_if_necessary newDirectory
 newDirectory+="/singleRunData"
 make_directory_if_necessary newDirectory
 
-numberOfInitialStates=0
-
 for dir in ${initStateDirectory}*/ ; do
 
 	[[ ${dir} =~ T=[[:digit:]]*.[[:digit:]]*/([[:digit:]]*)/ ]] && runNumber="${BASH_REMATCH[1]}"

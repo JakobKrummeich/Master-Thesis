@@ -4,6 +4,8 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <chrono>
+#include <thread>
 
 #include "particles.h"
 
@@ -401,41 +403,63 @@ class StressComputator {
 		}
 
 		void writeAverageStresses(string FilePath) const {
-			ofstream FileStreamToWrite;
-			FileStreamToWrite.open(FilePath+"_yEdges.dat");
-			FileStreamToWrite << "y stresses (i.e. stresses through edges in y direction)" << endl;
-			FileStreamToWrite << "xPos\tlowery\tuppery\tnormal_stress\ttangential_stress" << endl;
-			for (int yEdgeIndex = 0; yEdgeIndex < NumberOfSubdivisions; yEdgeIndex++){
-				double LoweryOfEdge = static_cast<double>(yEdgeIndex)*DimensionlessEdgeLength;
-				double UpperyOfEdge = static_cast<double>(yEdgeIndex+1)*DimensionlessEdgeLength;
-				for (int xEdgeIndex = 0; xEdgeIndex < NumberOfSubdivisions; xEdgeIndex++){
-					double xPositionOfEdge = static_cast<double>(xEdgeIndex+1)*DimensionlessEdgeLength;
-					FileStreamToWrite << xPositionOfEdge << "\t" << LoweryOfEdge << "\t" << UpperyOfEdge << "\t" << StressOfEdgesInyDirection[DIMENSION*(xEdgeIndex+NumberOfSubdivisions*yEdgeIndex)]/(static_cast<double>(NumberOfAverages)*EdgeLength) << "\t" << StressOfEdgesInyDirection[DIMENSION*(xEdgeIndex+NumberOfSubdivisions*yEdgeIndex)+1]/(static_cast<double>(NumberOfAverages)*EdgeLength) << endl;
+
+			{
+				ofstream ofs(FilePath+"_yEdges.dat");
+
+				while (!ofs.is_open()){
+					ofs.open(FilePath+"_yEdges.dat");
+					this_thread::sleep_for(std::chrono::milliseconds(100));
 				}
-			}
-			FileStreamToWrite.close();
-			FileStreamToWrite.open(FilePath+"_xEdges.dat");
-			FileStreamToWrite << "x stresses (i.e. stresses through edges in x direction)" << endl;
-			FileStreamToWrite << "yPos\tlowerx\tupperx\tnormal_stress\ttangential_stress" << endl;
-			for (int xEdgeIndex = 0; xEdgeIndex < NumberOfSubdivisions; xEdgeIndex++){
-				double LowerxOfEdge = static_cast<double>(xEdgeIndex)*DimensionlessEdgeLength;
-				double UpperxOfEdge = static_cast<double>(xEdgeIndex+1)*DimensionlessEdgeLength;
+
+				ofs << "y stresses (i.e. stresses through edges in y direction)" << endl;
+				ofs << "xPos\tlowery\tuppery\tnormal_stress\ttangential_stress" << endl;
 				for (int yEdgeIndex = 0; yEdgeIndex < NumberOfSubdivisions; yEdgeIndex++){
-					double yPositionOfEdge = static_cast<double>(yEdgeIndex+1)*DimensionlessEdgeLength;
-					FileStreamToWrite << yPositionOfEdge << "\t" << LowerxOfEdge << "\t" << UpperxOfEdge << "\t" << StressOfEdgesInxDirection[DIMENSION*(xEdgeIndex+NumberOfSubdivisions*yEdgeIndex)]/(static_cast<double>(NumberOfAverages)*EdgeLength) << "\t" << StressOfEdgesInxDirection[DIMENSION*(xEdgeIndex+NumberOfSubdivisions*yEdgeIndex)+1]/(static_cast<double>(NumberOfAverages)*EdgeLength) << endl;
+					double LoweryOfEdge = static_cast<double>(yEdgeIndex)*DimensionlessEdgeLength;
+					double UpperyOfEdge = static_cast<double>(yEdgeIndex+1)*DimensionlessEdgeLength;
+					for (int xEdgeIndex = 0; xEdgeIndex < NumberOfSubdivisions; xEdgeIndex++){
+						double xPositionOfEdge = static_cast<double>(xEdgeIndex+1)*DimensionlessEdgeLength;
+						ofs << xPositionOfEdge << "\t" << LoweryOfEdge << "\t" << UpperyOfEdge << "\t" << StressOfEdgesInyDirection[DIMENSION*(xEdgeIndex+NumberOfSubdivisions*yEdgeIndex)]/(static_cast<double>(NumberOfAverages)*EdgeLength) << "\t" << StressOfEdgesInyDirection[DIMENSION*(xEdgeIndex+NumberOfSubdivisions*yEdgeIndex)+1]/(static_cast<double>(NumberOfAverages)*EdgeLength) << endl;
+					}
 				}
 			}
-			FileStreamToWrite.close();
+
+			{
+				ofstream ofs(FilePath+"_xEdges.dat");
+
+				while (!ofs.is_open()){
+					ofs.open(FilePath+"_xEdges.dat");
+					this_thread::sleep_for(std::chrono::milliseconds(100));
+				}
+
+				ofs << "x stresses (i.e. stresses through edges in x direction)" << endl;
+				ofs << "yPos\tlowerx\tupperx\tnormal_stress\ttangential_stress" << endl;
+				for (int xEdgeIndex = 0; xEdgeIndex < NumberOfSubdivisions; xEdgeIndex++){
+					double LowerxOfEdge = static_cast<double>(xEdgeIndex)*DimensionlessEdgeLength;
+					double UpperxOfEdge = static_cast<double>(xEdgeIndex+1)*DimensionlessEdgeLength;
+					for (int yEdgeIndex = 0; yEdgeIndex < NumberOfSubdivisions; yEdgeIndex++){
+						double yPositionOfEdge = static_cast<double>(yEdgeIndex+1)*DimensionlessEdgeLength;
+						ofs << yPositionOfEdge << "\t" << LowerxOfEdge << "\t" << UpperxOfEdge << "\t" << StressOfEdgesInxDirection[DIMENSION*(xEdgeIndex+NumberOfSubdivisions*yEdgeIndex)]/(static_cast<double>(NumberOfAverages)*EdgeLength) << "\t" << StressOfEdgesInxDirection[DIMENSION*(xEdgeIndex+NumberOfSubdivisions*yEdgeIndex)+1]/(static_cast<double>(NumberOfAverages)*EdgeLength) << endl;
+					}
+				}
+			}
 
 			double avgShearStressTotal = 0.0;
-			FileStreamToWrite.open(FilePath+"_ShearStressSeries.dat");
-			FileStreamToWrite << "avg shear stresses series" << endl;
-			for (int i = 0; i < seriesOfAvgShearStresses.size(); i++){
-				double avgShearStressThisTimeStep = seriesOfAvgShearStresses[i]/static_cast<double>(NumberOfConfigurations);
-				FileStreamToWrite << avgShearStressThisTimeStep << '\n';
-				avgShearStressTotal += avgShearStressThisTimeStep;
+			{
+				ofstream ofs(FilePath+"_ShearStressSeries.dat");
+
+				while (!ofs.is_open()){
+					ofs.open(FilePath+"_ShearStressSeries.dat");
+					this_thread::sleep_for(std::chrono::milliseconds(100));
+				}
+
+				ofs << "avg shear stresses series" << endl;
+				for (int i = 0; i < seriesOfAvgShearStresses.size(); i++){
+					double avgShearStressThisTimeStep = seriesOfAvgShearStresses[i]/static_cast<double>(NumberOfConfigurations);
+					ofs << avgShearStressThisTimeStep << '\n';
+					avgShearStressTotal += avgShearStressThisTimeStep;
+				}
 			}
-			FileStreamToWrite.close();
 
 			cerr << fixed << setprecision(5);
 			cerr << "Avg number of force values per edge:\n";
