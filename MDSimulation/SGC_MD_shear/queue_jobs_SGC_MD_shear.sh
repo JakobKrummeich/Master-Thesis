@@ -42,6 +42,7 @@ settings="#!/bin/bash
 #SBATCH --output=/dev/null
 #SBATCH --error=/dev/null
 #SBATCH --cpus-per-task=1
+#SBATCH --ntasks-per-core=1
 #SBATCH --mem-per-cpu=800mb
 #SBATCH --workdir=/home1/krummeich/Master-Thesis/code/MDSimulation/SGC_MD_shear"
 
@@ -55,7 +56,7 @@ for dir in ${initStateDirectory}*/ ; do
 
 	initialStateFile="${dir}final_state.dat"
 
-	srun_command="srun --ntasks=1 ./SGC_MD_shear ${temperature} ${shearRate} ${initialStateFile} ${result_directory} ${numberOfEquilibrationSweeps} ${numberOfDataTakingSweeps} ${stepsize} &
+	srun_command="srun --ntasks=1 --cpu-bind=cores ./SGC_MD_shear ${temperature} ${shearRate} ${initialStateFile} ${result_directory} ${numberOfEquilibrationSweeps} ${numberOfDataTakingSweeps} ${stepsize} &
 
 wait"
 
