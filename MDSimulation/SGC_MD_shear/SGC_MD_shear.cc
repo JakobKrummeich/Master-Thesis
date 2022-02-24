@@ -146,8 +146,9 @@ int main(int argc, char* argv[]){
 			energySeries.push_back(P.computeEnergy());
 		}
 	}
-
 	PCC.computeImg22(P);
+
+	this_thread::sleep_for(chrono::seconds(static_cast<int>(RNG.drawRandomNumber(0.0,600.0))));
 
 	PCC.writeResults(outputDirectory);
 	writeAvgVelocityFile(outputDirectory, avgVelocities, numberOfDataTakingSweeps, P.getBoxLength(), numberOfyValuesForVelocities);
