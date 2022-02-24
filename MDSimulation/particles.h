@@ -529,7 +529,6 @@ class Particles {
 					TypeBParticleIndices.push_back(ParticleIndex);
 				}
 			}
-			FileStreamToReadIn.close();
 			buildVerletList();
 		}
 
@@ -561,7 +560,6 @@ class Particles {
 					TypeBParticleIndices.push_back(ParticleIndex);
 				}
 			}
-			FileStreamToReadIn.close();
 			buildVerletList();
 			cerr << "Initial potential energy: " << computePotentialEnergy() << endl;
 		}

@@ -100,15 +100,10 @@ class PairCorrelationComputator {
 		void writeResults(string filePath) const {
 			ofstream ofs(filePath+"Img22.dat");
 
-			while (!ofs.is_open()){
-				ofs.open(filePath+"Img22.dat");
-				this_thread::sleep_for(std::chrono::milliseconds(100));
-			}
-
-			ofs << "r [sigma]\tImg22AA\tImg22BB\tImg22AB" << endl;
+			ofs << "r [sigma]\tImg22AA\tImg22BB\tImg22AB\n";
 			double r = deltar*0.5;
+			double inverseNumberOfAverages = 1.0/(static_cast<double>(numberOfAveragedPositions));
 			for (int i = 0; i < numberOfValues; i++){
-				double inverseNumberOfAverages = 1.0/(static_cast<double>(numberOfAveragedPositions));
 				ofs << r*boxLength << '\t' << img22AA[i]*inverseNumberOfAverages << '\t' << img22BB[i]*inverseNumberOfAverages << '\t' << img22AB[i]*inverseNumberOfAverages << '\n';
 				r += deltar;
 			}

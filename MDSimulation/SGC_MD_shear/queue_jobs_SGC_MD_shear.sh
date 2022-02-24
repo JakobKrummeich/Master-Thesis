@@ -37,7 +37,7 @@ done
 
 settings="#!/bin/bash
 #SBATCH --ntasks=1
-#SBATCH --partition=normal,amd,oip
+#SBATCH --partition=normal,oip
 #SBATCH --nodes=1
 #SBATCH --output=/dev/null
 #SBATCH --error=/dev/null
@@ -56,7 +56,7 @@ for dir in ${initStateDirectory}*/ ; do
 
 	initialStateFile="${dir}final_state.dat"
 
-	srun_command="srun --ntasks=1 --cpu-bind=cores ./SGC_MD_shear ${temperature} ${shearRate} ${initialStateFile} ${result_directory} ${numberOfEquilibrationSweeps} ${numberOfDataTakingSweeps} ${stepsize} &
+	srun_command="srun --ntasks=1 ./SGC_MD_shear ${temperature} ${shearRate} ${initialStateFile} ${result_directory} ${numberOfEquilibrationSweeps} ${numberOfDataTakingSweeps} ${stepsize} &
 
 wait"
 
@@ -68,7 +68,7 @@ wait"
 	sbatch ${submit_filename}
 	rm ${submit_filename}
 
-	sleep 0.05
+	sleep 0.02
 
 done
 

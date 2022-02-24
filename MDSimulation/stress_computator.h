@@ -407,11 +407,6 @@ class StressComputator {
 			{
 				ofstream ofs(FilePath+"_yEdges.dat");
 
-				while (!ofs.is_open()){
-					ofs.open(FilePath+"_yEdges.dat");
-					this_thread::sleep_for(std::chrono::milliseconds(100));
-				}
-
 				ofs << "y stresses (i.e. stresses through edges in y direction)" << endl;
 				ofs << "xPos\tlowery\tuppery\tnormal_stress\ttangential_stress" << endl;
 				for (int yEdgeIndex = 0; yEdgeIndex < NumberOfSubdivisions; yEdgeIndex++){
@@ -426,11 +421,6 @@ class StressComputator {
 
 			{
 				ofstream ofs(FilePath+"_xEdges.dat");
-
-				while (!ofs.is_open()){
-					ofs.open(FilePath+"_xEdges.dat");
-					this_thread::sleep_for(std::chrono::milliseconds(100));
-				}
 
 				ofs << "x stresses (i.e. stresses through edges in x direction)" << endl;
 				ofs << "yPos\tlowerx\tupperx\tnormal_stress\ttangential_stress" << endl;
@@ -447,11 +437,6 @@ class StressComputator {
 			double avgShearStressTotal = 0.0;
 			{
 				ofstream ofs(FilePath+"_ShearStressSeries.dat");
-
-				while (!ofs.is_open()){
-					ofs.open(FilePath+"_ShearStressSeries.dat");
-					this_thread::sleep_for(std::chrono::milliseconds(100));
-				}
 
 				ofs << "avg shear stresses series" << endl;
 				for (int i = 0; i < seriesOfAvgShearStresses.size(); i++){

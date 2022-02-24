@@ -12,11 +12,6 @@
 void writeAvgVelocityFile(string outputDirectory, const vector<double>& avgVelocities, int numberOfDataTakingSweeps, double boxLength, int numberOfyValuesForVelocities){
 	ofstream ofs(outputDirectory + "avgVelocities.dat");
 
-	while (!ofs.is_open()){
-		ofs.open(outputDirectory + "avgVelocities.dat");
-		this_thread::sleep_for(std::chrono::milliseconds(100));
-	}
-
 	double yDelta = 1.0/static_cast<double>(numberOfyValuesForVelocities);
 	double Currenty = yDelta*0.5;
 	for (int i = 0; i < numberOfyValuesForVelocities-1; i++){
@@ -35,11 +30,6 @@ void writeAvgVelocityFile(string outputDirectory, const vector<double>& avgVeloc
 void writeEnergySeriesFile(string outputDirectory, const vector<double>& energySeries){
 	ofstream ofs(outputDirectory + "energySeries.dat");
 
-	while (!ofs.is_open()){
-		ofs.open(outputDirectory + "energySeries.dat");
-		this_thread::sleep_for(std::chrono::milliseconds(100));
-	}
-
 	ofs << "U\t" << "T\t" << "H\n";
 	ofs <<  fixed << setprecision(numeric_limits<long double>::digits10+1);
 	for (int i = 0; i < energySeries.size(); ){
@@ -55,11 +45,6 @@ void writeEnergySeriesFile(string outputDirectory, const vector<double>& energyS
 void writeHistogramFile(string outputDirectory, const uint32_t* histogramNA){
 	ofstream ofs(outputDirectory + "histogram_NA.dat");
 
-	while (!ofs.is_open()){
-		ofs.open(outputDirectory + "histogram_NA.dat");
-		this_thread::sleep_for(std::chrono::milliseconds(100));
-	}
-
 	ofs << "NA\t" << "#of appearances\n";
 	for (int i = 0; i <= TOTAL_NUMBER_OF_PARTICLES; i++) {
 		ofs << i << '\t' << histogramNA[i] << '\n';
@@ -68,11 +53,6 @@ void writeHistogramFile(string outputDirectory, const uint32_t* histogramNA){
 
 void writeFinalStateFile(string outputDirectory, const Particles& P){
 	ofstream ofs(outputDirectory + "N=1000_final_state.dat");
-
-	while (!ofs.is_open()){
-		ofs.open(outputDirectory + "N=1000_final_state.dat");
-		this_thread::sleep_for(std::chrono::milliseconds(100));
-	}
 
 	ofs << P;
 }
