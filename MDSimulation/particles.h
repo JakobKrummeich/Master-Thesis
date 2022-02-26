@@ -932,4 +932,34 @@ ostream& operator<<(ostream& OStream, const Particles& State){
 	return OStream;
 }
 
+void writeFinalStateFile(string outputDirectory, const Particles& P){
+	ofstream ofs(outputDirectory + "N=" + to_string(TOTAL_NUMBER_OF_PARTICLES) + "_final_state.dat");
+
+	ofs << P;
+}
+
+void writeEnergySeriesFile(string outputDirectory, const vector<double>& energySeries){
+	ofstream ofs(outputDirectory + "energySeries.dat");
+
+	ofs << "U\t" << "T\t" << "H\n";
+	ofs <<  fixed << setprecision(numeric_limits<long double>::digits10+1);
+	for (int i = 0; i < energySeries.size(); ){
+		for (int j = 0; j < 2; j++){
+			ofs << energySeries[i] << '\t';
+			i++;
+		}
+		ofs << energySeries[i] << '\n';
+		i++;
+	}
+}
+
+void writeHistogramFile(string outputDirectory, const uint32_t* histogramNA, const uint32_t TOTAL_NUMBER_OF_PARTICLES){
+	ofstream ofs(outputDirectory + "histogram_NA.dat");
+
+	ofs << "NA\t" << "#of appearances\n";
+	for (int i = 0; i <= TOTAL_NUMBER_OF_PARTICLES; i++) {
+		ofs << i << '\t' << histogramNA[i] << '\n';
+	}
+}
+
 #endif //PARTICLES_INCLUDED

@@ -27,36 +27,6 @@ void writeAvgVelocityFile(string outputDirectory, const vector<double>& avgVeloc
 	}
 }
 
-void writeEnergySeriesFile(string outputDirectory, const vector<double>& energySeries){
-	ofstream ofs(outputDirectory + "energySeries.dat");
-
-	ofs << "U\t" << "T\t" << "H\n";
-	ofs <<  fixed << setprecision(numeric_limits<long double>::digits10+1);
-	for (int i = 0; i < energySeries.size(); ){
-		for (int j = 0; j < 2; j++){
-			ofs << energySeries[i] << '\t';
-			i++;
-		}
-		ofs << energySeries[i] << '\n';
-		i++;
-	}
-}
-
-void writeHistogramFile(string outputDirectory, const uint32_t* histogramNA){
-	ofstream ofs(outputDirectory + "histogram_NA.dat");
-
-	ofs << "NA\t" << "#of appearances\n";
-	for (int i = 0; i <= TOTAL_NUMBER_OF_PARTICLES; i++) {
-		ofs << i << '\t' << histogramNA[i] << '\n';
-	}
-}
-
-void writeFinalStateFile(string outputDirectory, const Particles& P){
-	ofstream ofs(outputDirectory + "N=1000_final_state.dat");
-
-	ofs << P;
-}
-
 using namespace std;
 
 int main(int argc, char* argv[]){
@@ -93,7 +63,6 @@ int main(int argc, char* argv[]){
 	vector<double> energySeries;
 
 	const auto StartTime = chrono::steady_clock::now();
-	int NextUpdateTime = UPDATE_TIME_INTERVAL;
 	int nextEnergyComputation = ENERGY_UPDATE_INTERVAL;
 
 	cerr << "Equilibration started.\n";
@@ -153,7 +122,7 @@ int main(int argc, char* argv[]){
 	PCC.writeResults(outputDirectory);
 	writeAvgVelocityFile(outputDirectory, avgVelocities, numberOfDataTakingSweeps, P.getBoxLength(), numberOfyValuesForVelocities);
 	writeEnergySeriesFile(outputDirectory, energySeries);
-	writeHistogramFile(outputDirectory, histogramNA);
+	writeHistogramFile(outputDirectory, histogramNA, TOTAL_NUMBER_OF_PARTICLES);
 	writeFinalStateFile(outputDirectory, P);
 	SC.writeAverageStresses(outputDirectory + "avgStresses");
 

@@ -21,10 +21,12 @@ make_directory_if_necessary new_directory
 
 settings="#!/bin/bash
 #SBATCH --ntasks=1
-#SBATCH --partition=parallel
+#SBATCH --partition=normal,oip
 #SBATCH --nodes=1-1
 #SBATCH --output=/dev/null
-#SBATCH --cpus-per-task=2
+#SBATCH --error=/dev/null
+#SBATCH --cpus-per-task=1
+#SBATCH --ntasks-per-core=1
 #SBATCH --mem-per-cpu=800mb
 #SBATCH --workdir=/home1/krummeich/Master-Thesis/code/MDSimulation/equilibrate_SGC_MD"
 
@@ -37,7 +39,7 @@ for (( runNumber=0; runNumber<${number_of_runs}; runNumber++ )); do
 	result_directory="${new_directory}/${runNumber}/"
 	make_directory_if_necessary result_directory
 
-	srun_command="srun --ntasks=1 --error=${result_directory}/error_stream.err ./equilibrate_SGC_MD ${temperature} ${result_directory} ${number_of_equilibration_sweeps} ${number_of_data_taking_sweeps} &
+	srun_command="srun --ntasks=1 ./equilibrate_SGC_MD ${temperature} ${result_directory} ${number_of_equilibration_sweeps} ${number_of_data_taking_sweeps} &
 
 wait"
 	echo "$srun_command" >> ${submit_filename}

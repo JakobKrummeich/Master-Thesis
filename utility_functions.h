@@ -4,6 +4,8 @@
 #include <string>
 #include <fstream>
 
+using namespace std;
+
 void skipLines(ifstream& FileStreamToReadIn, int NumberOfLinesToSkip){
 	string s;
 	for (int i = 0; i < NumberOfLinesToSkip; i++){
