@@ -54,7 +54,7 @@ for dir in ${initStateDirectory}*/ ; do
 
 	result_directory="${newDirectory}/${runNumber}/"
 
-	initialStateFile="${dir}final_state.dat"
+	initialStateFile="${dir}N=1000_final_state.dat"
 
 	srun_command="srun --ntasks=1 ./SGC_MD_shear ${temperature} ${shearRate} ${initialStateFile} ${result_directory} ${numberOfEquilibrationSweeps} ${numberOfDataTakingSweeps} ${stepsize} &
 
