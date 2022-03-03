@@ -2,48 +2,54 @@
 #include <fstream>
 #include <string>
 #include <stdlib.h>
-#include "../../general_code/structure_factor.h"
+#include "../../MDSimulation/structure_factor.h"
 
 using namespace std;
 
-double extractBoxLength(string InputFileName){
-	ifstream InputFileStream;
+double extractBoxLength(string fileName){
+	ifstream ifs(fileName);
 	string CurrentString;
-	InputFileStream.open(InputFileName);
-	getline(InputFileStream, CurrentString, '\n');
-	getline(InputFileStream, CurrentString, ':');
-	getline(InputFileStream, CurrentString, ':');
-	getline(InputFileStream, CurrentString, ':');
-	getline(InputFileStream, CurrentString, '\n');
+	getline(ifs, CurrentString, '|');
+	getline(ifs, CurrentString, '|');
+	getline(ifs, CurrentString, '|');
+	getline(ifs, CurrentString, ':');
+	getline(ifs, CurrentString, '|');
 	return stod(CurrentString);
 }
 
 int main(int argc, char* argv[]){
-	string InputFileName;
-	string OutputFileName;
-	double kAll;
-	double kMax;
-	int TotalNumberOfParticles;
-	int NumberOfStates;
-
-	if (argc == 7){
-		InputFileName = argv[1];
-		OutputFileName = "StructureFactors_";
-		OutputFileName += argv[2];
-		OutputFileName += ".dat";
-		kAll = atof(argv[3]);
-		kMax = atof(argv[4]);
-		TotalNumberOfParticles = atoi(argv[5]);
-		NumberOfStates = atoi(argv[6]);
-	}
-	else if (argc < 7){
-		cerr << "StructureFactorComputation failed as we need a target File, extracted FileInfo, kAll, kMax, TotalNumberOfParticles and NumberOfStates!" << endl;
+	if (argc < 7){
+		cerr << "StructureFactorComputation failed as we need an outputFileName, outputDirectory, kAll, kMax, numberOfkIntervals, numberOfAngleIntervals, totalNumberOfParticles!" << endl;
 		return 0;
 	}
 
-	StructureFactorComputator SFComputator(kAll, kMax, extractBoxLength(InputFileName), TotalNumberOfParticles);
+	string outputFileName = argv[2];
+	outputFileName += "StructureFactors_";
+	outputFileName += argv[1];
+	outputFileName += ".dat";
 
-	SFComputator.computeStructureFactors(InputFileName, NumberOfStates);
+	double kAll = atof(argv[3]);
+	double kMax = atof(argv[4]);
+	int numberOfkIntervals = atoi(argv[5]);
+	int numberOfAngleIntervals = atoi(argv[6]);
+	int totalNumberOfParticles = atoi(argv[7]);
 
-	SFComputator.writeResultsToFile(OutputFileName);
+	string inputFileName;
+
+	double boxLength;
+
+	if (cin >> inputFileName){
+		cerr << "new state: " << inputFileName << endl;
+		boxLength = extractBoxLength(inputFileName);
+	}
+
+	StructureFactorComputator SC(totalNumberOfParticles, boxLength, kAll, kMax, numberOfkIntervals, numberOfAngleIntervals);
+	SC.computeNewStructureFactorValues(inputFileName);
+
+	while (cin >> inputFileName){
+		cerr << "new state: " << inputFileName << endl;
+		SC.computeNewStructureFactorValues(inputFileName);
+	}
+
+	SC.writeResultsToFile(outputFileName);
 }
