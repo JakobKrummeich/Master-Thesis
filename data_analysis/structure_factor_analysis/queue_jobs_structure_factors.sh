@@ -15,7 +15,7 @@ settings="#!/bin/bash
 #SBATCH --cpus-per-task=1
 #SBATCH --ntasks-per-core=1
 #SBATCH --mem-per-cpu=800mb
-#SBATCH --workdir=/home1/krummeich/Master-Thesis/data_analysis/structure_factor_analysis/"
+#SBATCH --workdir=/home1/krummeich/Master-Thesis/code/data_analysis/structure_factor_analysis/"
 
 filename="structureFactorComputation.sh"
 echo "$settings" > $filename
