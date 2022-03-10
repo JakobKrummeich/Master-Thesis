@@ -7,13 +7,13 @@ numberOfAngleIntervals=$6
 totalNumberOfParticles=$7
 
 settings="#!/bin/bash
-#SBATCH --ntasks=1
+#SBATCH --ntasks=64
 #SBATCH --partition=phi
 #SBATCH --nodes=1-1
+#SBATCH --exclude=knightslanding02,knightslanding04
 #SBATCH --output=/dev/null
 #SBATCH --error=/dev/null
 #SBATCH --cpus-per-task=1
-#SBATCH --ntasks-per-core=1
 #SBATCH --mem-per-cpu=800mb
 #SBATCH --workdir=/home1/krummeich/Master-Thesis/code/data_analysis/structure_factor_analysis/"
 
