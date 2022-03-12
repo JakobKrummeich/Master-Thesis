@@ -6,7 +6,7 @@
 
 using namespace std;
 
-constexpr int TOTAL_NUMBER_OF_PARTICLES = 1000;
+constexpr int TOTAL_NUMBER_OF_PARTICLES = 8000;
 
 constexpr double DENSITY = 0.75;
 

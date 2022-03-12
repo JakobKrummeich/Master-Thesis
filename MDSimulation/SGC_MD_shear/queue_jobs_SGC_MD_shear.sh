@@ -50,7 +50,7 @@ settings="#!/bin/bash
 
 for dir in ${initStateDirectory}*/ ; do
 
-	[[ ${dir} =~ T=[[:digit:]]*.[[:digit:]]*/([[:digit:]]*)/ ]] && runNumber="${BASH_REMATCH[1]}"
+	[[ ${dir} =~ T=[[:digit:]]*.[[:digit:]]*/singleRunData/([[:digit:]]*)/ ]] && runNumber="${BASH_REMATCH[1]}"
 
 	result_directory="${newDirectory}/${runNumber}/"
 

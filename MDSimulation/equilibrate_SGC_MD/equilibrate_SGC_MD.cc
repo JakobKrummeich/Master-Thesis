@@ -16,7 +16,7 @@ int main(int argc, char* argv[]){
 
 	const int numberOfEquilibrationSweeps = stoi(argv[3]);
 	const int numberOfDataTakingSweeps = stoi(argv[4]);
-	const int numberOfAttemptedTypeSwitches = 100;
+	const int numberOfAttemptedTypeSwitches = ceil(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES)*0.1);
 
 	const double Beta = 1.0/Temperature;
 
@@ -25,7 +25,7 @@ int main(int argc, char* argv[]){
 
 	realUniformRNG RNG;
 
-	Particles P(500, DENSITY, Temperature, 0.0, 0.0);
+	Particles P(static_cast<int>(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES)*0.5), DENSITY, Temperature, 0.0, 0.0);
 
 	BussiThermostat BT(Temperature, ThermostatTime, DIMENSION*TOTAL_NUMBER_OF_PARTICLES);
 

@@ -31,7 +31,7 @@ settings="#!/bin/bash
 #SBATCH --mem-per-cpu=800mb
 #SBATCH --workdir=/home1/krummeich/Master-Thesis/code/MDSimulation/equilibrate_SGC_MD"
 
-#for runNumber in {690,27,268,267,266,265,264,263,261,260,259,258,257,256,255,251,1530,151,150,1499,1481,1456,132,131}; do
+#for runNumber in {730,729,728,727,665,664,663,662,615,599,598,571,561,543}; do
 for (( runNumber=0; runNumber<${number_of_runs}; runNumber++ )); do
 	submit_filename="equilibrate_SGC_MD_N=${totalNumberOfParticles}_T=${temperature}_${runNumber}.sh"
 	echo "$settings" > ${submit_filename}
