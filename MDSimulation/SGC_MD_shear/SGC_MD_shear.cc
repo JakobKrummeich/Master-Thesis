@@ -119,7 +119,7 @@ int main(int argc, char* argv[]){
 	}
 	PCC.computeImg22(P);
 
-	//this_thread::sleep_for(chrono::seconds(static_cast<int>(RNG.drawRandomNumber(0.0,1.0))));
+	this_thread::sleep_for(chrono::seconds(static_cast<int>(RNG.drawRandomNumber(0.0,600.0))));
 
 	PCC.writeResults(outputDirectory);
 	writeAvgVelocityFile(outputDirectory, avgVelocities, numberOfDataTakingSweeps, P.getBoxLength(), numberOfyValuesForVelocities);
