@@ -29,7 +29,7 @@ make_directory_if_necessary newDirectory
 
 for dir in ${initStateDirectory}*/ ; do
 
-	[[ ${dir} =~ T=[[:digit:]]*.[[:digit:]]*/([[:digit:]]*)/ ]] && runNumber="${BASH_REMATCH[1]}"
+	[[ ${dir} =~ T=[[:digit:]]*.[[:digit:]]*/singleRunData/([[:digit:]]*)/ ]] && runNumber="${BASH_REMATCH[1]}"
 
 	result_directory="${newDirectory}/${runNumber}/"
 	make_directory_if_necessary result_directory
