@@ -31,21 +31,28 @@ settings="#!/bin/bash
 #SBATCH --mem-per-cpu=800mb
 #SBATCH --workdir=/home1/krummeich/Master-Thesis/code/MDSimulation/equilibrate_SGC_MD"
 
-#for runNumber in {730,729,728,727,665,664,663,662,615,599,598,571,561,543}; do
+
 for (( runNumber=0; runNumber<${number_of_runs}; runNumber++ )); do
-	submit_filename="equilibrate_SGC_MD_N=${totalNumberOfParticles}_T=${temperature}_${runNumber}.sh"
-	echo "$settings" > ${submit_filename}
-	echo  -e  >> ${submit_filename}
 
 	result_directory="${new_directory}/${runNumber}/"
 	make_directory_if_necessary result_directory
 
-	srun_command="srun --ntasks=1 ./equilibrate_SGC_MD_N=${totalNumberOfParticles} ${temperature} ${result_directory} ${number_of_equilibration_sweeps} ${number_of_data_taking_sweeps} &
+	if [ -d "${result_directory}" ]; then
+		if [ ! "$(ls -A ${result_directory})" ]; then
 
-wait"
-	echo "$srun_command" >> ${submit_filename}
-	sbatch ${submit_filename}
-	rm ${submit_filename}
+			submit_filename="equilibrate_SGC_MD_N=${totalNumberOfParticles}_T=${temperature}_${runNumber}.sh"
+			echo "$settings" > ${submit_filename}
+			echo -e >> ${submit_filename}
+
+			srun_command="srun --ntasks=1 ./equilibrate_SGC_MD_N=${totalNumberOfParticles} ${temperature} ${result_directory} ${number_of_equilibration_sweeps} ${number_of_data_taking_sweeps} &
+
+		wait"
+			echo "$srun_command" >> ${submit_filename}
+			sbatch ${submit_filename}
+			rm ${submit_filename}
+
+		fi
+	fi
 
 done
 

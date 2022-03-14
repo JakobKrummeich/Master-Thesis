@@ -54,22 +54,25 @@ for dir in ${initStateDirectory}*/ ; do
 
 	result_directory="${newDirectory}/${runNumber}/"
 
-	initialStateFile="${dir}N=${numberOfParticles}_final_state.dat"
+	if [ -d "${result_directory}" ]; then
+		if [ ! "$(ls -A ${result_directory})" ]; then
 
-	srun_command="srun --ntasks=1 ./SGC_MD_shear_N=${numberOfParticles} ${temperature} ${shearRate} ${initialStateFile} ${result_directory} ${numberOfEquilibrationSweeps} ${numberOfDataTakingSweeps} ${stepsize} &
+			initialStateFile="${dir}N=${numberOfParticles}_final_state.dat"
 
-wait"
+			srun_command="srun --ntasks=1 ./SGC_MD_shear_N=${numberOfParticles} ${temperature} ${shearRate} ${initialStateFile} ${result_directory} ${numberOfEquilibrationSweeps} ${numberOfDataTakingSweeps} ${stepsize} &
 
-	submit_filename="SGC_MD_shear_N=${numberOfParticles}_T=${temperature}_shearRate=${shearRate}_${runNumber}.sh"
-	echo "$settings" > ${submit_filename}
-	echo $'\n' >> ${submit_filename}
-	echo "$srun_command" >> ${submit_filename}
+		wait"
 
-	sbatch ${submit_filename}
-	rm ${submit_filename}
+			submit_filename="SGC_MD_shear_N=${numberOfParticles}_T=${temperature}_shearRate=${shearRate}_${runNumber}.sh"
+			echo "$settings" > ${submit_filename}
+			echo $'\n' >> ${submit_filename}
+			echo "$srun_command" >> ${submit_filename}
 
-	sleep 0.02
+			sbatch ${submit_filename}
+			rm ${submit_filename}
+
+		fi
+	fi
 
 done
-
 
