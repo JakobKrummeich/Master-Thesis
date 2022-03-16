@@ -46,7 +46,7 @@ int main(int argc, char* argv[]){
 
 	const double Beta = 1.0/Temperature;
 
-	const double ThermostatTime = 0.001;
+	const double ThermostatTime = 1.0;
 
 
 	realUniformRNG RNG;
