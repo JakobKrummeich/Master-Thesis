@@ -700,15 +700,22 @@ class Particles {
 		double computeKineticEnergy() const {
 			double KineticEnergy = 0.0;
 			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
-					double xVelWithoutDrift = Velocities[DIMENSION*ParticleIndex] - ShearRate*(Positions[DIMENSION*ParticleIndex+1]-0.5);
-					KineticEnergy += xVelWithoutDrift * xVelWithoutDrift;
-					KineticEnergy += Velocities[DIMENSION*ParticleIndex+1]*Velocities[DIMENSION*ParticleIndex+1];
+				KineticEnergy += Velocities[DIMENSION*ParticleIndex]*Velocities[DIMENSION*ParticleIndex];
+				KineticEnergy += Velocities[DIMENSION*ParticleIndex+1]*Velocities[DIMENSION*ParticleIndex+1];
 			}
 			return KineticEnergy*BoxLengthSquared*0.5;
 		}
 
 		double computeEnergy() const {
 			return computePotentialEnergy()+computeKineticEnergy();
+		}
+
+		double computeKineticEnergyOfyCoordinates() const {
+			double KineticEnergy = 0.0;
+			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
+				KineticEnergy += Velocities[DIMENSION*ParticleIndex+1]*Velocities[DIMENSION*ParticleIndex+1];
+			}
+			return KineticEnergy*BoxLengthSquared*0.5;
 		}
 
 		void computeTotalMomentum(double* Momentum) {

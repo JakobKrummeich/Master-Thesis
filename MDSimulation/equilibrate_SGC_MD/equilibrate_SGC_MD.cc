@@ -27,7 +27,7 @@ int main(int argc, char* argv[]){
 
 	Particles P(static_cast<int>(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES)*0.5), DENSITY, Temperature, 0.0, 0.0);
 
-	BussiThermostat BT(Temperature, ThermostatTime, DIMENSION*TOTAL_NUMBER_OF_PARTICLES);
+	BussiThermostat BT(Temperature, ThermostatTime, TOTAL_NUMBER_OF_PARTICLES);
 
 	vector<double> energySeries;
 
@@ -81,7 +81,7 @@ int main(int argc, char* argv[]){
 		}
 	}
 
-	this_thread::sleep_for(chrono::seconds(static_cast<int>(RNG.drawRandomNumber(0.0,600.0))));
+	//this_thread::sleep_for(chrono::seconds(static_cast<int>(RNG.drawRandomNumber(0.0,600.0))));
 
 	writeEnergySeriesFile(outputDirectory, energySeries);
 	writeHistogramFile(outputDirectory, histogramNA, TOTAL_NUMBER_OF_PARTICLES);
