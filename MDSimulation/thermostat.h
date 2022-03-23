@@ -30,7 +30,7 @@ class BussiThermostat {
 				double NewR = GaussianRNG.drawRandomNumber();
 				RandomSum += NewR * NewR;
 			}
-			double CurrentKineticEnergy = P.computeKineticEnergy();
+			double CurrentKineticEnergy = P.computeKineticEnergyOfyCoordinates();
 			double ExponentialTerm = exp(-Stepsize*InverseTimescale);
 			double TermInRoot = Temperature/(2.0*CurrentKineticEnergy) * (1.0 - ExponentialTerm);
 			double AlphaSquared = ExponentialTerm + TermInRoot * RandomSum + 2.0 * R1 * exp(-0.5*Stepsize*InverseTimescale) * sqrt(TermInRoot);

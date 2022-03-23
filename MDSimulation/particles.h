@@ -700,15 +700,22 @@ class Particles {
 		double computeKineticEnergy() const {
 			double KineticEnergy = 0.0;
 			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
-					double xVelWithoutDrift = Velocities[DIMENSION*ParticleIndex] - ShearRate*(Positions[DIMENSION*ParticleIndex+1]-0.5);
-					KineticEnergy += xVelWithoutDrift * xVelWithoutDrift;
-					KineticEnergy += Velocities[DIMENSION*ParticleIndex+1]*Velocities[DIMENSION*ParticleIndex+1];
+				KineticEnergy += Velocities[DIMENSION*ParticleIndex]*Velocities[DIMENSION*ParticleIndex];
+				KineticEnergy += Velocities[DIMENSION*ParticleIndex+1]*Velocities[DIMENSION*ParticleIndex+1];
 			}
 			return KineticEnergy*BoxLengthSquared*0.5;
 		}
 
 		double computeEnergy() const {
 			return computePotentialEnergy()+computeKineticEnergy();
+		}
+
+		double computeKineticEnergyOfyCoordinates() const {
+			double KineticEnergy = 0.0;
+			for (int ParticleIndex = 0; ParticleIndex < TOTAL_NUMBER_OF_PARTICLES; ParticleIndex++){
+				KineticEnergy += Velocities[DIMENSION*ParticleIndex+1]*Velocities[DIMENSION*ParticleIndex+1];
+			}
+			return KineticEnergy*BoxLengthSquared*0.5;
 		}
 
 		void computeTotalMomentum(double* Momentum) {
@@ -941,10 +948,10 @@ void writeFinalStateFile(string outputDirectory, const Particles& P){
 void writeEnergySeriesFile(string outputDirectory, const vector<double>& energySeries){
 	ofstream ofs(outputDirectory + "energySeries.dat");
 
-	ofs << "U\t" << "T\t" << "H\n";
+	ofs << "U\t" << "T\t" << "H\t" << "T_y\n";
 	ofs <<  fixed << setprecision(numeric_limits<long double>::digits10+1);
 	for (int i = 0; i < energySeries.size(); ){
-		for (int j = 0; j < 2; j++){
+		for (int j = 0; j < 3; j++){
 			ofs << energySeries[i] << '\t';
 			i++;
 		}

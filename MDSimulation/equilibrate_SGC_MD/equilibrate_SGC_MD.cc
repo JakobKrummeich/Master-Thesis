@@ -27,7 +27,7 @@ int main(int argc, char* argv[]){
 
 	Particles P(static_cast<int>(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES)*0.5), DENSITY, Temperature, 0.0, 0.0);
 
-	BussiThermostat BT(Temperature, ThermostatTime, DIMENSION*TOTAL_NUMBER_OF_PARTICLES);
+	BussiThermostat BT(Temperature, ThermostatTime, TOTAL_NUMBER_OF_PARTICLES);
 
 	vector<double> energySeries;
 
@@ -51,6 +51,7 @@ int main(int argc, char* argv[]){
 			energySeries.push_back(P.computePotentialEnergy());
 			energySeries.push_back(P.computeKineticEnergy());
 			energySeries.push_back(P.computeEnergy());
+			energySeries.push_back(P.computeKineticEnergyOfyCoordinates());
 		}
 	}
 
@@ -78,6 +79,7 @@ int main(int argc, char* argv[]){
 			energySeries.push_back(P.computePotentialEnergy());
 			energySeries.push_back(P.computeKineticEnergy());
 			energySeries.push_back(P.computeEnergy());
+			energySeries.push_back(P.computeKineticEnergyOfyCoordinates());
 		}
 	}
 

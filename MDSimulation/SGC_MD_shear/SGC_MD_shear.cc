@@ -57,7 +57,7 @@ int main(int argc, char* argv[]){
 	StressComputator SC(P,14,(numberOfDataTakingSweeps+numberOfEquilibrationSweeps)/ENERGY_UPDATE_INTERVAL,1);
 	PairCorrelationComputator PCC(200,5.0,sqrt(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES) / DENSITY));	
 
-	BussiThermostat BT(Temperature, ThermostatTime, DIMENSION*TOTAL_NUMBER_OF_PARTICLES);
+	BussiThermostat BT(Temperature, ThermostatTime, TOTAL_NUMBER_OF_PARTICLES);
 
 	vector<double> avgVelocities(DIMENSION*numberOfyValuesForVelocities, 0.0);
 	vector<double> energySeries;
@@ -84,6 +84,7 @@ int main(int argc, char* argv[]){
 			energySeries.push_back(P.computePotentialEnergy());
 			energySeries.push_back(P.computeKineticEnergy());
 			energySeries.push_back(P.computeEnergy());
+			energySeries.push_back(P.computeKineticEnergyOfyCoordinates());
 		}
 	}
 
@@ -115,6 +116,7 @@ int main(int argc, char* argv[]){
 			energySeries.push_back(P.computePotentialEnergy());
 			energySeries.push_back(P.computeKineticEnergy());
 			energySeries.push_back(P.computeEnergy());
+			energySeries.push_back(P.computeKineticEnergyOfyCoordinates());
 		}
 	}
 	PCC.computeImg22(P);
