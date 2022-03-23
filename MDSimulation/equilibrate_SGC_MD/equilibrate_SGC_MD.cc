@@ -51,6 +51,7 @@ int main(int argc, char* argv[]){
 			energySeries.push_back(P.computePotentialEnergy());
 			energySeries.push_back(P.computeKineticEnergy());
 			energySeries.push_back(P.computeEnergy());
+			energySeries.push_back(P.computeKineticEnergyOfyCoordinates());
 		}
 	}
 
@@ -78,6 +79,7 @@ int main(int argc, char* argv[]){
 			energySeries.push_back(P.computePotentialEnergy());
 			energySeries.push_back(P.computeKineticEnergy());
 			energySeries.push_back(P.computeEnergy());
+			energySeries.push_back(P.computeKineticEnergyOfyCoordinates());
 		}
 	}
 
