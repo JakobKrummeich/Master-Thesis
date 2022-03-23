@@ -1,7 +1,7 @@
 #!/bin/bash
 
 settings="#!/bin/bash
-#SBATCH --partition=phi
+#SBATCH --partition=normal,oip,phi
 #SBATCH --nodes=1-1
 #SBATCH --output=/dev/null
 #SBATCH --exclude=knightslanding02,knightslanding04
