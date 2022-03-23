@@ -83,7 +83,7 @@ int main(int argc, char* argv[]){
 		}
 	}
 
-	//this_thread::sleep_for(chrono::seconds(static_cast<int>(RNG.drawRandomNumber(0.0,600.0))));
+	this_thread::sleep_for(chrono::seconds(static_cast<int>(RNG.drawRandomNumber(0.0,600.0))));
 
 	writeEnergySeriesFile(outputDirectory, energySeries);
 	writeHistogramFile(outputDirectory, histogramNA, TOTAL_NUMBER_OF_PARTICLES);
