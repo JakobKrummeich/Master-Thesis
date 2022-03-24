@@ -5,9 +5,11 @@
 #include <cmath>
 #include <iostream>
 #include <string>
+#include <sstream>
 #include <fstream>
 
 #include "../value_pair.h"
+#include "../integration.h"
 
 using namespace std;
 
@@ -17,9 +19,11 @@ class EnergyAnalyzer{
 
 		vector<double> values;
 
+		int numberOfBins;
+
 		vector<ValuePair> energyDistribution;
 
-		vector<unsigned long> readInSeries(string FilePath, int numberOfEquilibrationValues){
+		void readInSeries(string FilePath, int numberOfEquilibrationValues, int columnIndex){
 			ifstream FileStreamToReadIn(FilePath);
 
 			string CurrentString;
@@ -30,82 +34,72 @@ class EnergyAnalyzer{
 			}
 
 			while (getline(FileStreamToReadIn, CurrentString)){
-				values.push_back(stod(CurrentString));
+				istringstream iss(CurrentString);
+				double newValue;
+				for (int i = 0; i <= columnIndex; i++){
+					iss >> newValue;
+				}
+				values.push_back(newValue);
+			}
+		}
+
+		static void writeDistributionToFile(string FileName, const vector<ValuePair>& Distribution, string firstColumnName) {
+			ofstream FileStreamToWriteTo(FileName);
+			FileStreamToWriteTo << fixed << setprecision(numeric_limits<long double>::digits10+1) << firstColumnName << "\tprobability_density\n";
+			for (unsigned long i = 0; i < Distribution.size(); i++){
+				FileStreamToWriteTo << Distribution[i].xValue << '\t' << Distribution[i].yValue << '\n';
 			}
 		}
 
 	public:
 
-		NAAnalyzer(unsigned long TotalNumberOfParticles):
-			TotalNumberOfParticles(TotalNumberOfParticles){
-			for (unsigned long i = 0; i <= TotalNumberOfParticles; i++){
-				NADistribution.emplace_back(static_cast<double>(i)/static_cast<double>(TotalNumberOfParticles), 0.0);
+		EnergyAnalyzer(int numberOfBins):
+			numberOfBins(numberOfBins)
+		{
+		}
+
+		void addNewSeries(string FileNameNASeries, int numberOfEquilibrationValues, int columnIndex){
+			readInSeries(FileNameNASeries, numberOfEquilibrationValues, columnIndex);
+		}
+
+		void writeProbabilityDistributionToFile(string FileName, string firstColumnName) const {
+			writeDistributionToFile(FileName, energyDistribution, firstColumnName);
+		}
+
+		void generateDistribution() {
+			double maxValue = values[0];
+			double minValue = values[0];
+			double averageValue = 0.0;
+			for (int i = 0; i < values.size(); i++){
+				if (values[i] > maxValue){
+					maxValue = values[i];
+				}
+				else if (values[i] < minValue){
+					minValue = values[i];
+				}
 			}
-		}
-
-		void addNewSeries(string FileNameNASeries){
-			vector<unsigned long> NewNASeries = readInSeries(FileNameNASeries);
-			updateHistogramWithNewSeries(NewNASeries);
-		}
-
-		void addNewHistogram(string fileName){
-			vector<unsigned long> newNAHistogram = readHistogram(fileName);
-			updateHistogramWithNewHistogram(newNAHistogram);
-		}
-
-		void normalizeNADistribution(){
-			normalizeDistribution(NADistribution);
-		}
-
-		void writeNAProbabilityDistributionToFile(string FileName) const {
-			writeDistributionToFile(FileName, NADistribution);
-		}
-
-		void computeAndWriteSymmetrizedNADistribution(string filename) const {
-			vector<ValuePair> symmetrizedDistribution = symmetrizeDistribution(NADistribution);
-			writeDistributionToFile(filename, symmetrizedDistribution);
-		}
-
-		double computeFirstMomentOfHalfDistribution() const {
-
-			vector<ValuePair> SymmetrizedDistribution = symmetrizeDistribution(NADistribution);
-			vector<ValuePair> HalfDistribution;
-
-			for (int i = 0; i < SymmetrizedDistribution.size()/2; i++){
-				HalfDistribution.push_back(SymmetrizedDistribution[i]);
+			double intervalWidth = (maxValue - minValue)/static_cast<double>(numberOfBins);
+			double currentx = 0.5*intervalWidth+minValue;
+			for (int i = 0; i < numberOfBins; i++, currentx+=intervalWidth){
+				energyDistribution.emplace_back(currentx,0.0);
 			}
-			if (SymmetrizedDistribution.size() % 2 != 0){
-				HalfDistribution.push_back(SymmetrizedDistribution[SymmetrizedDistribution.size()/2]);
+			for (int i = 0; i < values.size(); i++){
+				int index = static_cast<int>((values[i]-minValue)/intervalWidth);
+				if (index >= energyDistribution.size()){
+					index = energyDistribution.size() - 1;
+				}
+				energyDistribution[index].yValue++;
 			}
-			normalizeDistribution(HalfDistribution);
-			return computeFirstMoment(HalfDistribution);
+			normalizeDistribution(energyDistribution);
 		}
 
-		double computeBinderCumulant() const {
-
-			vector<ValuePair> SymmetrizedDistribution = symmetrizeDistribution(NADistribution);
-
-			double SecondCentralMoment = computeSecondCentralMoment(SymmetrizedDistribution, 0.5);
-			double FourthCentralMoment = computeFourthCentralMoment(SymmetrizedDistribution, 0.5);
-			return (1.0 - FourthCentralMoment/(SecondCentralMoment*SecondCentralMoment*3.0));
+		double computeFirstMomentOfDistribution() const {
+			return computeFirstMoment(energyDistribution);
 		}
 
-		double computeStructureFactor(bool RestrictToHalfDistribution) const {
-			vector<ValuePair> SymmetrizedDistribution = symmetrizeDistribution(NADistribution);
-			if (!RestrictToHalfDistribution){
-				return static_cast<double>(TotalNumberOfParticles)*(computeSecondCentralMoment(SymmetrizedDistribution, 0.5));
-			}
-
-			vector<ValuePair> HalfDistribution;
-			for (int i = 0; i < SymmetrizedDistribution.size()/2; i++){
-				HalfDistribution.push_back(SymmetrizedDistribution[i]);
-			}
-			if (SymmetrizedDistribution.size() % 2 != 0){
-				HalfDistribution.push_back(SymmetrizedDistribution[SymmetrizedDistribution.size()/2]);
-			}
-			normalizeDistribution(HalfDistribution);
-			double Mean = computeFirstMoment(HalfDistribution);
-			return static_cast<double>(TotalNumberOfParticles)*(computeSecondCentralMoment(HalfDistribution, Mean));
+		double computeSecondMoment() const {
+			double firstMoment = computeFirstMomentOfDistribution();
+			return computeSecondCentralMoment(energyDistribution, firstMoment);
 		}
 };
 
