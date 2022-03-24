@@ -1,91 +1,37 @@
-#ifndef NA_ANALYSIS_INCLUDED
-#define NA_ANALYSIS_INCLUDED
+#ifndef ENERGY_ANALYSIS_INCLUDED
+#define ENERGY_ANALYSIS_INCLUDED
 
 #include <vector>
 #include <cmath>
 #include <iostream>
-#include <iomanip>
-#include <limits>
 #include <string>
 #include <fstream>
 
 #include "../value_pair.h"
-#include "../integration.h"
 
 using namespace std;
 
-class NAAnalyzer{
+class EnergyAnalyzer{
 
 	private:
 
-		unsigned long TotalNumberOfParticles;
-		vector<ValuePair> NADistribution;
+		vector<double> values;
 
-		vector<unsigned long> readInSeries(string FilePath){
-			vector<unsigned long> Series;
+		vector<ValuePair> energyDistribution;
 
-			ifstream FileStreamToReadIn;
-			FileStreamToReadIn.open(FilePath);
+		vector<unsigned long> readInSeries(string FilePath, int numberOfEquilibrationValues){
+			ifstream FileStreamToReadIn(FilePath);
 
 			string CurrentString;
 			getline(FileStreamToReadIn, CurrentString);
 
+			for (int i = 0; i < numberOfEquilibrationValues; i++){
+				getline(FileStreamToReadIn, CurrentString);
+			}
+
 			while (getline(FileStreamToReadIn, CurrentString)){
-				Series.push_back(stoul(CurrentString));
+				values.push_back(stod(CurrentString));
 			}
-			return Series;
-		}
-
-		vector<unsigned long> readHistogram(string filePath){
-			vector<unsigned long> histogram(TotalNumberOfParticles);
-
-			ifstream fS;
-			fS.open(filePath);
-
-			string currentString;
-			getline(fS, currentString);
-
-			for (int i = 0; i <= TotalNumberOfParticles; i++){
-				fS >> currentString;
-				fS >> currentString;
-				histogram[i] = stoul(currentString);
-			}
-			return histogram;
-		}
-
-		void updateHistogramWithNewSeries(const vector<unsigned long>& NASeries){
-			for (unsigned long i = 0; i < NASeries.size(); i++){
-				NADistribution[NASeries[i]].yValue++;
-			}
-		}
-
-		void updateHistogramWithNewHistogram(const vector<unsigned long>& NAHistogram){
-			for (int i = 0; i <= TotalNumberOfParticles; i++){
-				NADistribution[i].yValue += static_cast<double>(NAHistogram[i]);
-			}
-		}
-
-		static void writeDistributionToFile(string FileName, const vector<ValuePair>& Distribution) {
-			ofstream FileStreamToWriteTo;
-			FileStreamToWriteTo.open(FileName);
-			FileStreamToWriteTo << fixed << setprecision(numeric_limits<long double>::digits10+1) << "xA\tprobability_density\n";
-			for (unsigned long i = 0; i < Distribution.size(); i++){
-				FileStreamToWriteTo << Distribution[i].xValue << '\t' << Distribution[i].yValue << '\n';
-			}
-			FileStreamToWriteTo.close();
-		}
-
-		static vector<ValuePair> symmetrizeDistribution(const vector<ValuePair>& Distribution) {
-			vector<ValuePair> SymmetrizedDistribution(Distribution);
-			for (unsigned long i = 0; i < SymmetrizedDistribution.size()/2; i++){
-				SymmetrizedDistribution[i].yValue += SymmetrizedDistribution[SymmetrizedDistribution.size()-1-i].yValue;
-				SymmetrizedDistribution[SymmetrizedDistribution.size()-1-i].yValue = SymmetrizedDistribution[i].yValue;
-			}
-			if (SymmetrizedDistribution.size() % 2 != 0){
-				SymmetrizedDistribution[SymmetrizedDistribution.size()/2].yValue *= 2.0;
-			}
-			normalizeDistribution(SymmetrizedDistribution);
-			return SymmetrizedDistribution;
 		}
 
 	public:
@@ -163,4 +109,4 @@ class NAAnalyzer{
 		}
 };
 
-#endif /* NA_ANALYSIS_INCLUDED */
+#endif /* ENERGY_ANALYSIS_INCLUDED */
