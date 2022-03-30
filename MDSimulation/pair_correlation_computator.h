@@ -97,16 +97,28 @@ class PairCorrelationComputator {
 			}
 		}
 
-		void writeResults(string filePath) const {
+		bool writeResults(string filePath) const {
 			ofstream ofs(filePath+"Img22.dat");
 
-			ofs << "r [sigma]\tImg22AA\tImg22BB\tImg22AB\n";
-			double r = deltar*0.5;
-			double inverseNumberOfAverages = 1.0/(static_cast<double>(numberOfAveragedPositions));
-			for (int i = 0; i < numberOfValues; i++){
-				ofs << r*boxLength << '\t' << img22AA[i]*inverseNumberOfAverages << '\t' << img22BB[i]*inverseNumberOfAverages << '\t' << img22AB[i]*inverseNumberOfAverages << '\n';
-				r += deltar;
+			if (ofs.is_open()){
+				ofs << "r [sigma]\tImg22AA\tImg22BB\tImg22AB\n";
+				if (!ofs.good()){
+					return false;
+				}
+				double r = deltar*0.5;
+				double inverseNumberOfAverages = 1.0/(static_cast<double>(numberOfAveragedPositions));
+				for (int i = 0; i < numberOfValues; i++){
+					ofs << r*boxLength << '\t' << img22AA[i]*inverseNumberOfAverages << '\t' << img22BB[i]*inverseNumberOfAverages << '\t' << img22AB[i]*inverseNumberOfAverages << '\n';
+					if (!ofs.good()){
+						return false;
+					}
+					r += deltar;
+				}
 			}
+			else {
+				return false;
+			}
+			return true;
 		}
 };
 

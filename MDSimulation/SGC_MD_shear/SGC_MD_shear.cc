@@ -9,22 +9,40 @@
 #include "../pair_correlation_computator.h"
 #include "../thermostat.h"
 
-void writeAvgVelocityFile(string outputDirectory, const vector<double>& avgVelocities, int numberOfDataTakingSweeps, double boxLength, int numberOfyValuesForVelocities){
+bool writeAvgVelocityFile(string outputDirectory, const vector<double>& avgVelocities, int numberOfDataTakingSweeps, double boxLength, int numberOfyValuesForVelocities){
 	ofstream ofs(outputDirectory + "avgVelocities.dat");
 
-	double yDelta = 1.0/static_cast<double>(numberOfyValuesForVelocities);
-	double Currenty = yDelta*0.5;
-	for (int i = 0; i < numberOfyValuesForVelocities-1; i++){
-		ofs << Currenty*boxLength << '\t';
-		Currenty += yDelta;
-	}
-	ofs << Currenty*boxLength << '\n';
-	for (int i = 0; i < DIMENSION; i++){
-		for (int j = 0; j < numberOfyValuesForVelocities-1; j++){
-			ofs << avgVelocities[numberOfyValuesForVelocities*i+j]*boxLength/(static_cast<double>(numberOfDataTakingSweeps)) << '\t';
+	if (ofs.is_open()){
+		double yDelta = 1.0/static_cast<double>(numberOfyValuesForVelocities);
+		double Currenty = yDelta*0.5;
+		for (int i = 0; i < numberOfyValuesForVelocities-1; i++){
+			ofs << Currenty*boxLength << '\t';
+			if (!ofs.good()){
+				return false;
+			}
+			Currenty += yDelta;
 		}
-		ofs << avgVelocities[numberOfyValuesForVelocities*i+numberOfyValuesForVelocities-1]*boxLength/(static_cast<double>(numberOfDataTakingSweeps)) << '\n';
+		ofs << Currenty*boxLength << '\n';
+		if (!ofs.good()){
+			return false;
+		}
+		for (int i = 0; i < DIMENSION; i++){
+			for (int j = 0; j < numberOfyValuesForVelocities-1; j++){
+				ofs << avgVelocities[numberOfyValuesForVelocities*i+j]*boxLength/(static_cast<double>(numberOfDataTakingSweeps)) << '\t';
+				if (!ofs.good()){
+					return false;
+				}
+			}
+			ofs << avgVelocities[numberOfyValuesForVelocities*i+numberOfyValuesForVelocities-1]*boxLength/(static_cast<double>(numberOfDataTakingSweeps)) << '\n';
+			if (!ofs.good()){
+				return false;
+			}
+		}
 	}
+	else {
+		return false;
+	}
+	return true;
 }
 
 using namespace std;
@@ -46,7 +64,7 @@ int main(int argc, char* argv[]){
 
 	const double Beta = 1.0/Temperature;
 
-	const double ThermostatTime = 1.0;
+	const double ThermostatTime = 0.001;
 
 
 	realUniformRNG RNG;
@@ -123,13 +141,29 @@ int main(int argc, char* argv[]){
 
 	this_thread::sleep_for(chrono::seconds(static_cast<int>(RNG.drawRandomNumber(0.0,600.0))));
 
-	PCC.writeResults(outputDirectory);
-	writeAvgVelocityFile(outputDirectory, avgVelocities, numberOfDataTakingSweeps, P.getBoxLength(), numberOfyValuesForVelocities);
-	writeEnergySeriesFile(outputDirectory, energySeries);
-	writeHistogramFile(outputDirectory, histogramNA, TOTAL_NUMBER_OF_PARTICLES);
-	writeFinalStateFile(outputDirectory, P);
-	SC.writeAverageStresses(outputDirectory + "avgStresses");
+	while (!PCC.writeResults(outputDirectory)){
+		this_thread::sleep_for(chrono::seconds(static_cast<int>(RNG.drawRandomNumber(0.0,10.0))));
+	}
 
+	while (!writeAvgVelocityFile(outputDirectory, avgVelocities, numberOfDataTakingSweeps, P.getBoxLength(), numberOfyValuesForVelocities)){
+		this_thread::sleep_for(chrono::seconds(static_cast<int>(RNG.drawRandomNumber(0.0,10.0))));
+	}
+
+	while (!writeEnergySeriesFile(outputDirectory, energySeries)){
+		this_thread::sleep_for(chrono::seconds(static_cast<int>(RNG.drawRandomNumber(0.0,10.0))));
+	}
+
+	while (!writeHistogramFile(outputDirectory, histogramNA, TOTAL_NUMBER_OF_PARTICLES)){
+		this_thread::sleep_for(chrono::seconds(static_cast<int>(RNG.drawRandomNumber(0.0,10.0))));
+	}
+
+	while (!writeFinalStateFile(outputDirectory, P)){
+		this_thread::sleep_for(chrono::seconds(static_cast<int>(RNG.drawRandomNumber(0.0,10.0))));
+	}
+
+	while (!SC.writeAverageStresses(outputDirectory + "avgStresses")){
+		this_thread::sleep_for(chrono::seconds(static_cast<int>(RNG.drawRandomNumber(0.0,10.0))));
+	}
 
 	cerr << "#VerletListBuilds: " << P.getNumberOfVerletListBuilds() << endl;
 	cerr << "Computation time: " << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now()-StartTime).count() << " s for " << numberOfDataTakingSweeps+numberOfEquilibrationSweeps << " MCSweeps." <<  endl << endl;

@@ -402,35 +402,63 @@ class StressComputator {
 			seriesOfAvgShearStresses[TimeStep] += currentTotalShearStress;
 		}
 
-		void writeAverageStresses(string FilePath) const {
+		bool writeAverageStresses(string FilePath) const {
 
 			{
 				ofstream ofs(FilePath+"_yEdges.dat");
 
-				ofs << "y stresses (i.e. stresses through edges in y direction)" << endl;
-				ofs << "xPos\tlowery\tuppery\tnormal_stress\ttangential_stress" << endl;
-				for (int yEdgeIndex = 0; yEdgeIndex < NumberOfSubdivisions; yEdgeIndex++){
-					double LoweryOfEdge = static_cast<double>(yEdgeIndex)*DimensionlessEdgeLength;
-					double UpperyOfEdge = static_cast<double>(yEdgeIndex+1)*DimensionlessEdgeLength;
-					for (int xEdgeIndex = 0; xEdgeIndex < NumberOfSubdivisions; xEdgeIndex++){
-						double xPositionOfEdge = static_cast<double>(xEdgeIndex+1)*DimensionlessEdgeLength;
-						ofs << xPositionOfEdge << "\t" << LoweryOfEdge << "\t" << UpperyOfEdge << "\t" << StressOfEdgesInyDirection[DIMENSION*(xEdgeIndex+NumberOfSubdivisions*yEdgeIndex)]/(static_cast<double>(NumberOfAverages)*EdgeLength) << "\t" << StressOfEdgesInyDirection[DIMENSION*(xEdgeIndex+NumberOfSubdivisions*yEdgeIndex)+1]/(static_cast<double>(NumberOfAverages)*EdgeLength) << endl;
+				if (ofs.is_open()){
+					ofs << "y stresses (i.e. stresses through edges in y direction)\n";
+					if (!ofs.good()){
+						return false;
 					}
+					ofs << "xPos\tlowery\tuppery\tnormal_stress\ttangential_stress\n";
+					if (!ofs.good()){
+						return false;
+					}
+					for (int yEdgeIndex = 0; yEdgeIndex < NumberOfSubdivisions; yEdgeIndex++){
+						double LoweryOfEdge = static_cast<double>(yEdgeIndex)*DimensionlessEdgeLength;
+						double UpperyOfEdge = static_cast<double>(yEdgeIndex+1)*DimensionlessEdgeLength;
+						for (int xEdgeIndex = 0; xEdgeIndex < NumberOfSubdivisions; xEdgeIndex++){
+							double xPositionOfEdge = static_cast<double>(xEdgeIndex+1)*DimensionlessEdgeLength;
+							ofs << xPositionOfEdge << '\t' << LoweryOfEdge << '\t' << UpperyOfEdge << '\t' << StressOfEdgesInyDirection[DIMENSION*(xEdgeIndex+NumberOfSubdivisions*yEdgeIndex)]/(static_cast<double>(NumberOfAverages)*EdgeLength) << '\t' << StressOfEdgesInyDirection[DIMENSION*(xEdgeIndex+NumberOfSubdivisions*yEdgeIndex)+1]/(static_cast<double>(NumberOfAverages)*EdgeLength) << '\n';
+							if (!ofs.good()){
+								return false;
+							}
+						}
+					}
+				}
+				else {
+					return false;
 				}
 			}
 
 			{
 				ofstream ofs(FilePath+"_xEdges.dat");
 
-				ofs << "x stresses (i.e. stresses through edges in x direction)" << endl;
-				ofs << "yPos\tlowerx\tupperx\tnormal_stress\ttangential_stress" << endl;
-				for (int xEdgeIndex = 0; xEdgeIndex < NumberOfSubdivisions; xEdgeIndex++){
-					double LowerxOfEdge = static_cast<double>(xEdgeIndex)*DimensionlessEdgeLength;
-					double UpperxOfEdge = static_cast<double>(xEdgeIndex+1)*DimensionlessEdgeLength;
-					for (int yEdgeIndex = 0; yEdgeIndex < NumberOfSubdivisions; yEdgeIndex++){
-						double yPositionOfEdge = static_cast<double>(yEdgeIndex+1)*DimensionlessEdgeLength;
-						ofs << yPositionOfEdge << "\t" << LowerxOfEdge << "\t" << UpperxOfEdge << "\t" << StressOfEdgesInxDirection[DIMENSION*(xEdgeIndex+NumberOfSubdivisions*yEdgeIndex)]/(static_cast<double>(NumberOfAverages)*EdgeLength) << "\t" << StressOfEdgesInxDirection[DIMENSION*(xEdgeIndex+NumberOfSubdivisions*yEdgeIndex)+1]/(static_cast<double>(NumberOfAverages)*EdgeLength) << endl;
+				if (ofs.is_open()){
+					ofs << "x stresses (i.e. stresses through edges in x direction)\n";
+					if (!ofs.good()){
+						return false;
 					}
+					ofs << "yPos\tlowerx\tupperx\tnormal_stress\ttangential_stress\n";
+					if (!ofs.good()){
+						return false;
+					}
+					for (int xEdgeIndex = 0; xEdgeIndex < NumberOfSubdivisions; xEdgeIndex++){
+						double LowerxOfEdge = static_cast<double>(xEdgeIndex)*DimensionlessEdgeLength;
+						double UpperxOfEdge = static_cast<double>(xEdgeIndex+1)*DimensionlessEdgeLength;
+						for (int yEdgeIndex = 0; yEdgeIndex < NumberOfSubdivisions; yEdgeIndex++){
+							double yPositionOfEdge = static_cast<double>(yEdgeIndex+1)*DimensionlessEdgeLength;
+							ofs << yPositionOfEdge << '\t' << LowerxOfEdge << '\t' << UpperxOfEdge << '\t' << StressOfEdgesInxDirection[DIMENSION*(xEdgeIndex+NumberOfSubdivisions*yEdgeIndex)]/(static_cast<double>(NumberOfAverages)*EdgeLength) << '\t' << StressOfEdgesInxDirection[DIMENSION*(xEdgeIndex+NumberOfSubdivisions*yEdgeIndex)+1]/(static_cast<double>(NumberOfAverages)*EdgeLength) << '\n';
+							if (!ofs.good()){
+								return false;
+							}
+						}
+					}
+				}
+				else {
+					return false;
 				}
 			}
 
@@ -438,11 +466,22 @@ class StressComputator {
 			{
 				ofstream ofs(FilePath+"_ShearStressSeries.dat");
 
-				ofs << "avg shear stresses series" << endl;
-				for (int i = 0; i < seriesOfAvgShearStresses.size(); i++){
-					double avgShearStressThisTimeStep = seriesOfAvgShearStresses[i]/static_cast<double>(NumberOfConfigurations);
-					ofs << avgShearStressThisTimeStep << '\n';
-					avgShearStressTotal += avgShearStressThisTimeStep;
+				if (ofs.is_open()){
+					ofs << "avg shear stresses series\n";
+					if (!ofs.good()){
+						return false;
+					}
+					for (int i = 0; i < seriesOfAvgShearStresses.size(); i++){
+						double avgShearStressThisTimeStep = seriesOfAvgShearStresses[i]/static_cast<double>(NumberOfConfigurations);
+						ofs << avgShearStressThisTimeStep << '\n';
+						if (!ofs.good()){
+							return false;
+						}
+						avgShearStressTotal += avgShearStressThisTimeStep;
+					}
+				}
+				else {
+					return false;
 				}
 			}
 
@@ -471,6 +510,7 @@ class StressComputator {
 			cerr << endl;
 
 			cerr << "Avg shear stress total=" << avgShearStressTotal/(static_cast<double>(seriesOfAvgShearStresses.size())) << endl;
+			return true;
 		}
 };
 

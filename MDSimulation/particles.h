@@ -939,34 +939,72 @@ ostream& operator<<(ostream& OStream, const Particles& State){
 	return OStream;
 }
 
-void writeFinalStateFile(string outputDirectory, const Particles& P){
+bool writeFinalStateFile(string outputDirectory, const Particles& P){
 	ofstream ofs(outputDirectory + "N=" + to_string(TOTAL_NUMBER_OF_PARTICLES) + "_final_state.dat");
 
-	ofs << P;
+	if (ofs.is_open()){
+		ofs << P;
+		if (!ofs.good()){
+			return false;
+		}
+	}
+	else {
+		return false;
+	}
+	return true;
 }
 
-void writeEnergySeriesFile(string outputDirectory, const vector<double>& energySeries){
+bool writeEnergySeriesFile(string outputDirectory, const vector<double>& energySeries){
 	ofstream ofs(outputDirectory + "energySeries.dat");
 
-	ofs << "U\t" << "T\t" << "H\t" << "T_y\n";
-	ofs <<  fixed << setprecision(numeric_limits<long double>::digits10+1);
-	for (int i = 0; i < energySeries.size(); ){
-		for (int j = 0; j < 3; j++){
-			ofs << energySeries[i] << '\t';
+	if (ofs.is_open()){
+		ofs << "U\t" << "T\t" << "H\t" << "T_y\n";
+		if (!ofs.good()){
+			return false;
+		}
+		ofs <<  fixed << setprecision(numeric_limits<long double>::digits10+1);
+		for (int i = 0; i < energySeries.size(); ){
+			for (int j = 0; j < 3; j++){
+				ofs << energySeries[i] << '\t';
+				if (!ofs.good()){
+					return false;
+				}
+
+				i++;
+			}
+			ofs << energySeries[i] << '\n';
+			if (!ofs.good()){
+				return false;
+			}
+
 			i++;
 		}
-		ofs << energySeries[i] << '\n';
-		i++;
 	}
+	else {
+		return false;
+	}
+	return true;
 }
 
-void writeHistogramFile(string outputDirectory, const uint32_t* histogramNA, const uint32_t TOTAL_NUMBER_OF_PARTICLES){
+bool writeHistogramFile(string outputDirectory, const uint32_t* histogramNA, const uint32_t TOTAL_NUMBER_OF_PARTICLES){
 	ofstream ofs(outputDirectory + "histogram_NA.dat");
 
-	ofs << "NA\t" << "#of appearances\n";
-	for (int i = 0; i <= TOTAL_NUMBER_OF_PARTICLES; i++) {
-		ofs << i << '\t' << histogramNA[i] << '\n';
+	if (ofs.is_open()){
+		ofs << "NA\t" << "#of appearances\n";
+		if (!ofs.good()){
+			return false;
+		}
+		for (int i = 0; i <= TOTAL_NUMBER_OF_PARTICLES; i++) {
+			ofs << i << '\t' << histogramNA[i] << '\n';
+			if (!ofs.good()){
+				return false;
+			}
+		}
 	}
+	else {
+		return false;
+	}
+	return true;
 }
 
 #endif //PARTICLES_INCLUDED
