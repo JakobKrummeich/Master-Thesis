@@ -36,16 +36,6 @@ for dir in ${initStateDirectory}*/ ; do
 
 done
 
-settings="#!/bin/bash
-#SBATCH --ntasks=1
-#SBATCH --partition=normal,oip
-#SBATCH --nodes=1
-#SBATCH --output=/dev/null
-#SBATCH --error=/dev/null
-#SBATCH --ntasks-per-core=1
-#SBATCH --mem-per-cpu=800mb
-#SBATCH --workdir=/home1/krummeich/Master-Thesis/code/MDSimulation/SGC_MD_shear"
-
 
 for dir in ${initStateDirectory}*/ ; do
 
@@ -60,7 +50,18 @@ for dir in ${initStateDirectory}*/ ; do
 
 			srun_command="srun --ntasks=1 ./SGC_MD_shear_N=${numberOfParticles} ${temperature} ${shearRate} ${initialStateFile} ${result_directory} ${numberOfEquilibrationSweeps} ${numberOfDataTakingSweeps} ${stepsize} &
 
-		wait"
+wait"
+
+			settings="#!/bin/bash
+#SBATCH --ntasks=1
+#SBATCH --partition=normal,oip
+#SBATCH --nodes=1
+#SBATCH --output=${result_directory}/slurm-%j.out
+#SBATCH --error=${result_directory}/slurm-%j.err
+#SBATCH --ntasks-per-core=1
+#SBATCH --mem-per-cpu=800mb
+#SBATCH --exclude=broadwell09,broadwell47
+#SBATCH --workdir=/home1/krummeich/Master-Thesis/code/MDSimulation/SGC_MD_shear"
 
 			submit_filename="SGC_MD_shear_N=${numberOfParticles}_T=${temperature}_shearRate=${shearRate}_${runNumber}.sh"
 			echo "$settings" > ${submit_filename}
