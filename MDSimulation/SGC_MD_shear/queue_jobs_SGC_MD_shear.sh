@@ -15,11 +15,11 @@ numberOfEquilibrationSweeps=$4
 numberOfDataTakingSweeps=$5
 stepsize=$6
 numberOfParticles=$7
+targetpath=$8
 
+targetpath="${targetpath}/N=${numberOfParticles}/T=${temperature}" # relative to root directory of repository
 
-targetpath="data/MDSimulations/SGC_MD_shear/N=${numberOfParticles}/T=${temperature}" # relative to root directory of repository
-
-newDirectory="../../../${targetpath}"
+newDirectory="${targetpath}"
 make_directory_if_necessary newDirectory
 newDirectory+="/shearRate=${shearRate}"
 make_directory_if_necessary newDirectory
@@ -29,7 +29,7 @@ make_directory_if_necessary newDirectory
 
 for dir in ${initStateDirectory}*/ ; do
 
-	[[ ${dir} =~ T=[[:digit:]]*.[[:digit:]]*/singleRunData/([[:digit:]]*)/ ]] && runNumber="${BASH_REMATCH[1]}"
+	[[ ${dir} =~ /singleRunData/([[:digit:]]*)/ ]] && runNumber="${BASH_REMATCH[1]}"
 
 	result_directory="${newDirectory}/${runNumber}/"
 	make_directory_if_necessary result_directory
@@ -39,7 +39,7 @@ done
 
 for dir in ${initStateDirectory}*/ ; do
 
-	[[ ${dir} =~ T=[[:digit:]]*.[[:digit:]]*/singleRunData/([[:digit:]]*)/ ]] && runNumber="${BASH_REMATCH[1]}"
+	[[ ${dir} =~ /singleRunData/([[:digit:]]*)/ ]] && runNumber="${BASH_REMATCH[1]}"
 
 	result_directory="${newDirectory}/${runNumber}/"
 
