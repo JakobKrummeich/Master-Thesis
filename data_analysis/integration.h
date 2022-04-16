@@ -5,6 +5,7 @@
 #include <fstream>
 #include <limits>
 #include <iomanip>
+#include <cmath>
 #include "value_pair.h"
 
 using namespace std;
@@ -24,6 +25,14 @@ double computeFirstMoment(const vector<ValuePair>& Distribution) {
 		FirstMomentDistribution[i].yValue = Distribution[i].yValue * Distribution[i].xValue;
 	}
 	return computeIntegral(FirstMomentDistribution);
+}
+
+double computeOrderParameter(const vector<ValuePair>& Distribution) {
+	vector<ValuePair> orderParameterDistribution(Distribution);
+	for (int i = 0; i < Distribution.size(); i++){
+		orderParameterDistribution[i].yValue = Distribution[i].yValue * abs(Distribution[i].xValue - 0.5);
+	}
+	return computeIntegral(orderParameterDistribution);
 }
 
 double computeSecondCentralMoment(const vector<ValuePair>& Distribution, double Mean) {

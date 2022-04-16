@@ -5,6 +5,10 @@ struct ValuePair {
 	double xValue;
 	double yValue;
 
+	ValuePair()
+	{
+	}
+
 	ValuePair(double xValue, double yValue):
 		xValue(xValue),
 		yValue(yValue){

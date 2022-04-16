@@ -19,7 +19,6 @@ class NAAnalyzer{
 	private:
 
 		unsigned long TotalNumberOfParticles;
-		vector<ValuePair> NADistribution;
 
 		vector<unsigned long> readInSeries(string FilePath){
 			vector<unsigned long> Series;
@@ -90,10 +89,28 @@ class NAAnalyzer{
 
 	public:
 
+		vector<ValuePair> NADistribution;
+
 		NAAnalyzer(unsigned long TotalNumberOfParticles):
 			TotalNumberOfParticles(TotalNumberOfParticles){
 			for (unsigned long i = 0; i <= TotalNumberOfParticles; i++){
 				NADistribution.emplace_back(static_cast<double>(i)/static_cast<double>(TotalNumberOfParticles), 0.0);
+			}
+		}
+
+		void readDistribution(string path){
+			NADistribution.clear();
+
+			ifstream fs(path);
+
+			string s;
+			getline(fs, s);
+
+			ValuePair vp;
+
+			while(fs >> vp.xValue){
+				fs >> vp.yValue;
+				NADistribution.push_back(vp);
 			}
 		}
 

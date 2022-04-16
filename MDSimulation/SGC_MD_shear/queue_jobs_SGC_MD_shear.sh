@@ -16,6 +16,7 @@ numberOfDataTakingSweeps=$5
 stepsize=$6
 numberOfParticles=$7
 targetpath=$8
+maxNumber=$9
 
 targetpath="${targetpath}/N=${numberOfParticles}/T=${temperature}" # relative to root directory of repository
 
@@ -26,7 +27,7 @@ make_directory_if_necessary newDirectory
 newDirectory+="/singleRunData"
 make_directory_if_necessary newDirectory
 
-
+count=0
 for dir in ${initStateDirectory}*/ ; do
 
 	[[ ${dir} =~ /singleRunData/([[:digit:]]*)/ ]] && runNumber="${BASH_REMATCH[1]}"
@@ -34,9 +35,14 @@ for dir in ${initStateDirectory}*/ ; do
 	result_directory="${newDirectory}/${runNumber}/"
 	make_directory_if_necessary result_directory
 
+	count+=1
+	if [ "$count" -ge "$maxNumber" ]; then
+		break
+	fi
+
 done
 
-
+count=0
 for dir in ${initStateDirectory}*/ ; do
 
 	[[ ${dir} =~ /singleRunData/([[:digit:]]*)/ ]] && runNumber="${BASH_REMATCH[1]}"
@@ -72,6 +78,11 @@ wait"
 			rm ${submit_filename}
 
 		fi
+	fi
+
+	count+=1
+	if [ "$count" -ge "$maxNumber" ]; then
+		break
 	fi
 
 done
