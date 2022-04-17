@@ -36,7 +36,6 @@ for dir in ${initStateDirectory}*/ ; do
 	make_directory_if_necessary result_directory
 
 	(( count+=1 ))
-	echo $count
 	if [ "$count" -ge "$maxNumber" ]; then
 		break
 	fi
