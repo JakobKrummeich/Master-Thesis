@@ -35,7 +35,8 @@ for dir in ${initStateDirectory}*/ ; do
 	result_directory="${newDirectory}/${runNumber}/"
 	make_directory_if_necessary result_directory
 
-	count+=1
+	(( count+=1 ))
+	echo $count
 	if [ "$count" -ge "$maxNumber" ]; then
 		break
 	fi
@@ -80,7 +81,7 @@ wait"
 		fi
 	fi
 
-	count+=1
+	(( count+=1 ))
 	if [ "$count" -ge "$maxNumber" ]; then
 		break
 	fi
