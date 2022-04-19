@@ -36,10 +36,12 @@ class NAAnalyzer{
 		}
 
 		vector<unsigned long> readHistogram(string filePath){
-			vector<unsigned long> histogram(TotalNumberOfParticles);
+			vector<unsigned long> histogram(TotalNumberOfParticles,0);
 
-			ifstream fS;
-			fS.open(filePath);
+			ifstream fS(filePath);
+			if (!fS.is_open()){
+				return histogram;
+			}
 
 			string currentString;
 			getline(fS, currentString);
