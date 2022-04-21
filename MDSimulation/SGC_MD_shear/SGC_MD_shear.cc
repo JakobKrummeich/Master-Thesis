@@ -72,7 +72,7 @@ int main(int argc, char* argv[]){
 	Particles P(shearRate);
 	P.readInParticleState(initialStateFile, 0, 0, DENSITY);
 
-	StressComputator SC(P,14,(numberOfDataTakingSweeps+numberOfEquilibrationSweeps)/ENERGY_UPDATE_INTERVAL,1);
+	StressComputator SC(P,14,numberOfDataTakingSweeps/ENERGY_UPDATE_INTERVAL,1);
 	PairCorrelationComputator PCC(200,5.0,sqrt(static_cast<double>(TOTAL_NUMBER_OF_PARTICLES) / DENSITY));	
 
 	BussiThermostat BT(Temperature, ThermostatTime, TOTAL_NUMBER_OF_PARTICLES);
@@ -82,8 +82,6 @@ int main(int argc, char* argv[]){
 
 	const auto StartTime = chrono::steady_clock::now();
 	int nextEnergyComputation = ENERGY_UPDATE_INTERVAL;
-
-	SC.computeStresses(0);
 
 	cerr << "Equilibration started.\n";
 	for (int StepNumber = 0; StepNumber < numberOfEquilibrationSweeps; StepNumber++){
@@ -96,7 +94,6 @@ int main(int argc, char* argv[]){
 		}
 
 		if (StepNumber == nextEnergyComputation){
-			SC.computeStresses(StepNumber/ENERGY_UPDATE_INTERVAL);
 			nextEnergyComputation += ENERGY_UPDATE_INTERVAL;
 
 			energySeries.push_back(P.computePotentialEnergy());
@@ -106,7 +103,7 @@ int main(int argc, char* argv[]){
 		}
 	}
 
-	SC.computeStresses(numberOfEquilibrationSweeps/ENERGY_UPDATE_INTERVAL);
+	SC.computeStresses(0);
 
 	cerr << "Data taking started.\n";
 
@@ -121,14 +118,14 @@ int main(int argc, char* argv[]){
 
 		for (int typeChangeCounter = 0; typeChangeCounter < numberOfAttemptedTypeSwitches; typeChangeCounter++){
 			P.runTypeChange(RNG, 0, TOTAL_NUMBER_OF_PARTICLES, Beta);
+			int numberOfAParticles = P.getNumberOfAParticles();
+			histogramNA[numberOfAParticles]++;
 		}
-		int numberOfAParticles = P.getNumberOfAParticles();
-		histogramNA[numberOfAParticles]++;
 
 		P.updateAverageVelocities(avgVelocities, numberOfyValuesForVelocities);
 
 		if (StepNumber == nextEnergyComputation){
-			SC.computeStresses((StepNumber+numberOfEquilibrationSweeps)/ENERGY_UPDATE_INTERVAL);
+			SC.computeStresses(StepNumber/ENERGY_UPDATE_INTERVAL);
 			nextEnergyComputation += ENERGY_UPDATE_INTERVAL;
 
 			energySeries.push_back(P.computePotentialEnergy());
