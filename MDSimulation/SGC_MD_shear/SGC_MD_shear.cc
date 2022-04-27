@@ -1,5 +1,6 @@
 #include <iostream>
 #include <stdlib.h>
+#include <iomanip>
 #include <string>
 #include <chrono>
 #include <thread>
@@ -9,10 +10,13 @@
 #include "../pair_correlation_computator.h"
 #include "../thermostat.h"
 
+using namespace std;
+
 bool writeAvgVelocityFile(string outputDirectory, const vector<double>& avgVelocities, int numberOfDataTakingSweeps, double boxLength, int numberOfyValuesForVelocities){
 	ofstream ofs(outputDirectory + "avgVelocities.dat");
 
 	if (ofs.is_open()){
+		ofs << fixed << setprecision(numeric_limits<long double>::digits10+1);
 		double yDelta = 1.0/static_cast<double>(numberOfyValuesForVelocities);
 		double Currenty = yDelta*0.5;
 		for (int i = 0; i < numberOfyValuesForVelocities-1; i++){
@@ -44,8 +48,6 @@ bool writeAvgVelocityFile(string outputDirectory, const vector<double>& avgVeloc
 	}
 	return true;
 }
-
-using namespace std;
 
 int main(int argc, char* argv[]){
 	const double Temperature = stod(argv[1]);

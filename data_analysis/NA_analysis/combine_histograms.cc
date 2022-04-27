@@ -36,6 +36,6 @@ int main(int argc, char* argv[]){
 
 	double FirstMoment = Analyzer.computeFirstMomentOfHalfDistribution();
 	double BinderCumulant = Analyzer.computeBinderCumulant();
-	cout << FirstMoment << '\t' << BinderCumulant;
+	cout << fixed << setprecision(numeric_limits<long double>::digits10+1) << FirstMoment << '\t' << BinderCumulant;
 }
 
